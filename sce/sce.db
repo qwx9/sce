@@ -1,0 +1,20 @@
+resource,supply,200
+resource,minerals,50
+resource,vespene gas,0
+terrain,dirt1,
+terrain,dirt2,
+terrain,dirt3,
+terrain,dirt4,
+terrain,dirt5,
+terrain,dirt6,
+terrain,dirt7,
+terrain,dirt8,
+terrain,dirt9,
+terrain,dirt10,
+attack,fusion cutter,5,1,15
+attack,spines,5,1,22
+obj,scv,3,1,1,60,0,5,7,1,50,0,20,fusion cutter,
+obj,drone,1,1,1,40,0,5,7,1,50,0,20,spines,
+obj,control,8,4,3,1500,1,0,1,10,400,0,1800,,
+obj,hatchery,8,4,3,1250,1,0,1,10,300,0,1800,,
+spawn,control,scv

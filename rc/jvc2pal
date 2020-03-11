@@ -1,0 +1,9 @@
+#!/bin/rc
+awk '
+NR==3{
+	print "pal 256"
+}
+NR>3{
+	x = $1*65536 + $2*256 + $3
+	printf "0x%06x\n", x
+}' $*

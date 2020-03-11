@@ -1,0 +1,15 @@
+#!/bin/rc
+if(! ~ $#* 3){
+	echo usage: $0 x y tile >[1=2]
+	exit usage
+}
+awk -v 'x='$1 -v 'y='$2 -v 't='$3 '
+BEGIN{
+	srand()
+	n = int(x) * int(y)
+	while(n-- > 0){
+		v = 1 + rand() * 1000000 % 10
+		print "map=" t int(v)
+	}
+}
+'
