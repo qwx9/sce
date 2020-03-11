@@ -74,60 +74,62 @@ select(Point p, int b)
 	}
 }
 
+static int
+boundpic(Rectangle *r)
+{
+	r->min.x -= pan.x / scale;
+	r->min.y -= pan.y / scale;
+	if(r->min.x + r->max.x < 0 || r->min.x >= fbw / scale
+	|| r->min.y + r->max.y < 0 || r->min.y >= fbh)
+		return -1;
+	if(r->min.x < 0){
+		r->max.x += r->min.x;
+		r->min.x = 0;
+	}else if(r->min.x + r->max.x > fbw / scale)
+		r->max.x = fbw / scale - r->min.x;
+	if(r->min.y < 0){
+		r->max.y += r->min.y;
+		r->min.y = 0;
+	}else if(r->min.y + r->max.y > fbh)
+		r->max.y = fbh - r->min.y;
+	r->min.x *= scale;
+	r->max.x *= scale;
+	return 0;
+}
+
 static void
 drawpic(int x, int y, Pic *pic)
 {
-	int n, k, w, pw, s, off;
-	u32int v, *pp, *ip;
+	int n, w, Δp, Δq;
+	u32int v, *p, *q;
+	Rectangle r;
 
-	/* FIXME: naming here sucks and is very confusing */
-	off = 0;
-	ip = pic->p;
-	pw = pic->w;
-	n = pic->h;
-	x -= pic->dx;
-	y -= pic->dy;
-	x -= pan.x / scale;
-	y -= pan.y / scale;
-	x *= scale;
-	if(x + pw * scale < 0 || x > fbw
-	|| y + n < 0 || y > fbh)
+	r = Rect(x - pic->dx, y - pic->dy, pic->w, pic->h);
+	if(boundpic(&r) < 0)
 		return;
-	if(y < 0){
-		ip -= y * pw;
-		n += y;
-		y = 0;
+	q = pic->p;
+	Δq = 0;
+	if(r.max.x < pic->w){
+		Δq = pic->w - r.max.x;
+		if(r.min.x == 0)
+			q += Δq;
 	}
-	if(x < 0){
-		ip -= x / scale;
-		off += pw;
-		pw += x / scale;
-		off -= pw;
-		x = 0;
-	}
-	pp = fb + y * fbw + x;
-	if(pp >= fbe)
-		return;
-	if(x + pw * scale > fbw){
-		off += pw;
-		pw = (fbw - x) / scale;
-		off -= pw;
-	}
-	if(y + n > fbh)
-		n = fbh - y;
-	w = fbw - pw * scale;
-	while(n-- > 0){
-		k = pw;
-		while(k-- > 0){
-			v = *ip++;
+	if(r.max.y < pic->h && r.min.y == 0)
+		q += pic->w * (pic->h - r.max.y);
+	p = fb + r.min.y * fbw + r.min.x;
+	Δp = fbw - r.max.x * scale;
+	while(r.max.y-- > 0){
+		w = r.max.x;
+		while(w-- > 0){
+			v = *q++;
 			if(v & 0xff << 24){
-				for(s=0; s<scale; s++)
-					*pp++ = v;
+				for(n=0; n<scale; n++)
+					*p++ = v;
 			}else
-				pp += scale;
+				p += scale;
 		}
-		ip += off;
-		pp += w;
+		q += Δq;
+		p += Δp;
 	}
 }
 
