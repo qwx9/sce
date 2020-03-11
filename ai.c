@@ -46,6 +46,10 @@ setblk(Mobj *mo, int clr)
 	x = mo->o->w * (Tlwidth / Tlsubwidth);
 	y = mo->o->h * (Tlheight / Tlsubheight);
 	lo = mo->blk;
+	if(mo->x + x > pathwidth)
+		x = pathwidth - mo->x;
+	if(mo->y + y > pathheight)
+		y = pathheight - mo->y;
 	while(y-- > 0){
 		for(e=pp+x; pp<e; pp++)
 			if(clr){
