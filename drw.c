@@ -75,25 +75,32 @@ select(Point p, int b)
 }
 
 static int
-boundpic(Rectangle *r)
+boundpic(Rectangle *r, u32int **q)
 {
+	int w;
+
 	r->min.x -= pan.x / scale;
 	r->min.y -= pan.y / scale;
 	if(r->min.x + r->max.x < 0 || r->min.x >= fbw / scale
 	|| r->min.y + r->max.y < 0 || r->min.y >= fbh)
 		return -1;
+	w = r->max.x;
 	if(r->min.x < 0){
+		if(q != nil)
+			*q -= r->min.x;
 		r->max.x += r->min.x;
 		r->min.x = 0;
 	}
 	if(r->min.x + r->max.x > fbw / scale)
-		r->max.x = fbw / scale - r->min.x;
+		r->max.x -= r->min.x + r->max.x - fbw / scale;
 	if(r->min.y < 0){
+		if(q != nil)
+			*q -= w * r->min.y;
 		r->max.y += r->min.y;
 		r->min.y = 0;
 	}
 	if(r->min.y + r->max.y > fbh)
-		r->max.y = fbh - r->min.y;
+		r->max.y -= r->min.y + r->max.y - fbh;
 	r->min.x *= scale;
 	return 0;
 }
@@ -105,18 +112,11 @@ drawpic(int x, int y, Pic *pic)
 	u32int v, *p, *q;
 	Rectangle r;
 
-	r = Rect(x - pic->dx, y - pic->dy, pic->w, pic->h);
-	if(boundpic(&r) < 0)
-		return;
 	q = pic->p;
-	Δq = 0;
-	if(r.max.x < pic->w){
-		Δq = pic->w - r.max.x;
-		if(r.min.x == 0)
-			q += Δq;
-	}
-	if(r.max.y < pic->h && r.min.y == 0)
-		q += pic->w * (pic->h - r.max.y);
+	r = Rect(x - pic->dx, y - pic->dy, pic->w, pic->h);
+	if(boundpic(&r, &q) < 0)
+		return;
+	Δq = pic->w - r.max.x;
 	p = fb + r.min.y * fbw + r.min.x;
 	Δp = fbw - r.max.x * scale;
 	while(r.max.y-- > 0){
@@ -142,7 +142,7 @@ compose(Path *pp, u32int c)
 	Rectangle r;
 
 	r = Rect(pp->x * Tlsubwidth, pp->y * Tlsubheight, Tlsubwidth, Tlsubheight);
-	if(boundpic(&r) < 0)
+	if(boundpic(&r, nil) < 0)
 		return;
 	p = fb + r.min.y * fbw + r.min.x;
 	Δp = fbw - r.max.x * scale;
