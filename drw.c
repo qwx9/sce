@@ -93,7 +93,6 @@ boundpic(Rectangle *r)
 	}else if(r->min.y + r->max.y > fbh)
 		r->max.y = fbh - r->min.y;
 	r->min.x *= scale;
-	r->max.x *= scale;
 	return 0;
 }
 
