@@ -4,7 +4,7 @@
 #include "dat.h"
 #include "fns.h"
 
-int scale;
+int scale = 1;
 Point p0, pan;
 
 static int fbsz, fbh, fbw;
