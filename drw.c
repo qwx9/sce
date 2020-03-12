@@ -133,32 +133,28 @@ drawpic(int x, int y, Pic *pic)
 }
 
 static void
-compose(Path *p, u32int c)
+compose(Path *pp, u32int c)
 {
-	int n, k, x, w;
-	u32int v, *pp;
+	int n, w, Δp;
+	u32int v, *p;
+	Rectangle r;
 
-	pp = fb + p->y * Tlsubheight * fbw + p->x * Tlsubwidth * scale;
-	n = Tlsubheight;
-	w = fbw - Tlsubwidth * scale;
-	while(n-- > 0){
-		x = Tlsubwidth;
-		if(pp + x >= fbe)
-			return;
-		if(pp >= fb){
-			while(x-- > 0){
-				v = *pp;
-				v = (v & 0xff0000) + (c & 0xff0000) >> 1 & 0xff0000
-					| (v & 0xff00) + (c & 0xff00) >> 1 & 0xff00
-					| (v & 0xff) + (c & 0xff) >> 1 & 0xff;
-				k = scale;
-				while(k-- > 0)
-					if(pp >= fb && pp < fbe)
-						*pp++ = v;
-			}
-		}else
-			pp += x * scale;
-		pp += w;
+	r = Rect(pp->x * Tlsubwidth, pp->y * Tlsubheight, Tlsubwidth, Tlsubheight);
+	if(boundpic(&r) < 0)
+		return;
+	p = fb + r.min.y * fbw + r.min.x;
+	Δp = fbw - r.max.x * scale;
+	while(r.max.y-- > 0){
+		w = r.max.x;
+		while(w-- > 0){
+			v = *p;
+			v = (v & 0xff0000) + (c & 0xff0000) >> 1 & 0xff0000
+				| (v & 0xff00) + (c & 0xff00) >> 1 & 0xff00
+				| (v & 0xff) + (c & 0xff) >> 1 & 0xff;
+			for(n=0; n<scale; n++)
+				*p++ = v;
+		}
+		p += Δp;
 	}
 }
 
