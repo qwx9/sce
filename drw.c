@@ -220,7 +220,7 @@ resetfb(void)
 	panmax.x = max(Tlwidth * mapwidth * scale - Dx(screen->r), 0);
 	panmax.y = max(Tlheight * mapheight * scale - Dy(screen->r), 0);
 	if(p0.y < selr.max.y){
-		panmax.y += (selr.max.y - p0.y) * scale;
+		panmax.y += selr.max.y - p0.y;
 		selr.max.y = p0.y;
 	}
 	fbh /= scale;
