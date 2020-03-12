@@ -234,7 +234,7 @@ readspawn(char **fld, int n, Table *)
 		sysfatal("readspawn: empty string");
 	if(o->spawn != nil)
 		sysfatal("readspawn: spawn already assigned for obj %s", *fld);
-	o->spawn = emalloc(n * sizeof *o->spawn);
+	o->spawn = emalloc(--n * sizeof *o->spawn);
 	o->nspawn = n;
 	for(os=o->spawn, oe=os+n; os<oe; os++){
 		unpack(fld++, "o", os);
@@ -333,11 +333,11 @@ readobj(char **fld, int, Table *tab)
 }
 
 Table table[] = {
-	{"mapobj", readmapobj, 3, &nobjp},
-	{"obj", readobj, 13, &nobj},
-	{"terrain", readterrain, 1, &nterrain},
-	{"attack", readattack, 3, &nattack},
-	{"resource", readresource, 1, &nresource},
+	{"mapobj", readmapobj, 4, &nobjp},
+	{"obj", readobj, 14, &nobj},
+	{"terrain", readterrain, 2, &nterrain},
+	{"attack", readattack, 4, &nattack},
+	{"resource", readresource, 2, &nresource},
 	{"spawn", readspawn, -1, nil},
 	{"map", readmap, -1, &mapheight},
 };
@@ -404,7 +404,7 @@ loaddb(char *path)
 		for(t=table; t<table+nelem(table); t++)
 			if(strcmp(s, t->name) == 0)
 				break;
-		n = getcsvfields(p+1, fld, nelem(fld)) - 1;
+		n = getcsvfields(p+1, fld, nelem(fld));
 		if(n != t->ncol && t->ncol >= 0)
 			sysfatal("loaddb: invalid row length %d for %s record", n, s);
 		t->readfn(fld, n, t);
