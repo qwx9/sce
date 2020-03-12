@@ -85,12 +85,14 @@ boundpic(Rectangle *r)
 	if(r->min.x < 0){
 		r->max.x += r->min.x;
 		r->min.x = 0;
-	}else if(r->min.x + r->max.x > fbw / scale)
+	}
+	if(r->min.x + r->max.x > fbw / scale)
 		r->max.x = fbw / scale - r->min.x;
 	if(r->min.y < 0){
 		r->max.y += r->min.y;
 		r->min.y = 0;
-	}else if(r->min.y + r->max.y > fbh)
+	}
+	if(r->min.y + r->max.y > fbh)
 		r->max.y = fbh - r->min.y;
 	r->min.x *= scale;
 	return 0;
