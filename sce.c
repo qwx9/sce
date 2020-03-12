@@ -182,19 +182,6 @@ input(void)
 		case ' ':
 			pause ^= 1;
 			break;
-		case '=':
-			if(scale < 16){
-				scale++;
-				resetfb();
-			}
-			break;
-		case '-':
-			if(scale > 1){
-				scale--;
-				resetfb();
-			}
-			break;
-		case Kprint: scale = 1; pan = ZP; resetfb(); break;
 		case Kdel: quit(); break;
 		}
 	}
@@ -242,7 +229,7 @@ step(void)
 static void
 usage(void)
 {
-	fprint(2, "usage: %s [-l port] [-m map] [-n name] [-t speed] [-x netmtpt] [sys]\n", argv0);
+	fprint(2, "usage: %s [-l port] [-m map] [-n name] [-s scale] [-t speed] [-x netmtpt] [sys]\n", argv0);
 	threadexits("usage");
 }
 
@@ -255,6 +242,13 @@ threadmain(int argc, char **argv)
 	case 'l': lport = strtol(EARGF(usage()), nil, 0); break;
 	case 'm': mapname = EARGF(usage()); break;
 	case 'n': progname = EARGF(usage()); break;
+	case 's':
+		scale = strtol(EARGF(usage()), nil, 0);
+		if(scale < 1)
+			scale = 1;
+		else if(scale > 16)
+			scale = 16;
+		break;
 	case 't':
 		tv = strtol(EARGF(usage()), nil, 0);
 		if(tv < 1)

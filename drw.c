@@ -14,8 +14,6 @@ static Rectangle selr;
 static Point panmax;
 static Mobj *selected[Nselect];
 
-/* FIXME: rescale -> pan might be wrong and display bullshit until we repan */
-
 static int
 max(int a, int b)
 {
@@ -207,10 +205,6 @@ redraw(void)
 void
 resetfb(void)
 {
-	if(scale < 1)
-		scale = 1;
-	else if(scale > 16)
-		scale = 16;
 	fbw = min(mapwidth * Tlwidth * scale, Dx(screen->r));
 	fbh = min(mapheight * Tlheight * scale, Dy(screen->r));
 	selr = Rpt(screen->r.min, addpt(screen->r.min, Pt(fbw, fbh)));
