@@ -1,56 +1,56 @@
-#!/bin/rc
+#!/bin/rc -e
 if(! ~ $#* 1){
 	echo usage: sceass radix
 	exit usage
 }
 name=$1	#scv1.00
 echo '
-	r s '^$name^'.15.bit
+	!r '^$name^'.15.bit s
 	m = s[X-x-1,y,z]
-	w m '^$name^'.17.bit
-	r sa '^$name^'.14.bit
-	ma = sa[X-x-1,y,z]
-	w ma '^$name^'.18.bit
-	r sb '^$name^'.13.bit
-	mb = sb[X-x-1,y,z]
-	w mb '^$name^'.19.bit
-	r sc '^$name^'.12.bit
-	mc = sc[X-x-1,y,z]
-	w mc '^$name^'.20.bit
-	r sd '^$name^'.11.bit
-	md = sd[X-x-1,y,z]
-	w md '^$name^'.21.bit
-	r se '^$name^'.10.bit
-	me = se[X-x-1,y,z]
-	w me '^$name^'.22.bit
-	r sf '^$name^'.09.bit
-	mf = sf[X-x-1,y,z]
-	w mf '^$name^'.23.bit
-	r sg '^$name^'.08.bit
-	mg = sg[X-x-1,y,z]
-	w mg '^$name^'.24.bit
-	r sh '^$name^'.07.bit
-	mh = sh[X-x-1,y,z]
-	w mh '^$name^'.25.bit
-	r si '^$name^'.06.bit
-	mi = si[X-x-1,y,z]
-	w mi '^$name^'.26.bit
-	r sj '^$name^'.05.bit
-	mj = sj[X-x-1,y,z]
-	w mj '^$name^'.27.bit
-	r sk '^$name^'.04.bit
-	mk = sk[X-x-1,y,z]
-	w mk '^$name^'.28.bit
-	r sl '^$name^'.03.bit
-	ml = sl[X-x-1,y,z]
-	w ml '^$name^'.29.bit
-	r sm '^$name^'.02.bit
-	mm = sm[X-x-1,y,z]
-	w mm '^$name^'.30.bit
-	r sn '^$name^'.01.bit
-	mn = sn[X-x-1,y,z]
-	w mn '^$name^'.31.bit
-' | pico -q
+	!w m '^$name^'.17.bit
+	!r '^$name^'.14.bit s
+	m = s[X-x-1,y,z]
+	!w m '^$name^'.18.bit
+	!r '^$name^'.13.bit s
+	m = s[X-x-1,y,z]
+	!w m '^$name^'.19.bit
+	!r '^$name^'.12.bit s
+	m = s[X-x-1,y,z]
+	!w m '^$name^'.20.bit
+	!r '^$name^'.11.bit s
+	m = s[X-x-1,y,z]
+	!w m '^$name^'.21.bit
+	!r '^$name^'.10.bit s
+	m = s[X-x-1,y,z]
+	!w m '^$name^'.22.bit
+	!r '^$name^'.09.bit s
+	m = s[X-x-1,y,z]
+	!w m '^$name^'.23.bit
+	!r '^$name^'.08.bit s
+	m = s[X-x-1,y,z]
+	!w m '^$name^'.24.bit
+	!r '^$name^'.07.bit s
+	m = s[X-x-1,y,z]
+	!w m '^$name^'.25.bit
+	!r '^$name^'.06.bit s
+	m = s[X-x-1,y,z]
+	!w m '^$name^'.26.bit
+	!r '^$name^'.05.bit s
+	m = s[X-x-1,y,z]
+	!w m '^$name^'.27.bit
+	!r '^$name^'.04.bit s
+	m = s[X-x-1,y,z]
+	!w m '^$name^'.28.bit
+	!r '^$name^'.03.bit s
+	m = s[X-x-1,y,z]
+	!w m '^$name^'.29.bit
+	!r '^$name^'.02.bit s
+	m = s[X-x-1,y,z]
+	!w m '^$name^'.30.bit
+	!r '^$name^'.01.bit s
+	m = s[X-x-1,y,z]
+	!w m '^$name^'.31.bit
+' | pico
 for(i in $name.^`{seq 17 31}^.bit)
 	iconv -c r8g8b8 $i > a && mv a $i
 t=`{read -c 46 $name^.15.bit | awk '{print $2, $3}'}

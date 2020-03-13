@@ -1,0 +1,29 @@
+#!/bin/rc -e
+bind -a $home/p/pico /bin
+bind -a $home/p/sce/rc /bin
+
+# drones
+for(i in `{awk 'BEGIN{s=0*17; for(i=s; i<s+17; i++) printf "%03d\n", i;}'})
+	sceass drone.grp.00^$i^.bit drone 00 $i '' -42 -47
+for(i in `{awk 'BEGIN{s=0*17; for(i=s; i<s+17; i++) printf "%03d\n", i;}'})
+	sceass drone.grp.00^$i^.bit drone 00 $i 'm' -42 -47
+for(i in `{awk 'BEGIN{s=1*17; for(i=s; i<s+17; i++) printf "%03d\n", i;}'})
+	sceass drone.grp.00^$i^.bit drone 01 $i 'm' -42 -47
+for(i in `{awk 'BEGIN{s=2*17; for(i=s; i<s+17; i++) printf "%03d\n", i;}'})
+	sceass drone.grp.00^$i^.bit drone 02 $i 'm' -42 -47
+for(i in `{awk 'BEGIN{s=3*17; for(i=s; i<s+17; i++) printf "%03d\n", i;}'})
+	sceass drone.grp.00^$i^.bit drone 03 $i 'm' -42 -47
+for(i in `{awk 'BEGIN{s=4*17; for(i=s; i<s+17; i++) printf "%03d\n", i;}'})
+	sceass drone.grp.00^$i^.bit drone 04 $i 'm' -42 -47
+for(i in `{seq 1 8})
+	scerot drone^$i^.00
+for(i in `{seq 1 8})
+	scerot drone^$i^m.00
+for(i in `{seq 1 8})
+	scerot drone^$i^m.01
+for(i in `{seq 1 8})
+	scerot drone^$i^m.02
+for(i in `{seq 1 8})
+	scerot drone^$i^m.03
+for(i in `{seq 1 8})
+	scerot drone^$i^m.04

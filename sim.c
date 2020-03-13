@@ -11,27 +11,9 @@ int initres[Nresource], foodcap;
 
 static Lobj vlist = {.lo = &vlist, .lp = &vlist };
 
-/* FIXME: drone graphics
- *	- idle -> one frame, but moving is animated
- *	- moving animation in all rotations
- *		; page /sys/games/lib/sce/drone1.00.00.bit drone.grp.00^`{for(i in 018 034 051 068 085) echo $i}^.bit
- *		=> all remaining frames (085 is same as first)
- *		idle frame is actually last moving frame
- *	- attack animation in all rotations
- *	- gather animation in all rotations
- *		=> starting from 102
- *	- death animation
- *	- burrow animation
- *	=> find out ranges in drone grp
- */
-
-/* FIXME: compose is broken when scaling */
-
 /* FIXME: networking: recvbuf and sendbuf for accumulating messages to flush
  * to all clients */
 /* FIXME: acceleration, deceleration, turning speed (360°) */
-
-/* FIXME: compose: clip like drawpic or toss */
 /* FIXME: minerals: 4 spaces in every direction forbidding cc placement */
 /* FIXME: resource tiles: take 2x1 tiles, drawn on top of rest
  *	-> actual (immutable) object, not terrain (remove resource= from
