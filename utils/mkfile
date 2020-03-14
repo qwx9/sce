@@ -1,6 +1,7 @@
 </$objtype/mkfile
 TARG=\
 	grp\
+	sctile\
 
 HFILES=
 </sys/src/cmd/mkmany
