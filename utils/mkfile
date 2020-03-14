@@ -1,0 +1,7 @@
+</$objtype/mkfile
+TARG=\
+	grp\
+
+HFILES=
+</sys/src/cmd/mkmany
+BIN=$home/bin/$objtype
