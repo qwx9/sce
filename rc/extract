@@ -4,17 +4,17 @@ bind -a $home/p/sce/rc /bin
 
 # drones
 for(i in `{awk 'BEGIN{s=0*17; for(i=s; i<s+17; i++) printf "%03d\n", i;}'})
-	sceass drone.grp.00^$i^.bit drone 00 $i '' -42 -47
+	sceass drone.grp.00^$i^.bit drone 00 $i '' -48 -47
 for(i in `{awk 'BEGIN{s=0*17; for(i=s; i<s+17; i++) printf "%03d\n", i;}'})
-	sceass drone.grp.00^$i^.bit drone 00 $i 'm' -42 -47
+	sceass drone.grp.00^$i^.bit drone 00 $i 'm' -48 -47
 for(i in `{awk 'BEGIN{s=1*17; for(i=s; i<s+17; i++) printf "%03d\n", i;}'})
-	sceass drone.grp.00^$i^.bit drone 01 $i 'm' -42 -47
+	sceass drone.grp.00^$i^.bit drone 01 $i 'm' -48 -47
 for(i in `{awk 'BEGIN{s=2*17; for(i=s; i<s+17; i++) printf "%03d\n", i;}'})
-	sceass drone.grp.00^$i^.bit drone 02 $i 'm' -42 -47
+	sceass drone.grp.00^$i^.bit drone 02 $i 'm' -48 -47
 for(i in `{awk 'BEGIN{s=3*17; for(i=s; i<s+17; i++) printf "%03d\n", i;}'})
-	sceass drone.grp.00^$i^.bit drone 03 $i 'm' -42 -47
+	sceass drone.grp.00^$i^.bit drone 03 $i 'm' -48 -47
 for(i in `{awk 'BEGIN{s=4*17; for(i=s; i<s+17; i++) printf "%03d\n", i;}'})
-	sceass drone.grp.00^$i^.bit drone 04 $i 'm' -42 -47
+	sceass drone.grp.00^$i^.bit drone 04 $i 'm' -48 -47
 for(i in `{seq 1 8})
 	scerot drone^$i^.00
 for(i in `{seq 1 8})
@@ -27,3 +27,22 @@ for(i in `{seq 1 8})
 	scerot drone^$i^m.03
 for(i in `{seq 1 8})
 	scerot drone^$i^m.04
+
+# hatchery
+sceass hatchery.grp.00000.bit hatchery 00 00 '' -32 -30
+sceass hatchery.grp.00001.bit hatchery 01 00 '' -32 -30
+sceass hatchery.grp.00002.bit hatchery 02 00 '' -32 -30
+sceass hatchery.grp.00003.bit hatchery 03 00 '' -32 -30
+sceass hatchery.grp.00003.bit hatchery 04 00 '' -32 -30
+sceass hatchery.grp.00002.bit hatchery 05 00 '' -32 -30
+sceass hatchery.grp.00001.bit hatchery 06 00 '' -32 -30
+sceass hatchery.grp.00000.bit hatchery 07 00 '' -32 -30
+
+# command center
+sceass control.grp.00005.bit control 00 00 '' -2 -32
+
+# scv
+for(i in `{awk 'BEGIN{s=0*17; for(i=s; i<s+17; i++) printf "%03d\n", i;}'})
+	sceass scv.grp.00^$i^.bit scv 00 $i '' -26 -14
+for(i in `{seq 1 8})
+	scerot scv^$i^.00
