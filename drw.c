@@ -111,7 +111,7 @@ drawpic(int x, int y, Pic *pic)
 	Rectangle r;
 
 	q = pic->p;
-	r = Rect(x - pic->dx, y - pic->dy, pic->w, pic->h);
+	r = Rect(x + pic->dx, y + pic->dy, pic->w, pic->h);
 	if(boundpic(&r, &q) < 0)
 		return;
 	Δq = pic->w - r.max.x;
