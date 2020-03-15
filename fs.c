@@ -30,8 +30,9 @@ struct Table{
 static Objp *objp;
 static Attack *attack;
 static Obj *obj;
-static Terrain *terrain;
-static int nattack, nobj, nterrain, nresource, nobjp;
+static char *tileset;
+static Terrain terrain0 = {.t = &terrain0}, *terrain = &terrain0;
+static int nattack, nobj, nresource, nobjp;
 static u32int bgcol = 0x00ffff;
 
 static void
@@ -121,8 +122,8 @@ initimg(void)
 	Terrain *t;
 	Obj *o;
 
-	for(t=terrain; t<terrain+nterrain; t++){
-		snprint(s, sizeof s, "%s.bit", t->name);
+	for(t=terrain->t; t!=terrain; t=t->t){
+		snprint(s, sizeof s, "%s.%05d.bit", tileset, t->n);
 		loadpic(s, &t->pic);
 		if(t->pic.w != Tlwidth || t->pic.h != Tlheight)
 			sysfatal("initimg %s: invalid size %dx%d\n", s, t->pic.w, t->pic.h);
@@ -203,11 +204,17 @@ vunpack(char **fld, char *fmt, va_list a)
 				*va_arg(a, Terrain**) = nil;
 				break;
 			}
-			for(t=terrain; t<terrain+nterrain; t++)
-				if(strcmp(s, t->name) == 0)
+			if((n = strtol(s, nil, 0)) <= 0)
+				sysfatal("vunpack: illegal terrain index %d", n);
+			for(t=terrain->t; t!=terrain; t=t->t)
+				if(t->n == n)
 					break;
-			if(t == terrain + nterrain)
-				sysfatal("vunpack: no such terrain %s", s);
+			if(t == terrain){
+				t = emalloc(sizeof *t);
+				t->n = n;
+				t->t = terrain->t;
+				terrain->t = t;
+			}
 			*va_arg(a, Terrain**) = t;
 			break;
 		}
@@ -241,6 +248,14 @@ readspawn(char **fld, int n, Table *)
 		if(*os == nil)
 			sysfatal("readspawn: empty string");
 	}
+}
+
+static void
+readtileset(char **fld, int, Table *)
+{
+	if(tileset != nil)
+		sysfatal("readtileset %s: already defined as %s", *fld, tileset);
+	tileset = estrdup(*fld);
 }
 
 static void
@@ -306,18 +321,6 @@ readattack(char **fld, int, Table *tab)
 }
 
 static void
-readterrain(char **fld, int, Table *tab)
-{
-	Terrain *t;
-
-	if(terrain == nil)
-		terrain = emalloc(nterrain * sizeof *terrain);
-	t = terrain + tab->row;
-	t->name = estrdup(*fld++);
-	unpack(fld, "r", &t->r);
-}
-
-static void
 readobj(char **fld, int, Table *tab)
 {
 	Obj *o;
@@ -335,10 +338,10 @@ readobj(char **fld, int, Table *tab)
 Table table[] = {
 	{"mapobj", readmapobj, 4, &nobjp},
 	{"obj", readobj, 14, &nobj},
-	{"terrain", readterrain, 2, &nterrain},
 	{"attack", readattack, 4, &nattack},
 	{"resource", readresource, 2, &nresource},
 	{"spawn", readspawn, -1, nil},
+	{"tileset", readtileset, 1, nil},
 	{"map", readmap, -1, &mapheight},
 };
 
@@ -432,6 +435,8 @@ initmapobj(void)
 static void
 checkdb(void)
 {
+	if(tileset == nil)
+		sysfatal("checkdb: no tileset defined");
 	if(nresource != Nresource)
 		sysfatal("checkdb: incomplete resource specification");
 	if(mapwidth < 8 || mapheight < 8)

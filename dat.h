@@ -108,10 +108,9 @@ struct Lobj{
 extern Lobj zlist;
 
 struct Terrain{
-	char *name;
+	int n;
 	Pic pic;
-	int f;
-	Resource *r;
+	Terrain *t;
 };
 
 struct Map{
