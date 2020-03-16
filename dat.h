@@ -42,6 +42,7 @@ struct Pic{
 };
 struct Pics{
 	Pic *p;
+	Pic *shadow;
 	int nf;
 	int nr;
 	int n;

@@ -96,14 +96,15 @@ loadpics(Pics *p, char *name, char *id, int nr)
 {
 	int i, r, f, nf;
 	char s[128];
-	Pic *pp;
+	Pic *pp, *ps;
 
 	if((nf = getfrm(name, id)) == 0)
 		return -1;
 	p->nf = nf;
 	p->nr = nr;
 	p->n = nf * nr;
-	pp = p->p = emalloc(nteam * nf * nr * sizeof *pp);
+	pp = p->p = emalloc(nteam * p->n * sizeof *pp);
+	ps = p->shadow = emalloc(p->n * sizeof *pp);
 	for(i=0; i<nteam; i++){
 		for(r=0; r<nr; r++)
 			for(f=0; f<nf; f++){
@@ -111,6 +112,11 @@ loadpics(Pics *p, char *name, char *id, int nr)
 				loadpic(s, pp++);
 			}
 	}
+	for(r=0; r<nr; r++)
+		for(f=0; f<nf; f++){
+			snprint(s, sizeof s, "%ss%s.%02d.%02d.bit", name, id, f, r);
+			loadpic(s, ps++);
+		}
 	return 0;
 }
 

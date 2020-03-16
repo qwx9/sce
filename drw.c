@@ -133,6 +133,39 @@ drawpic(int x, int y, Pic *pic)
 }
 
 static void
+drawshadow(int x, int y, Pic *pic)
+{
+	int n, w, Δp, Δq;
+	u32int v, *p, *q;
+	Rectangle r;
+
+	q = pic->p;
+	r = Rect(x + pic->dx, y + pic->dy, pic->w, pic->h);
+	if(boundpic(&r, &q) < 0)
+		return;
+	Δq = pic->w - r.max.x;
+	p = fb + r.min.y * fbw + r.min.x;
+	Δp = fbw - r.max.x * scale;
+	while(r.max.y-- > 0){
+		w = r.max.x;
+		while(w-- > 0){
+			v = *q++;
+			if(v & 0xff << 24){
+				v = p[0];
+				v = (v & 0xff0000) * 0x96 / 0xff & 0xff0000
+				| (v & 0xff00) * 0x96 / 0xff & 0xff00
+				| (v & 0xff) * 0x96 / 0xff & 0xff;
+				for(n=0; n<scale; n++)
+					*p++ = v;
+			}else
+				p += scale;
+		}
+		q += Δq;
+		p += Δp;
+	}
+}
+
+static void
 compose(Path *pp, u32int c)
 {
 	int n, w, Δp;
@@ -159,6 +192,15 @@ compose(Path *pp, u32int c)
 }
 
 static Pic *
+shafrm(Mobj *mo)
+{
+	Pics *p;
+
+	p = mo->pics;
+	return p->shadow + p->nf * mo->θ + tc % p->nf;
+}
+
+static Pic *
 frm(Mobj *mo)
 {
 	Pics *p;
@@ -182,14 +224,19 @@ redraw(void)
 		drawpic(m->x, m->y, &m->t->pic);
 	/* FIXME: draw overlay (creep) */
 	/* FIXME: draw corpses */
-	for(m=map; m<map+mapwidth*mapheight; m++)
+	for(m=map; m<map+mapwidth*mapheight; m++){
+		for(lo=m->lo.lo; lo!=&m->lo; lo=lo->lo){
+			mo = lo->mo;
+			drawshadow(mo->p.x, mo->p.y, shafrm(mo));
+		}
 		for(lo=m->lo.lo; lo!=&m->lo; lo=lo->lo){
 			mo = lo->mo;
 			drawpic(mo->p.x, mo->p.y, frm(mo));
 		}
-	for(pp=path; pp<path+pathwidth*pathheight; pp++)
-		if(pp->blk != nil)
-			compose(pp, 0xff00ff);
+	}
+	//for(pp=path; pp<path+pathwidth*pathheight; pp++)
+	//	if(pp->blk != nil)
+	//		compose(pp, 0xff00ff);
 	/* FIXME: draw hud */
 	draw(screen, Rpt(p0, screen->r.max), display->black, nil, ZP);
 	mo = selected[0];
