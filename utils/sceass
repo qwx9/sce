@@ -1,6 +1,11 @@
 #!/bin/rc
+rfork e
+if(~ $1 -s){
+	noshad=1
+	shift
+}
 if(! ~ $#* 7){
-	echo usage: sceass grp name frm rot id dx dy
+	echo usage: $0 [-s] grp name frm rot id dx dy
 	exit usage
 }
 grp=$1
@@ -30,6 +35,18 @@ echo '
 	!w white '^$name^'7'^$id^'.'^$frm^.^$rot^'.bit
 	!w yellow '^$name^'8'^$id^'.'^$frm^.^$rot^'.bit
 ' | pico
-t=`{read -c 36 $grp | awk '{print $2+'^$dx^', $3+'^$dy^'}'}
+t=`{read -c 36 $grp | awk '{dx=$2+'^$dx^'; dy=$3+'^$dy^'; print dx, dy, dy+8}'}
 for(i in $name^?^$id^.^$frm^.^$rot.bit)
-	iconv -c r8g8b8 $i | crop -t $t > a && mv a $i
+	iconv -c r8g8b8 $i | crop -t $t(1-2) > a && mv a $i
+if(~ $#noshad 0){
+	echo '
+		!r '^$grp^' s
+		m = z == 3 ? Z : y >= Y-8 ? Z : s[x,y+8,0] != 0 || s[x,y+8,1] != Z || s[x,y+8,2] != Z ? 0 : Z
+		b = z == 3 ? Z : s[x,y,0] != 0 || s[x,y,1] != Z || s[x,y,2] != Z ? 0 : Z
+		o = z == 3 || y < 8 ? Z : Z-m + b
+		o = z == 3 ? Z : z == 2 ? Z : z == 0 ? o == 0 ? o + 35 : 0 : z == 1 ? o == 0 ? o + 35 : Z : Z
+		!w o '^$name^'s'^$id^'.'^$frm^.^$rot^'.bit
+	' | pico
+	iconv -c r8g8b8 $name^s^$id^.^$frm^.^$rot.bit | crop -t $t(1) $t(3) > a && mv a $name^s^$id^.^$frm^.^$rot.bit
+}
+status=''
