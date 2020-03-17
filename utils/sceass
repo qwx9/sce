@@ -4,17 +4,16 @@ if(~ $1 -s){
 	noshad=1
 	shift
 }
-if(! ~ $#* 7){
-	echo usage: $0 [-s] grp name frm rot id dx dy
+if(! ~ $#* 6){
+	echo usage: $0 [-s] grp name frm rot dx dy
 	exit usage
 }
 grp=$1
 name=$2
 frm=$3
-rot=`{echo $4 | awk '{printf "%02d", $1 % 17}'}
-id=$5
-dx=$6
-dy=$7
+rot=$4
+dx=$5
+dy=$6
 echo '
 	!r '^$grp^' s
 	m = z == 3 ? Z : s[x,y,0] == Z && s[x,y,1] == 0 && s[x,y,2] == Z || s[x,y,0] == 222 && s[x,y,1] == 0 && s[x,y,2] == 222 || s[x,y,0] == 189 && s[x,y,1] == 0 && s[x,y,2] == 189 || s[x,y,0] == 156 && s[x,y,1] == 0 && s[x,y,2] == 156 || s[x,y,0] == 124 && s[x,y,1] == 0 && s[x,y,2] == 124 || s[x,y,0] == 91 && s[x,y,1] == 0 && s[x,y,2] == 91 || s[x,y,0] == 58 && s[x,y,1] == 0 && s[x,y,2] == 58 || s[x,y,0] == 25 && s[x,y,1] == 0 && s[x,y,2] == 25 ? s[x,y,0] : 0
@@ -26,27 +25,28 @@ echo '
 	purple = m > 0 ? z == 0 ? s[x,y,0]/2 : z == 1 ? s[x,y,1] : z == 2 ? s[x,y,0] : Z : s
 	brown = m > 0 ? z == 0 ? s[x,y,0]/2 : z == 1 ? s[x,y,0]/2 : z == 2 ? s[x,y,1] : Z : s
 	orange = m > 0 ? z == 0 ? s[x,y,0] : z == 1 ? s[x,y,0]/2 : z == 2 ? s[x,y,1] : Z : s
-	!w red '^$name^'1'^$id^'.'^$frm^.^$rot^'.bit
-	!w blue '^$name^'2'^$id^'.'^$frm^.^$rot^'.bit
-	!w teal '^$name^'3'^$id^'.'^$frm^.^$rot^'.bit
-	!w purple '^$name^'4'^$id^'.'^$frm^.^$rot^'.bit
-	!w orange '^$name^'5'^$id^'.'^$frm^.^$rot^'.bit
-	!w brown '^$name^'6'^$id^'.'^$frm^.^$rot^'.bit
-	!w white '^$name^'7'^$id^'.'^$frm^.^$rot^'.bit
-	!w yellow '^$name^'8'^$id^'.'^$frm^.^$rot^'.bit
+	!w red '^$name^'1.'^$frm^.^$rot^'.bit
+	!w blue '^$name^'2.'^$frm^.^$rot^'.bit
+	!w teal '^$name^'3.'^$frm^.^$rot^'.bit
+	!w purple '^$name^'4.'^$frm^.^$rot^'.bit
+	!w orange '^$name^'5.'^$frm^.^$rot^'.bit
+	!w brown '^$name^'6.'^$frm^.^$rot^'.bit
+	!w white '^$name^'7.'^$frm^.^$rot^'.bit
+	!w yellow '^$name^'8.'^$frm^.^$rot^'.bit
 ' | pico
 t=`{read -c 36 $grp | awk '{dx=$2+'^$dx^'; dy=$3+'^$dy^'; print dx, dy, dy+8}'}
-for(i in $name^?^$id^.^$frm^.^$rot.bit)
+for(i in $name^?.^$frm^.^$rot.bit)
 	iconv -c r8g8b8 $i | crop -t $t(1-2) > a && mv a $i
 if(~ $#noshad 0){
+	f=$name^s.^$frm^.^$rot.bit
 	echo '
 		!r '^$grp^' s
 		m = z == 3 ? Z : y >= Y-8 ? Z : s[x,y+8,0] != 0 || s[x,y+8,1] != Z || s[x,y+8,2] != Z ? 0 : Z
 		b = z == 3 ? Z : s[x,y,0] != 0 || s[x,y,1] != Z || s[x,y,2] != Z ? 0 : Z
 		o = z == 3 || y < 8 ? Z : Z-m + b
 		o = z == 3 ? Z : z == 2 ? Z : z == 0 ? o == 0 ? o + 35 : 0 : z == 1 ? o == 0 ? o + 35 : Z : Z
-		!w o '^$name^'s'^$id^'.'^$frm^.^$rot^'.bit
+		!w o '^$f^'
 	' | pico
-	iconv -c r8g8b8 $name^s^$id^.^$frm^.^$rot.bit | crop -t $t(1) $t(3) > a && mv a $name^s^$id^.^$frm^.^$rot.bit
+	iconv -c r8g8b8 $f | crop -t $t(1) $t(3) > a && mv a $f
 }
 status=''

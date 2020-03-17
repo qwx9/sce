@@ -1,85 +1,18 @@
 #!/bin/rc -e
-if(! ~ $#* 1){
-	echo usage: sceass radix
+if(! ~ $#* 2){
+	echo usage: sceass radix nrot
 	exit usage
 }
-name=$1	#scv1.00
-echo '
-	!r '^$name^'.15.bit s
-	m = s[X-x-1,y,z]
-	!w m '^$name^'.17.bit
-	!r '^$name^'.14.bit s
-	m = s[X-x-1,y,z]
-	!w m '^$name^'.18.bit
-	!r '^$name^'.13.bit s
-	m = s[X-x-1,y,z]
-	!w m '^$name^'.19.bit
-	!r '^$name^'.12.bit s
-	m = s[X-x-1,y,z]
-	!w m '^$name^'.20.bit
-	!r '^$name^'.11.bit s
-	m = s[X-x-1,y,z]
-	!w m '^$name^'.21.bit
-	!r '^$name^'.10.bit s
-	m = s[X-x-1,y,z]
-	!w m '^$name^'.22.bit
-	!r '^$name^'.09.bit s
-	m = s[X-x-1,y,z]
-	!w m '^$name^'.23.bit
-	!r '^$name^'.08.bit s
-	m = s[X-x-1,y,z]
-	!w m '^$name^'.24.bit
-	!r '^$name^'.07.bit s
-	m = s[X-x-1,y,z]
-	!w m '^$name^'.25.bit
-	!r '^$name^'.06.bit s
-	m = s[X-x-1,y,z]
-	!w m '^$name^'.26.bit
-	!r '^$name^'.05.bit s
-	m = s[X-x-1,y,z]
-	!w m '^$name^'.27.bit
-	!r '^$name^'.04.bit s
-	m = s[X-x-1,y,z]
-	!w m '^$name^'.28.bit
-	!r '^$name^'.03.bit s
-	m = s[X-x-1,y,z]
-	!w m '^$name^'.29.bit
-	!r '^$name^'.02.bit s
-	m = s[X-x-1,y,z]
-	!w m '^$name^'.30.bit
-	!r '^$name^'.01.bit s
-	m = s[X-x-1,y,z]
-	!w m '^$name^'.31.bit
-' | pico
-for(i in $name.^`{seq 17 31}^.bit)
-	iconv -c r8g8b8 $i > a && mv a $i
-t=`{read -c 46 $name^.15.bit | awk '{print $2, $3}'}
-crop -t $t $name^.17.bit > a && mv a $name^.17.bit
-t=`{read -c 46 $name^.14.bit | awk '{print $2, $3}'}
-crop -t $t $name^.18.bit > a && mv a $name^.18.bit
-t=`{read -c 46 $name^.13.bit | awk '{print $2, $3}'}
-crop -t $t $name^.19.bit > a && mv a $name^.19.bit
-t=`{read -c 46 $name^.12.bit | awk '{print $2, $3}'}
-crop -t $t $name^.20.bit > a && mv a $name^.20.bit
-t=`{read -c 46 $name^.11.bit | awk '{print $2, $3}'}
-crop -t $t $name^.21.bit > a && mv a $name^.21.bit
-t=`{read -c 46 $name^.10.bit | awk '{print $2, $3}'}
-crop -t $t $name^.22.bit > a && mv a $name^.22.bit
-t=`{read -c 46 $name^.09.bit | awk '{print $2, $3}'}
-crop -t $t $name^.23.bit > a && mv a $name^.23.bit
-t=`{read -c 46 $name^.08.bit | awk '{print $2, $3}'}
-crop -t $t $name^.24.bit > a && mv a $name^.24.bit
-t=`{read -c 46 $name^.07.bit | awk '{print $2, $3}'}
-crop -t $t $name^.25.bit > a && mv a $name^.25.bit
-t=`{read -c 46 $name^.06.bit | awk '{print $2, $3}'}
-crop -t $t $name^.26.bit > a && mv a $name^.26.bit
-t=`{read -c 46 $name^.05.bit | awk '{print $2, $3}'}
-crop -t $t $name^.27.bit > a && mv a $name^.27.bit
-t=`{read -c 46 $name^.04.bit | awk '{print $2, $3}'}
-crop -t $t $name^.28.bit > a && mv a $name^.28.bit
-t=`{read -c 46 $name^.03.bit | awk '{print $2, $3}'}
-crop -t $t $name^.29.bit > a && mv a $name^.29.bit
-t=`{read -c 46 $name^.02.bit | awk '{print $2, $3}'}
-crop -t $t $name^.30.bit > a && mv a $name^.30.bit
-t=`{read -c 46 $name^.01.bit | awk '{print $2, $3}'}
-crop -t $t $name^.31.bit > a && mv a $name^.31.bit
+id=`{awk 'BEGIN{for(i=1; i<='^$2^'/2-1; i++) printf "%02d\n", i}'}
+rev=`{awk 'BEGIN{for(i='^$2^'-1; i>='^$2^'/2+1; i--) printf "%02d\n", i}'}
+n=`{seq 1 $#id}
+echo `"{for(i in $n){
+	echo !r $1^.^$id($i)^.bit s
+	echo 'm = s[X-x-1,y,z]'
+	echo !w m $1^.$rev($i)^.bit
+}} | pico
+for(i in $n){
+	t=`{read -c 46 $1^.^$id($i)^.bit | awk '{print $2, $3}'}
+	f=$1^.^$rev($i)^.bit
+	iconv -c r8g8b8 $f | crop -t $t > a && mv a $f
+}
