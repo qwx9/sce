@@ -33,6 +33,12 @@ struct Attack{
 	int cool;
 };
 
+enum{
+	PFterrain = 0,
+	PFidle = 1<<0,
+	PFmove = 2<<0,
+	PFshadow = 1<<15,
+};
 struct Pic{
 	u32int *p;
 	int w;
@@ -41,11 +47,9 @@ struct Pic{
 	int dy;
 };
 struct Pics{
-	Pic *p;
-	Pic *shadow;
+	Pic **p;
+	Pic **shadow;
 	int nf;
-	int nr;
-	int n;
 };
 
 enum{
@@ -58,11 +62,6 @@ struct Obj{
 	char *name;
 	Pics pidle;
 	Pics pmove;
-	Pics patk;
-	Pics pgather;
-	Pics pdie;
-	Pics pburrow;
-	int nf;
 	int nr;
 	Attack *atk[2];
 	int f;
@@ -109,9 +108,7 @@ struct Lobj{
 extern Lobj zlist;
 
 struct Terrain{
-	int n;
-	Pic pic;
-	Terrain *t;
+	Pic *p;
 };
 
 struct Map{

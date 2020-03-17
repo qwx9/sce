@@ -14,6 +14,8 @@ int mapwidth, mapheight;
 
 typedef struct Table Table;
 typedef struct Objp Objp;
+typedef struct Picl Picl;
+typedef struct Terrainl Terrainl;
 struct Objp{
 	Obj *o;
 	int team;
@@ -27,11 +29,26 @@ struct Table{
 	int *nrow;
 	int row;
 };
+struct Picl{
+	int id;
+	int type;
+	char *name;
+	char iname[64];
+	int nr;
+	Pic *p;
+	Picl *l;
+};
+struct Terrainl{
+	int id;
+	Terrain *t;
+	Terrainl *l;
+};
+static Terrainl terrain0 = {.l = &terrain0}, *terrain = &terrain0;
+static Picl pic0 = {.l = &pic0}, *pic = &pic0;
 static Objp *objp;
 static Attack *attack;
 static Obj *obj;
 static char *tileset;
-static Terrain terrain0 = {.t = &terrain0}, *terrain = &terrain0;
 static int nattack, nobj, nresource, nobjp;
 static u32int bgcol = 0x00ffff;
 
@@ -43,12 +60,8 @@ loadpic(char *name, Pic *pic)
 	uchar *b, *s;
 	u32int v, *p;
 
-	if(name == nil || strlen(name) == 0)
-		sysfatal("loadpic: invalid name");
-	if((fd = open(name, OREAD)) < 0){
-		fprint(2, "loadpic: %r\n");
-		return;
-	}
+	if((fd = open(name, OREAD)) < 0)
+		sysfatal("loadpic: %r");
 	if((i = readimage(display, fd, 0)) == nil)
 		sysfatal("readimage: %r");
 	close(fd);
@@ -78,72 +91,85 @@ loadpic(char *name, Pic *pic)
 	free(b);
 }
 
-static int
-getfrm(char *name, char *id)
-{
-	int f;
-	char s[128];
-
-	for(f=0;;f++){
-		snprint(s, sizeof s, "%s1%s.%02d.00.bit", name, id, f);
-		if(access(s, AREAD) < 0)
-			return f;
-	}
-}
-
-static int
-loadpics(Pics *p, char *name, char *id, int nr)
-{
-	int i, r, f, nf;
-	char s[128];
-	Pic *pp, *ps;
-
-	if((nf = getfrm(name, id)) == 0)
-		return -1;
-	p->nf = nf;
-	p->nr = nr;
-	p->n = nf * nr;
-	pp = p->p = emalloc(nteam * p->n * sizeof *pp);
-	ps = p->shadow = emalloc(p->n * sizeof *pp);
-	for(i=0; i<nteam; i++){
-		for(r=0; r<nr; r++)
-			for(f=0; f<nf; f++){
-				snprint(s, sizeof s, "%s%d%s.%02d.%02d.bit", name, i+1, id, f, r);
-				loadpic(s, pp++);
-			}
-	}
-	for(r=0; r<nr; r++)
-		for(f=0; f<nf; f++){
-			snprint(s, sizeof s, "%ss%s.%02d.%02d.bit", name, id, f, r);
-			loadpic(s, ps++);
-		}
-	return 0;
-}
-
 void
 initimg(void)
 {
-	int nr;
-	char s[64];
-	Terrain *t;
-	Obj *o;
+	int i, r;
+	char path[128];
+	Pic *p;
+	Picl *pl;
 
-	for(t=terrain->t; t!=terrain; t=t->t){
-		snprint(s, sizeof s, "%s.%05d.bit", tileset, t->n);
-		loadpic(s, &t->pic);
-		if(t->pic.w != Tlwidth || t->pic.h != Tlheight)
-			sysfatal("initimg %s: invalid size %dx%d\n", s, t->pic.w, t->pic.h);
+	for(pl=pic->l; pl!=pic; pl=pic->l){
+		p = pl->p;
+		if(pl->type == PFterrain){
+			snprint(path, sizeof path, "%s.%05d.bit", tileset, pl->id);
+			loadpic(path, p);
+		}else if(pl->type & PFshadow){
+			for(r=0; r<pl->nr; r++){
+				snprint(path, sizeof path,
+					"%ss.%02d.%02d.bit",
+					pl->name, pl->id, r);
+				loadpic(path, p++);
+			}
+		}else{
+			for(i=0; i<nteam; i++)
+				for(r=0; r<pl->nr; r++){
+					snprint(path, sizeof path,
+						"%s%d.%02d.%02d.bit",
+						pl->name, i+1, pl->id, r);
+					loadpic(path, p++);
+				}
+		}
+		pic->l = pl->l;
+		free(pl);
 	}
-	for(o=obj; o<obj+nobj; o++){
-		nr = o->f & Fbuild ? 1 : Nrot;
-		if(loadpics(&o->pidle, o->name, "", nr) < 0)
-			sysfatal("initimg %s: no idle frames", o->name);
-		loadpics(&o->pmove, o->name, "m", nr);
-		loadpics(&o->patk, o->name, "a", nr);
-		loadpics(&o->pgather, o->name, "g", nr);
-		loadpics(&o->pburrow, o->name, "b", 1);
-		loadpics(&o->pdie, o->name, "d", 1);
+}
+
+static Pic *
+pushpic(char *name, int id, int type, int nr)
+{
+	int n;
+	char iname[64];
+	Picl *pl;
+
+	snprint(iname, sizeof iname, "%s%d%02ux", name, id, type);
+	for(pl=pic->l; pl!=pic; pl=pl->l)
+		if(strcmp(iname, pl->iname) == 0)
+			break;
+	if(pl == pic){
+		pl = emalloc(sizeof *pl);
+		memcpy(pl->iname, iname, nelem(pl->iname));
+		pl->id = id;
+		pl->type = type;
+		pl->name = name;
+		pl->nr = nr;
+		n = nr;
+		if((type & PFshadow) == 0)
+			n *= Nteam;
+		pl->p = emalloc(n * sizeof *pl->p);
+		pl->l = pic->l;
+		pic->l = pl;
 	}
+	return pl->p;
+}
+
+static Terrain *
+pushterrain(int id)
+{
+	Terrainl *tl;
+
+	for(tl=terrain->l; tl!=terrain; tl=tl->l)
+		if(tl->id == id)
+			break;
+	if(tl == terrain){
+		tl = emalloc(sizeof *tl);
+		tl->id = id;
+		tl->t = emalloc(sizeof *tl->t);
+		tl->t->p = pushpic(",", id, PFterrain, 1);
+		tl->l = terrain->l;
+		terrain->l = tl;
+	}
+	return tl->t;
 }
 
 static void
@@ -154,7 +180,6 @@ vunpack(char **fld, char *fmt, va_list a)
 	Attack *atk;
 	Resource *r;
 	Obj *o;
-	Terrain *t;
 
 	for(;;){
 		switch(*fmt++){
@@ -193,10 +218,8 @@ vunpack(char **fld, char *fmt, va_list a)
 			break;
 		case 'o':
 			s = *fld++;
-			if(*s == 0){
-				*va_arg(a, Obj**) = nil;
-				break;
-			}
+			if(*s == 0)
+				sysfatal("vunpack: empty obj");
 			for(o=obj; o<obj+nobj; o++)
 				if(strcmp(s, o->name) == 0)
 					break;
@@ -206,22 +229,11 @@ vunpack(char **fld, char *fmt, va_list a)
 			break;
 		case 't':
 			s = *fld++;
-			if(*s == 0){
-				*va_arg(a, Terrain**) = nil;
-				break;
-			}
+			if(*s == 0)
+				sysfatal("vunpack: empty terrain");
 			if((n = strtol(s, nil, 0)) <= 0)
 				sysfatal("vunpack: illegal terrain index %d", n);
-			for(t=terrain->t; t!=terrain; t=t->t)
-				if(t->n == n)
-					break;
-			if(t == terrain){
-				t = emalloc(sizeof *t);
-				t->n = n;
-				t->t = terrain->t;
-				terrain->t = t;
-			}
-			*va_arg(a, Terrain**) = t;
+			*va_arg(a, Terrain**) = pushterrain(n);
 			break;
 		}
 	}
@@ -243,17 +255,12 @@ readspawn(char **fld, int n, Table *)
 	Obj *o, **os, **oe;
 
 	unpack(fld++, "o", &o);
-	if(o == nil)
-		sysfatal("readspawn: empty string");
 	if(o->spawn != nil)
 		sysfatal("readspawn: spawn already assigned for obj %s", *fld);
 	o->spawn = emalloc(--n * sizeof *o->spawn);
 	o->nspawn = n;
-	for(os=o->spawn, oe=os+n; os<oe; os++){
+	for(os=o->spawn, oe=os+n; os<oe; os++)
 		unpack(fld++, "o", os);
-		if(*os == nil)
-			sysfatal("readspawn: empty string");
-	}
 }
 
 static void
@@ -335,20 +342,52 @@ readobj(char **fld, int, Table *tab)
 		obj = emalloc(nobj * sizeof *obj);
 	o = obj + tab->row;
 	o->name = estrdup(*fld++);
-	unpack(fld, "dddddddddddaa", &o->f, &o->w, &o->h,
+	unpack(fld, "ddddddddddddaa", &o->nr, &o->f, &o->w, &o->h,
 		&o->hp, &o->def, &o->speed, &o->vis,
 		o->cost, o->cost+1, o->cost+2, &o->time,
 		o->atk, o->atk+1);
 }
 
+static void
+readspr(char **fld, int n, Table *)
+{
+	int type, id;
+	Obj *o;
+	Pics *ps;
+	Pic ***ppp, **p, **pe;
+
+	unpack(fld, "od", &o, &type);
+	fld += 2;
+	n -= 2;
+	ps = nil;
+	switch(type & 0x7f){
+	case PFidle: ps = &o->pidle; break;
+	case PFmove: ps = &o->pmove; break;
+	default: sysfatal("readspr: invalid type %#02ux", type & 0x7f);
+	}
+	ppp = type & PFshadow ? &ps->shadow : &ps->p;
+	if(*ppp != nil)
+		sysfatal("readspr: %s pic type %#ux already allocated", o->name, type);
+	if(ps->nf != 0 && ps->nf != n)
+		sysfatal("readspr: %s spriteset phase error", o->name);
+	ps->nf = n;
+	p = emalloc(n * sizeof *ppp);
+	*ppp = p;
+	for(pe=p+n; p<pe; p++){
+		unpack(fld++, "d", &id);
+		*p = pushpic(o->name, id, type, o->nr);
+	}
+}
+
 Table table[] = {
 	{"mapobj", readmapobj, 4, &nobjp},
-	{"obj", readobj, 14, &nobj},
+	{"obj", readobj, 15, &nobj},
 	{"attack", readattack, 4, &nattack},
 	{"resource", readresource, 2, &nresource},
 	{"spawn", readspawn, -1, nil},
 	{"tileset", readtileset, 1, nil},
 	{"map", readmap, -1, &mapheight},
+	{"spr", readspr, -1, nil},
 };
 
 static int
@@ -415,7 +454,7 @@ loaddb(char *path)
 				break;
 		n = getcsvfields(p+1, fld, nelem(fld));
 		if(n != t->ncol && t->ncol >= 0)
-			sysfatal("loaddb: invalid row length %d for %s record", n, s);
+			sysfatal("loaddb: invalid row length %d for %s record %s", n, s, fld[0]);
 		t->readfn(fld, n, t);
 		t->row++;
 	next:
@@ -439,6 +478,17 @@ initmapobj(void)
 }
 
 static void
+cleanup(void)
+{
+	Terrainl *tl;
+
+	for(tl=terrain->l; tl!=terrain; tl=terrain->l){
+		terrain->l = tl->l;
+		free(tl);
+	}
+}
+
+static void
 checkdb(void)
 {
 	if(tileset == nil)
@@ -457,6 +507,7 @@ initdb(void)
 	initpath();
 	initmapobj();
 	checkdb();
+	cleanup();
 }
 
 void
