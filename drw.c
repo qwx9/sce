@@ -7,24 +7,14 @@
 int scale = 1;
 Point p0, pan;
 
-static int fbsz, fbh, fbw;
-static u32int *fb, *fbe;
+static int fbsz, fbh, fbw, fbws;
+static u32int *fb, *fbvis;
 static Image *fbi;
 static Rectangle selr;
 static Point panmax;
 static Mobj *selected[Nselect];
-
-static int
-max(int a, int b)
-{
-	return a > b ? a : b;
-}
-
-static int
-min(int a, int b)
-{
-	return a < b ? a : b;
-}
+static Mobj **visbuf;
+static int nvisbuf, nvis;
 
 void
 dopan(int dx, int dy)
@@ -41,35 +31,70 @@ dopan(int dx, int dy)
 		pan.y = panmax.y;
 }
 
-static Mobj *
-mapselect(Point *pp)
-{
-	Path *p;
-
-	p = path + pathwidth * (pp->y / Tlsubheight) + pp->x / Tlsubwidth;
-	return p->lo.lo->mo;
-}
-
 void
 select(Point p, int b)
 {
+	int i;
+	Point vp;
+	Mobj *mo;
+
 	if(!ptinrect(p, selr))
 		return;
-	p = divpt(addpt(subpt(p, selr.min), pan), scale);
-	/* FIXME: multiple selections */
-	/* FIXME: selection map based on sprite dimensions and offset */
-	if(b & 1)
-		selected[0] = mapselect(&p);
-	else if(b & 4){
+	if(b & 1){
+		p = divpt(subpt(p, selr.min), scale);
+		i = fbvis[p.y * fbw + p.x];
+		selected[0] = i == -1 ? nil : visbuf[i];
+	}else if(b & 4){
 		if(selected[0] == nil)
 			return;
-		/* FIXME: this implements move for any unit of any team,
-		 * including buildings, but not attack or anything else */
-		/* FIXME: attack, attackobj, moveobj (follow obj), etc. */
-		/* FIXME: offset sprite size */
-		//move(p.x & ~Tlsubmask, p.y & ~Tlsubmask, selected);
-		move(p.x, p.y, selected);
+		vp = divpt(subpt(p, selr.min), scale);
+		i = fbvis[vp.y * fbw + vp.x];
+		mo = i == -1 ? nil : visbuf[i];
+		if(mo == selected[0]){
+			dprint("select: %#p not moving to itself\n", visbuf[i]);
+			return;
+		}
+		p = divpt(addpt(subpt(p, selr.min), pan), scale);
+		p.x /= Tlsubwidth;
+		p.y /= Tlsubheight;
+		moveone(p, selected[0], mo);
 	}
+}
+
+static void
+drawhud(void)
+{
+	char s[256];
+	Mobj *mo;
+
+	draw(screen, Rpt(p0, screen->r.max), display->black, nil, ZP);
+	mo = selected[0];
+	if(mo == nil)
+		return;
+	snprint(s, sizeof s, "%s %d/%d", mo->o->name, mo->hp, mo->o->hp);
+	string(screen, p0, display->white, ZP, font, s);
+}
+
+static int
+addvis(Mobj *mo)
+{
+	int i;
+
+	if((i = nvis++) >= nvisbuf){
+		visbuf = erealloc(visbuf, (nvisbuf + 16) * sizeof *visbuf,
+			nvisbuf * sizeof *visbuf);
+		nvisbuf += 16;
+	}
+	visbuf[i] = mo;
+	return i;
+}
+
+static void
+clearvis(void)
+{
+	if(visbuf != nil)
+		memset(visbuf, 0, nvisbuf * sizeof *visbuf);
+	nvis = 0;
 }
 
 static int
@@ -79,7 +104,7 @@ boundpic(Rectangle *r, u32int **q)
 
 	r->min.x -= pan.x / scale;
 	r->min.y -= pan.y / scale;
-	if(r->min.x + r->max.x < 0 || r->min.x >= fbw / scale
+	if(r->min.x + r->max.x < 0 || r->min.x >= fbw
 	|| r->min.y + r->max.y < 0 || r->min.y >= fbh)
 		return -1;
 	w = r->max.x;
@@ -89,8 +114,8 @@ boundpic(Rectangle *r, u32int **q)
 		r->max.x += r->min.x;
 		r->min.x = 0;
 	}
-	if(r->min.x + r->max.x > fbw / scale)
-		r->max.x -= r->min.x + r->max.x - fbw / scale;
+	if(r->min.x + r->max.x > fbw)
+		r->max.x -= r->min.x + r->max.x - fbw;
 	if(r->min.y < 0){
 		if(q != nil)
 			*q -= w * r->min.y;
@@ -100,14 +125,15 @@ boundpic(Rectangle *r, u32int **q)
 	if(r->min.y + r->max.y > fbh)
 		r->max.y -= r->min.y + r->max.y - fbh;
 	r->min.x *= scale;
+	r->max.x *= scale;
 	return 0;
 }
 
 static void
-drawpic(int x, int y, Pic *pic)
+drawpic(int x, int y, Pic *pic, int ivis)
 {
-	int n, w, Δp, Δq;
-	u32int v, *p, *q;
+	int n, Δp, Δsp, Δq;
+	u32int v, *p, *e, *sp, *q;
 	Rectangle r;
 
 	if(pic->p == nil)
@@ -116,41 +142,45 @@ drawpic(int x, int y, Pic *pic)
 	r = Rect(x + pic->dx, y + pic->dy, pic->w, pic->h);
 	if(boundpic(&r, &q) < 0)
 		return;
-	Δq = pic->w - r.max.x;
-	p = fb + r.min.y * fbw + r.min.x;
-	Δp = fbw - r.max.x * scale;
+	Δq = pic->w - r.max.x / scale;
+	p = fb + r.min.y * fbws + r.min.x;
+	Δp = fbws - r.max.x;
+	sp = fbvis + r.min.y * fbw + r.min.x / scale;
+	Δsp = fbw - r.max.x / scale;
 	while(r.max.y-- > 0){
-		w = r.max.x;
-		while(w-- > 0){
+		e = p + r.max.x;
+		while(p < e){
 			v = *q++;
 			if(v & 0xff << 24){
 				for(n=0; n<scale; n++)
 					*p++ = v;
 			}else
 				p += scale;
+			*sp++ = ivis;
 		}
 		q += Δq;
 		p += Δp;
+		sp += Δsp;
 	}
 }
 
 static void
 drawshadow(int x, int y, Pic *pic)
 {
-	int n, w, Δp, Δq;
-	u32int v, *p, *q;
+	int n, Δp, Δq;
+	u32int v, *p, *e, *q;
 	Rectangle r;
 
 	q = pic->p;
 	r = Rect(x + pic->dx, y + pic->dy, pic->w, pic->h);
 	if(boundpic(&r, &q) < 0)
 		return;
-	Δq = pic->w - r.max.x;
-	p = fb + r.min.y * fbw + r.min.x;
-	Δp = fbw - r.max.x * scale;
+	Δq = pic->w - r.max.x / scale;
+	p = fb + r.min.y * fbws + r.min.x;
+	Δp = fbws - r.max.x;
 	while(r.max.y-- > 0){
-		w = r.max.x;
-		while(w-- > 0){
+		e = p + r.max.x;
+		while(p < e){
 			v = *q++;
 			if(v & 0xff << 24){
 				v = p[0];
@@ -167,21 +197,21 @@ drawshadow(int x, int y, Pic *pic)
 	}
 }
 
-static void
-compose(Path *pp, u32int c)
+void
+compose(int x, int y, u32int c)
 {
-	int n, w, Δp;
-	u32int v, *p;
+	int n, Δp;
+	u32int v, *p, *e;
 	Rectangle r;
 
-	r = Rect(pp->x * Tlsubwidth, pp->y * Tlsubheight, Tlsubwidth, Tlsubheight);
+	r = Rect(x * Tlsubwidth, y * Tlsubheight, Tlsubwidth, Tlsubheight);
 	if(boundpic(&r, nil) < 0)
 		return;
-	p = fb + r.min.y * fbw + r.min.x;
-	Δp = fbw - r.max.x * scale;
+	p = fb + r.min.y * fbws + r.min.x;
+	Δp = fbws - r.max.x;
 	while(r.max.y-- > 0){
-		w = r.max.x;
-		while(w-- > 0){
+		e = p + r.max.x;
+		while(p < e){
 			v = *p;
 			v = (v & 0xff0000) + (c & 0xff0000) >> 1 & 0xff0000
 				| (v & 0xff00) + (c & 0xff00) >> 1 & 0xff00
@@ -190,6 +220,41 @@ compose(Path *pp, u32int c)
 				*p++ = v;
 		}
 		p += Δp;
+	}
+}
+
+static void
+drawmap(Rectangle *r)
+{
+	int x, y;
+	u64int *row, v, m;
+	Node *n;
+	Mobj *mo;
+	Point *p;
+
+	for(y=r->min.y, n=node+y*mapwidth+r->min.x; y<r->max.y; y++){
+		x = r->min.x;
+		row = baddr(x, y);
+		v = *row++;
+		m = 1ULL << 63 - (x & Bmask);
+		for(; x<r->max.x; x++, n++, m>>=1){
+			if(m == 0){
+				v = *row++;
+				m = 1ULL << 63;
+			}
+			if(v & m)
+				compose(x, y, 0xff0000);
+			if(n->closed)
+				compose(x, y, 0x0000ff);
+			else if(n->open)
+				compose(x, y, 0xffff00);
+		}
+		n += mapwidth - (r->max.x - r->min.x);
+	}
+	if((mo = selected[0]) != nil && mo->pathp != nil){
+		for(p=mo->paths; p<mo->pathe; p++)
+			compose(p->x, p->y, 0x00ff00);
+		compose(mo->target.x, mo->target.y, 0x00ffff);
 	}
 }
 
@@ -212,64 +277,90 @@ frm(Mobj *mo, int notshadow)
 void
 redraw(void)
 {
-	char s[256];
-	Point p;
+	int x, y;
+	Rectangle mr, tr;
+	Terrain **t;
 	Map *m;
 	Mobj *mo;
-	Lobj *lo;
-	//Path *pp;
+	Mobjl *ml;
 
-	/* FIXME: only process visible parts of the screen and adjacent tiles */
-	for(m=map; m<map+mapwidth*mapheight; m++)
-		drawpic(m->x, m->y, m->t->p);
-	/* FIXME: draw overlay (creep) */
-	/* FIXME: draw corpses */
-	for(m=map; m<map+mapwidth*mapheight; m++){
-		for(lo=m->lo.lo; lo!=&m->lo; lo=lo->lo){
-			mo = lo->mo;
-			drawshadow(mo->p.x, mo->p.y, frm(mo, 0));
-		}
-		for(lo=m->lo.lo; lo!=&m->lo; lo=lo->lo){
-			mo = lo->mo;
-			drawpic(mo->p.x, mo->p.y, frm(mo, 1));
-		}
+	clearvis();
+	tr.min.x = pan.x / scale / Tlwidth;
+	tr.min.y = pan.y / scale / Tlheight;
+	tr.max.x = min(tr.min.x + fbw / Tlwidth + scale, terwidth);
+	tr.max.y = min(tr.min.y + fbh / Tlheight + scale, terheight);
+	mr.min.x = max(tr.min.x - 3, 0) * Tlnsub;
+	mr.min.y = max(tr.min.y - 3, 0) * Tlnsub;
+	mr.max.x = tr.max.x * Tlnsub;
+	mr.max.y = tr.max.y * Tlnsub;
+	for(y=tr.min.y, t=terrain+y*terwidth+tr.min.x; y<tr.max.y; y++){
+		for(x=tr.min.x; x<tr.max.x; x++, t++)
+			drawpic(x*Tlwidth, y*Tlheight, (*t)->p, -1);
+		t += terwidth - (tr.max.x - tr.min.x);
 	}
-	//for(pp=path; pp<path+pathwidth*pathheight; pp++)
-	//	if(pp->blk != nil)
-	//		compose(pp, 0xff00ff);
-	/* FIXME: draw hud */
-	draw(screen, Rpt(p0, screen->r.max), display->black, nil, ZP);
-	mo = selected[0];
-	if(mo == nil)
-		return;
-	/* FIXME: selected should be its own layer, not mapped to Map,
-	 * since the coordinates won't match */
-	p = p0;
-	snprint(s, sizeof s, "%s %d/%d", mo->o->name, mo->hp, mo->o->hp);
-	string(screen, p, display->white, ZP, font, s);
+	for(y=mr.min.y, m=map+y*mapwidth+mr.min.x; y<mr.max.y; y++){
+		for(x=mr.min.x; x<mr.max.x; x++, m++){
+			for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
+				mo = ml->mo;
+				if(mo->o->f & Fair)
+					break;
+				drawshadow(mo->px, mo->py, frm(mo, 0));
+			}
+			for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
+				mo = ml->mo;
+				if(mo->o->f & Fair)
+					break;
+				drawpic(mo->px, mo->py, frm(mo, 1), addvis(mo));
+			}
+		}
+		m += mapwidth - (mr.max.x - mr.min.x);
+	}
+	for(y=mr.min.y, m=map+y*mapwidth+mr.min.x; y<mr.max.y; y++){
+		for(x=mr.min.x; x<mr.max.x; x++, m++){
+			for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
+				mo = ml->mo;
+				if((mo->o->f & Fair) == 0)
+					continue;
+				drawshadow(mo->px, mo->py, frm(mo, 0));
+			}
+			for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
+				mo = ml->mo;
+				if((mo->o->f & Fair) == 0)
+					continue;
+				drawpic(mo->px, mo->py, frm(mo, 1), addvis(mo));
+			}
+		}
+		m += mapwidth - (mr.max.x - mr.min.x);
+	}
+	if(debugmap)
+		drawmap(&mr);
+	drawhud();
 }
 
 void
 resetfb(void)
 {
-	fbw = min(mapwidth * Tlwidth * scale, Dx(screen->r));
-	fbh = min(mapheight * Tlheight * scale, Dy(screen->r));
-	selr = Rpt(screen->r.min, addpt(screen->r.min, Pt(fbw, fbh)));
+	fbws = min(mapwidth * Tlsubwidth * scale, Dx(screen->r));
+	fbh = min(mapheight * Tlsubheight * scale, Dy(screen->r));
+	selr = Rpt(screen->r.min, addpt(screen->r.min, Pt(fbws, fbh)));
 	p0 = Pt(screen->r.min.x + 8, screen->r.max.y - 3 * font->height);
-	panmax.x = max(Tlwidth * mapwidth * scale - Dx(screen->r), 0);
-	panmax.y = max(Tlheight * mapheight * scale - Dy(screen->r), 0);
+	panmax.x = max(Tlsubwidth * mapwidth * scale - Dx(screen->r), 0);
+	panmax.y = max(Tlsubheight * mapheight * scale - Dy(screen->r), 0);
 	if(p0.y < selr.max.y){
 		panmax.y += selr.max.y - p0.y;
+		fbh -= selr.max.y - p0.y;
 		selr.max.y = p0.y;
 	}
+	fbw = fbws / scale;
 	fbh /= scale;
-	fbsz = fbw * fbh * sizeof *fb;
+	fbsz = fbws * fbh * sizeof *fb;
 	free(fb);
+	free(fbvis);
 	freeimage(fbi);
 	fb = emalloc(fbsz);
-	fbe = fb + fbsz / sizeof *fb;
+	fbvis = emalloc(fbw * fbh * sizeof *fb);
 	if((fbi = allocimage(display,
-		Rect(0,0,fbw,scale==1 ? fbh : 1),
+		Rect(0,0,fbws,scale==1 ? fbh : 1),
 		XRGB32, scale>1, 0)) == nil)
 		sysfatal("allocimage: %r");
 	draw(screen, screen->r, display->black, nil, ZP);
@@ -282,8 +373,6 @@ drawfb(void)
 	Rectangle r, r2;
 
 	r = selr;
-	if(r.max.y > p0.y)
-		r.max.y = p0.y;
 	p = (uchar *)fb;
 	if(scale == 1){
 		loadimage(fbi, fbi->r, p, fbsz);

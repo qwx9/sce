@@ -16,6 +16,7 @@ mainstacksize = 16*1024;
 char *progname = "sce", *dbname, *prefix, *mapname = "map1.db";
 int clon;
 vlong tc;
+int pause, debugmap;
 
 typedef struct Kev Kev;
 typedef struct Mev Mev;
@@ -37,41 +38,7 @@ enum{
 };
 static int tv = Tfast, tdiv;
 static vlong Δtc;
-static int pause;
 static Channel *reszc, *kc, *mc;
-
-char *
-estrdup(char *s)
-{
-	if((s = strdup(s)) == nil)
-		sysfatal("estrdup: %r");
-	setmalloctag(s, getcallerpc(&s));
-	return s;
-}
-
-void *
-emalloc(ulong n)
-{
-	void *p;
-
-	if((p = mallocz(n, 1)) == nil)
-		sysfatal("emalloc: %r");
-	setmalloctag(p, getcallerpc(&n));
-	return p;
-}
-
-vlong
-flen(int fd)
-{
-	vlong l;
-	Dir *d;
-
-	if((d = dirfstat(fd)) == nil) 
-		sysfatal("flen: %r");
-	l = d->length;
-	free(d);
-	return l;
-}
 
 static void
 mproc(void *)
@@ -179,9 +146,8 @@ input(void)
 		if(!ke.down)
 			continue;
 		switch(ke.r){
-		case ' ':
-			pause ^= 1;
-			break;
+		case KF|1: debugmap ^= 1; pause ^= 1; break;
+		case ' ': pause ^= 1; break;
 		case Kdel: quit(); break;
 		}
 	}
@@ -229,7 +195,7 @@ step(void)
 static void
 usage(void)
 {
-	fprint(2, "usage: %s [-l port] [-m map] [-n name] [-s scale] [-t speed] [-x netmtpt] [sys]\n", argv0);
+	fprint(2, "usage: %s [-D] [-l port] [-m map] [-n name] [-s scale] [-t speed] [-x netmtpt] [sys]\n", argv0);
 	threadexits("usage");
 }
 
@@ -239,6 +205,7 @@ threadmain(int argc, char **argv)
 	vlong t, t0, dt;
 
 	ARGBEGIN{
+	case 'D': debug = 1; break;
 	case 'l': lport = strtol(EARGF(usage()), nil, 0); break;
 	case 'm': mapname = EARGF(usage()); break;
 	case 'n': progname = EARGF(usage()); break;

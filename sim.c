@@ -9,202 +9,133 @@ Team team[Nteam], *curteam;
 int nteam;
 int initres[Nresource], foodcap;
 
-static Lobj vlist = {.lo = &vlist, .lp = &vlist };
+static Mobjl moving0 = {.l = &moving0, .lp = &moving0}, *moving = &moving0;
 
-/* FIXME: networking: recvbuf and sendbuf for accumulating messages to flush
- * to all clients */
-/* FIXME: acceleration, deceleration, turning speed (360°) */
-/* FIXME: minerals: 4 spaces in every direction forbidding cc placement */
-/* FIXME: resource tiles: take 2x1 tiles, drawn on top of rest
- *	-> actual (immutable) object, not terrain (remove resource= from
- *	   terrain shit, move to objects)
- *	-> minerals: min0?.grp, three types depending on abundance, with
- *	   several variants each
- *	-> Geyser.grp (terrain pal?) */
-/* FIXME: rip mineral sprites and implement terrain objects layer */
-/* FIXME: buildings are aligned to map grid, while units are aligned to
- * path grid -> building placement uses Map, not Path */
-/* FIXME: verify that path node centering does in fact work correctly, esp
- * viz blockmap and .subp; if it does, do centering at spawn */
-/* FIXME: fix land spawning to always work if adjacent space can be found */
-/* FIXME: once spawning is fixed, remove race-specific mentions and units from
- * map spec, having only starts instead, resolving to a race's cc and spawning
- * 4 workers by default (marked in db) */
-
-/* FIXME:
- - networking
- 	. server: spawn server + local client (by default)
- 	. client: connect to server
- 	. both initialize a simulation, but only the server modifies state
- - command line: choose whether or not to spawn a server and/or a client
-   (default: both)
- - always spawn a server, always initialize loopback channel to it; client
-   should do the same amount of work but the server always has the last word
-   	. don't systematically announce a port
- - client: join observers on connect
- - program a lobby for both client and server
- 	. server: kick/ban ip's, rate limit, set teams and rules
- 	. master client -> server priviledges
- 	. master client == local client
- 	. if spawning a server only, local client just implements the lobby
- 	  and a console interface, same as lobby, for controlling the server
- 	. client: choose slot
- */
-/* FIXME: db: build tree specification */
-
-static Lobj *
-lalloc(Mobj *mo, ulong sz)
+static Mobjl *
+linkmobj(Mobjl *l, Mobj *mo, Mobjl *p)
 {
-	Lobj *lo, *l;
-
-	lo = emalloc(sz * sizeof *lo);
-	for(l=lo; sz>0; sz--, l++)
-		l->mo = mo;
-	return lo;
-}
-
-void
-llink(Lobj *lo, Lobj *lp)
-{
-	lo->lo = lp->lo;
-	lo->lp = lp;
-	lp->lo->lp = lo;
-	lp->lo = lo;
-}
-
-void
-lunlink(Lobj *lo)
-{
-	lo->lp->lo = lo->lo;
-	lo->lo->lp = lo->lp;
+	if(p == nil)
+		p = emalloc(sizeof *p);
+	p->mo = mo;
+	p->l = l->l;
+	p->lp = l;
+	l->l->lp = p;
+	l->l = p;
+	return p;
 }
 
 static void
-lfree(Lobj *lo)
+unlinkmobj(Mobjl *ml)
 {
-	lunlink(lo);
-	free(lo);
-}
-
-static void
-freepath(Mobj *mo)
-{
-	if(mo->path == nil)
+	if(ml == nil || ml->l == nil || ml->lp == nil)
 		return;
-	free(mo->path);
-	mo->path = mo->pathp = mo->pathe = nil;
-	lunlink(mo->vl);
+	ml->lp->l = ml->l;
+	ml->l->lp = ml->lp;
+	ml->lp = ml->l = nil;
+}
+
+void
+linktomap(Mobj *mo)
+{
+	Map *m;
+
+	m = map + mo->y * mapwidth + mo->x;
+	mo->mapp = linkmobj(mo->f & Fair ? m->ml.lp : &m->ml, mo, mo->mapp);
 }
 
 static void
-nextpath(Mobj *mo)
+resetcoords(Mobj *mo)
 {
-	int Δθ, vx, vy;
-	double θ, l;
-	Point p;
+	markmobj(mo, 0);
+	mo->subpx = mo->px << Subpxshift;
+	mo->subpy = mo->py << Subpxshift;
+	markmobj(mo, 1);
+}
 
-	p = *mo->pathp++;
-	vx = p.x - mo->p.x;
-	vy = p.y - mo->p.y;
-	l = sqrt(vx * vx + vy * vy);
-	mo->vx = vx / l;
-	mo->vy = vy / l;
-	mo->vv = mo->o->speed;
-	θ = atan2(mo->vy, mo->vx) + PI / 2;
+static int
+facemobj(Point p, Mobj *mo)
+{
+	int dx, dy;
+	double vx, vy, θ, d;
+
+	dx = p.x - mo->x;
+	dy = p.y - mo->y;
+	d = sqrt(dx * dx + dy * dy);
+	vx = dx / d;
+	vy = dy / d;
+	mo->u = vx;
+	mo->v = vy;
+	θ = atan2(vy, vx) + PI / 2;
 	if(θ < 0)
 		θ += 2 * PI;
 	else if(θ >= 2 * PI)
 		θ -= 2 * PI;
-	Δθ = (θ / (2*PI) * 360) / (90. / (Nrot/4)) - mo->θ;
+	return (θ / (2 * PI) * 360) / (90. / (Nrot / 4));
+}
+
+static void
+freemove(Mobj *mo)
+{
+	unlinkmobj(mo->movingp);
+	mo->pathp = nil;
+	mo->pics = &mo->o->pidle;
+	resetcoords(mo);
+}
+
+static void
+nextmove(Mobj *mo)
+{
+	int Δθ;
+
+	resetcoords(mo);
+	Δθ = facemobj(*mo->pathp, mo) - mo->θ;
 	if(Δθ <= -Nrot / 2)
 		Δθ += Nrot;
 	else if(Δθ >= Nrot / 2)
 		Δθ -= Nrot;
 	mo->Δθ = Δθ;
+	mo->speed = mo->o->speed;
 }
 
 static int
-repath(Mobj *mo, Point *p)
+repath(Point p, Mobj *mo)
 {
-	freepath(mo);
-	if(findpath(mo, p) < 0){
-		fprint(2, "repath: move to %d,%d: %r\n", p->x, p->y);
+	freemove(mo);
+	mo->target = p;
+	if(findpath(p, mo) < 0){
+		mo->θ = facemobj(p, mo);
 		return -1;
 	}
-	if(mo->vl == nil)
-		mo->vl = lalloc(mo, 1);
-	llink(mo->vl, vlist.lp);
+	mo->movingp = linkmobj(moving, mo, mo->movingp);
+	mo->pathp = mo->paths;
 	mo->pics = mo->o->pmove.p != nil ? &mo->o->pmove : &mo->o->pidle;
-	nextpath(mo);
+	nextmove(mo);
 	return 0;
 }
 
-static int
-canmove(int x, int y, Mobj **op)
-{
-	/* FIXME: attempt to move in the given direction even if impassible */
-	USED(x, y, op);
-	return 1;
-}
-
 int
-move(int x, int y, Mobj **op)
+moveone(Point p, Mobj *mo, Mobj *block)
 {
-	Mobj *mo, **mp;
-	Point p;
-
-	if(!canmove(x, y, op))
+	if(mo->o->speed == 0){
+		dprint("move: obj %s can't move\n", mo->o->name);
 		return -1;
-	for(mp=op; (mo=*mp)!=nil; mp++){
-		/* FIXME: offset sprite size */
-		p = (Point){x & ~Tlsubmask, y & ~Tlsubmask};
-		if(mo->o->speed != 0 && repath(mo, &p) < 0)
-			continue;
+	}
+	setgoal(&p, mo, block);
+	if(repath(p, mo) < 0){
+		dprint("move to %d,%d: %r\n", p.x, p.y);
+		return -1;
 	}
 	return 0;
 }
 
-/* FIXME: we're not actually spawning a unit at a location, are we? it's a
- * unit or structure that spawns a unit, the placement is determined based on
- * available space -> the spawning mechanism works the same; initial units are
- * always the same and are spawned in the same manner */
-static int
-canspawn(Map *m, Mobj *mo)
-{
-	Point p;
-
-	/* FIXME: find space, unless not a unit */
-	p.x = m->tx * (Tlwidth / Tlsubwidth);
-	p.y = m->ty * (Tlheight / Tlsubheight);
-	if(isblocked(&p, mo)){
-		werrstr("no available space");
-		return 0;
-	}
-	return 1;
-}
-
 int
-spawn(Map *m, Obj *o, int n)
+spawn(int x, int y, Obj *o, int n)
 {
 	Mobj *mo;
 
-	mo = emalloc(sizeof *mo);
-	mo->o = o;
-	mo->p.x = m->x;
-	mo->p.y = m->y;
-	if(!canspawn(m, mo)){
-		free(mo);
+	if((mo = mapspawn(x, y, o)) == nil)
 		return -1;
-	}
-	mo->x = m->x / Tlsubwidth;
-	mo->y = m->y / Tlsubheight;
 	mo->team = n;
-	mo->f = o->f;
-	mo->hp = o->hp;
-	mo->zl = lalloc(mo, 1);
-	llink(mo->zl, &m->lo);
-	mo->blk = lalloc(mo, mo->o->w * (Tlwidth / Tlsubwidth) * mo->o->h * (Tlheight / Tlsubheight));
-	setblk(mo, 0);
 	mo->pics = &mo->o->pidle;
 	if(mo->f & Fbuild)
 		team[n].nbuild++;
@@ -218,7 +149,10 @@ tryturn(Mobj *mo)
 {
 	int Δθ;
 
-	Δθ = mo->Δθ < 0 ? -1 : 1;
+	if(mo->Δθ < 0)
+		Δθ = mo->Δθ < -4 ? -4 : mo->Δθ;
+	else
+		Δθ = mo->Δθ > 4 ? 4 : mo->Δθ;
 	mo->θ = mo->θ + Δθ & Nrot - 1;
 	mo->Δθ -= Δθ;
 }
@@ -226,111 +160,132 @@ tryturn(Mobj *mo)
 static int
 trymove(Mobj *mo)
 {
-	int Δr, sx, sy;
-	Point subΔr, subp, p, pp;
+	int x, y, sx, sy, Δx, Δy, Δu, Δv, Δrx, Δry, Δpx, Δpy;
 
-	subΔr.x = mo->vx * mo->vv * (1 << Tlshift);
-	subΔr.y = mo->vy * mo->vv * (1 << Tlshift);
-	sx = subΔr.x < 0 ? -1 : 1;
-	sy = subΔr.y < 0 ? -1 : 1;
-	subΔr.x *= sx;
-	subΔr.y *= sy;
-	Δr = sx * (mo->pathp[-1].x - mo->p.x << Tlshift) - mo->subp.x;
-	if(subΔr.x > Δr)
-		subΔr.x = Δr;
-	Δr = sy * (mo->pathp[-1].y - mo->p.y << Tlshift) - mo->subp.y;
-	if(subΔr.y > Δr)
-		subΔr.y = Δr;
-	while(subΔr.x > 0 || subΔr.y > 0){
-		p = mo->p;
-		subp = mo->subp;
-		if(subΔr.x > 0){
-			Δr = (Tlsubwidth << Tlshift) - subp.x;
-			if(Δr <= subΔr.x){
-				p.x += sx * Tlsubwidth;
-				subp.x = 0;
-			}else{
-				subp.x += subΔr.x;
-				p.x += sx * (subp.x >> Tlshift);
-				subp.x &= (1 << Tlshift) - 1;
-			}
-			subΔr.x -= Δr;
+	markmobj(mo, 0);
+	sx = mo->subpx;
+	sy = mo->subpy;
+	Δu = mo->u * (1 << Subpxshift);
+	Δv = mo->v * (1 << Subpxshift);
+	Δx = abs(Δu);
+	Δy = abs(Δv);
+	Δrx = Δx * mo->speed;
+	Δry = Δy * mo->speed;
+	Δpx = abs((mo->pathp->x * Tlsubwidth << Subpxshift) - sx);
+	Δpy = abs((mo->pathp->y * Tlsubwidth << Subpxshift) - sy);
+	if(Δpx < Δrx)
+		Δrx = Δpx;
+	if(Δpy < Δry)
+		Δry = Δpy;
+	while(Δrx > 0 || Δry > 0){
+		x = mo->x;
+		y = mo->y;
+		if(Δrx > 0){
+			sx += Δu;
+			Δrx -= Δx;
+			if(Δrx < 0)
+				sx += mo->u < 0 ? -Δrx : Δrx;
+			x = (sx >> Subpxshift) + ((sx & Subpxmask) != 0);
+			x /= Tlsubwidth;
 		}
-		if(subΔr.y > 0){
-			Δr = (Tlsubheight << Tlshift) - subp.y;
-			if(Δr <= subΔr.y){
-				p.y += sy * Tlsubheight;
-				subp.y = 0;
-			}else{
-				subp.y += subΔr.y;
-				p.y += sy * (subp.y >> Tlshift);
-				subp.y &= (1 << Tlshift) - 1;
-			}
-			subΔr.y -= Δr;
+		if(Δry > 0){
+			sy += Δv;
+			Δry -= Δy;
+			if(Δry < 0)
+				sy += mo->v < 0 ? -Δry : Δry;
+			y = (sy >> Subpxshift) + ((sy & Subpxmask) != 0);
+			y /= Tlsubwidth;
 		}
-		pp.x = p.x / Tlsubwidth;
-		pp.y = p.y / Tlsubheight;
-		if(mo->x != pp.x || mo->y != pp.y){
-			if(isblocked(&pp, mo))
-				return -1;
-			setblk(mo, 1);
-			mo->x = pp.x;
-			mo->y = pp.y;
-			setblk(mo, 0);
+		if(isblocked(x, y, mo->o))
+			goto end;
+		/* disallow corner coasting */
+		if(x != mo->x && y != mo->y
+		&& (isblocked(x, mo->y, mo->o) || isblocked(mo->x, y, mo->o))){
+			dprint("detected corner coasting %d,%d vs %d,%d\n",
+				x, y, mo->x, mo->y);
+			goto end;
 		}
-		mo->subp = subp;
-		mo->p = p;
+		mo->subpx = sx;
+		mo->subpy = sy;
+		mo->px = sx >> Subpxshift;
+		mo->py = sy >> Subpxshift;
+		mo->x = mo->px / Tlsubwidth;
+		mo->y = mo->py / Tlsubheight;
 	}
+	markmobj(mo, 1);
 	return 0;
+end:
+	werrstr("trymove: can't move to %d,%d", x, y);
+	mo->subpx = mo->px << Subpxshift;
+	mo->subpy = mo->py << Subpxshift;
+	markmobj(mo, 1);
+	return -1;
 }
 
 static void
 stepmove(Mobj *mo)
 {
-	Point pp;
-	Map *m, *m´;
+	int r, n;
 
-	/* FIXME: constant turn speed for now, but is it always so? */
-	/* FIXME: too slow */
+	n = 0;
+restart:
+	n++;
 	if(mo->Δθ != 0){
 		tryturn(mo);
 		return;
 	}
-	m = map + mo->y / (Tlheight / Tlsubheight) * mapwidth
-		+ mo->x / (Tlwidth / Tlsubwidth);
-	/* FIXME: update speed (based on range from src and to target?) */
-	/* FIXME: update speed: accel, decel, turning speed */
-	if(trymove(mo) < 0){
-		mo->vv = 0.0;
-		pp = mo->pathe[-1];
-		fprint(2, "mo %#p blocked at %d,%d goal %d,%d\n", mo, mo->x * Tlsubwidth, mo->y * Tlsubheight, mo->pathp[-1].x, mo->pathp[-1].y);
-		/* FIXME: if path now blocked, move towards target anyway */
-		repath(mo, &pp);
-		return;
-	}
-	if(mo->p.x == mo->pathp[-1].x && mo->p.y == mo->pathp[-1].y){
-		if(mo->pathp < mo->pathe)
-			nextpath(mo);
-		else{
-			freepath(mo);
-			mo->pics = &mo->o->pidle;
+	unlinkmobj(mo->mapp);
+	r = trymove(mo);
+	linktomap(mo);
+	if(r < 0){
+		if(n > 1){
+			fprint(2, "stepmove: %s %#p bug inducing infinite loop!\n",
+				mo->o->name, mo);
+			return;
 		}
+		dprint("stepmove: failed to move: %r\n");
+		if(repath(mo->target, mo) < 0){
+			dprint("stepmove: %s %#p moving towards target: %r\n",
+				mo->o->name, mo);
+			return;
+		}
+		goto restart;
 	}
-	m´ = map + mo->y / (Tlheight / Tlsubheight) * mapwidth
-		+ mo->x / (Tlwidth / Tlsubwidth);
-	if(m != m´){
-		lunlink(mo->zl);
-		llink(mo->zl, &m´->lo);
+	if(mo->x == mo->pathp->x && mo->y == mo->pathp->y){
+		mo->pathp++;
+		if(mo->pathp < mo->pathe){
+			nextmove(mo);
+			return;
+		}else if(mo->x == mo->target.x && mo->y == mo->target.y){
+			mo->npatherr = 0;
+			freemove(mo);
+			return;
+		}
+		dprint("stepmove: %s %#p reached final node, but not target\n",
+			mo->o->name, mo);
+		if(mo->goalblocked && isblocked(mo->target.x, mo->target.y, mo->o)){
+			dprint("stepmove: %s %#p goal still blocked, stopping\n",
+				mo->o->name, mo);
+			freemove(mo);
+			return;
+		}
+		if(mo->npatherr++ > 1
+		|| repath(mo->target, mo) < 0){
+			dprint("stepmove: %s %#p trying to find target: %r\n",
+				mo->o->name, mo);
+			mo->npatherr = 0;
+			freemove(mo);
+		}
 	}
 }
 
 void
 stepsim(void)
 {
-	Lobj *lo;
+	Mobjl *ml, *oml;
 
-	for(lo=vlist.lo; lo!=&vlist; lo=lo->lo)
-		stepmove(lo->mo);
+	for(oml=moving->l, ml=oml->l; oml!=moving; oml=ml, ml=ml->l)
+		stepmove(oml->mo);
 }
 
 static void

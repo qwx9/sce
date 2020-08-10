@@ -1,30 +1,59 @@
+typedef struct Node Node;
+typedef struct Pairheap Pairheap;
 typedef struct Attack Attack;
 typedef struct Pic Pic;
 typedef struct Pics Pics;
 typedef struct Obj Obj;
+typedef struct Path Path;
 typedef struct Mobj Mobj;
-typedef struct Lobj Lobj;
+typedef struct Mobjl Mobjl;
 typedef struct Terrain Terrain;
 typedef struct Map Map;
 typedef struct Resource Resource;
 typedef struct Team Team;
-typedef struct Path Path;
 
 enum{
 	Nresource = 3,
 	Nteam = 8,
 	Nselect = 12,
 	Nrot = 32,
-	Npath = 64,
 	Tlwidth = 32,
 	Tlheight = Tlwidth,
-	Tlshift = 16,
-	Tlmask = ((1 << Tlshift) - 1) << Tlshift,
 	Tlsubshift = 2,
 	Tlsubwidth = Tlwidth >> Tlsubshift,
 	Tlsubheight = Tlheight >> Tlsubshift,
-	Tlsubmask = Tlsubwidth - 1,
+	Tlnsub = Tlwidth / Tlsubwidth,
+	Subpxshift = 16,
+	Subpxmask = (1 << Subpxshift) - 1,
 };
+
+enum{
+	Bshift = 6,
+	Bmask = (1 << Bshift) - 1,
+};
+
+struct Pairheap{
+	double sum;
+	Node *n;
+	Pairheap *parent;
+	Pairheap *left;
+	Pairheap *right;
+};
+
+struct Node{
+	int x;
+	int y;
+	int closed;
+	int open;
+	double g;
+	double Δg;
+	double h;
+	int step;
+	int dir;
+	Node *from;
+	Pairheap *p;
+};
+extern Node *node;
 
 struct Attack{
 	char *name;
@@ -63,10 +92,10 @@ struct Obj{
 	Pics pidle;
 	Pics pmove;
 	int nr;
-	Attack *atk[2];
-	int f;
 	int w;
 	int h;
+	int f;
+	Attack *atk[2];
 	int hp;
 	int def;
 	int speed;
@@ -76,47 +105,50 @@ struct Obj{
 	Obj **spawn;
 	int nspawn;
 };
-
+struct Path{
+	Point target;
+	int goalblocked;
+	int npatherr;
+	int npathbuf;
+	Point *paths;
+	Point *pathp;
+	Point *pathe;
+};
 struct Mobj{
 	Obj *o;
 	Pics *pics;
-	Point;
-	Point p;
-	Point subp;
 	int θ;
-	double vx;
-	double vy;
-	double vv;
+	Point;
+	int px;
+	int py;
+	int subpx;
+	int subpy;
+	Path;
 	int Δθ;
-	Point *path;
-	Point *pathp;
-	Point *pathe;
+	double u;
+	double v;
+	double speed;
+	Mobjl *movingp;
+	Mobjl *mapp;
 	int f;
 	int team;
 	int hp;
 	int xp;
-	Lobj *blk;
-	Lobj *zl;
-	Lobj *vl;
 };
-
-struct Lobj{
+struct Mobjl{
 	Mobj *mo;
-	Lobj *lo;
-	Lobj *lp;
+	Mobjl *l;
+	Mobjl *lp;
 };
-extern Lobj zlist;
 
 struct Terrain{
 	Pic *p;
 };
+extern Terrain **terrain;
+extern terwidth, terheight;
 
 struct Map{
-	Point;
-	int tx;
-	int ty;
-	Terrain *t;
-	Lobj lo;
+	Mobjl ml;
 };
 extern Map *map;
 extern int mapwidth, mapheight;
@@ -135,19 +167,6 @@ struct Team{
 extern Team team[Nteam], *curteam;
 extern int nteam;
 
-struct Path{
-	Point;
-	Lobj lo;
-	Mobj *blk;
-	int closed;
-	int open;
-	Path *from;
-	double g;
-	double h;
-};
-extern Path *path;
-extern int pathwidth, pathheight;
-
 extern int lport;
 extern char *netmtpt;
 
@@ -160,3 +179,5 @@ enum{
 extern char *progname, *prefix, *dbname, *mapname;
 extern int clon;
 extern vlong tc;
+extern int pause, debugmap;
+extern int debug;

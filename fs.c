@@ -6,11 +6,7 @@
 #include "dat.h"
 #include "fns.h"
 
-/* FIXME: building sight range, set to 1 for now */
-
 Resource resource[Nresource];
-Map *map;
-int mapwidth, mapheight;
 
 typedef struct Table Table;
 typedef struct Objp Objp;
@@ -43,7 +39,7 @@ struct Terrainl{
 	Terrain *t;
 	Terrainl *l;
 };
-static Terrainl terrain0 = {.l = &terrain0}, *terrain = &terrain0;
+static Terrainl terrainl0 = {.l = &terrainl0}, *terrainl = &terrainl0;
 static Picl pic0 = {.l = &pic0}, *pic = &pic0;
 static Objp *objp;
 static Attack *attack;
@@ -158,16 +154,16 @@ pushterrain(int id)
 {
 	Terrainl *tl;
 
-	for(tl=terrain->l; tl!=terrain; tl=tl->l)
+	for(tl=terrainl->l; tl!=terrainl; tl=tl->l)
 		if(tl->id == id)
 			break;
-	if(tl == terrain){
+	if(tl == terrainl){
 		tl = emalloc(sizeof *tl);
 		tl->id = id;
 		tl->t = emalloc(sizeof *tl->t);
 		tl->t->p = pushpic(",", id, PFterrain, 1);
-		tl->l = terrain->l;
-		terrain->l = tl;
+		tl->l = terrainl->l;
+		terrainl->l = tl;
 	}
 	return tl->t;
 }
@@ -275,23 +271,16 @@ static void
 readmap(char **fld, int n, Table *tab)
 {
 	int x;
-	Map *m;
+	Terrain **t;
 
 	if(tab->row == 0){
 		tab->ncol = n;
-		mapwidth = n;
-		map = emalloc(mapheight * mapwidth * sizeof *map);
+		terwidth = n;
+		terrain = emalloc(terheight * terwidth * sizeof *terrain);
 	}
-	m = map + tab->row * mapwidth;
-	for(x=0; x<n; x++, m++){
-		unpack(fld++, "t", &m->t);
-		/* FIXME: get rid of these */
-		m->tx = x;
-		m->ty = tab->row;
-		m->x = m->tx * Tlwidth;
-		m->y = m->ty * Tlheight;
-		m->lo.lo = m->lo.lp = &m->lo;
-	}
+	t = terrain + tab->row * terwidth;
+	for(x=0; x<n; x++, t++)
+		unpack(fld++, "t", t);
 }
 
 static void
@@ -346,6 +335,8 @@ readobj(char **fld, int, Table *tab)
 		&o->hp, &o->def, &o->speed, &o->vis,
 		o->cost, o->cost+1, o->cost+2, &o->time,
 		o->atk, o->atk+1);
+	if(o->w < 1 || o->h < 1)
+		sysfatal("readobj: %s invalid dimensions %d,%d", o->name, o->w, o->h);
 }
 
 static void
@@ -386,7 +377,7 @@ Table table[] = {
 	{"resource", readresource, 2, &nresource},
 	{"spawn", readspawn, -1, nil},
 	{"tileset", readtileset, 1, nil},
-	{"map", readmap, -1, &mapheight},
+	{"map", readmap, -1, &terheight},
 	{"spr", readspr, -1, nil},
 };
 
@@ -467,13 +458,10 @@ static void
 initmapobj(void)
 {
 	Objp *op;
-	Map *m;
 
-	for(op=objp; op<objp+nobjp; op++){
-		m = map + mapwidth * op->y + op->x;
-		if(spawn(m, op->o, op->team) < 0)
+	for(op=objp; op<objp+nobjp; op++)
+		if(spawn(op->x * Tlnsub, op->y * Tlnsub, op->o, op->team) < 0)
 			sysfatal("initmapobj: %s team %d: %r", op->o->name, op->team);
-	}
 	free(objp);
 }
 
@@ -482,8 +470,8 @@ cleanup(void)
 {
 	Terrainl *tl;
 
-	for(tl=terrain->l; tl!=terrain; tl=terrain->l){
-		terrain->l = tl->l;
+	for(tl=terrainl->l; tl!=terrainl; tl=terrainl->l){
+		terrainl->l = tl->l;
 		free(tl);
 	}
 }
@@ -495,8 +483,9 @@ checkdb(void)
 		sysfatal("checkdb: no tileset defined");
 	if(nresource != Nresource)
 		sysfatal("checkdb: incomplete resource specification");
-	if(mapwidth < 8 || mapheight < 8)
-		sysfatal("checkdb: map too small %d,%d", mapwidth, mapheight);
+	if(terwidth % 16 != 0 || terheight % 16 != 0 || terwidth * terheight == 0)
+		sysfatal("checkdb: map size %d,%d not in multiples of 16",
+			terwidth, terheight);
 	if(nteam < 2)
 		sysfatal("checkdb: not enough teams");
 }
@@ -504,16 +493,16 @@ checkdb(void)
 static void
 initdb(void)
 {
-	initpath();
-	initmapobj();
 	checkdb();
+	initmap();
+	initmapobj();
 	cleanup();
 }
 
 void
 init(void)
 {
-	if(bind(".", prefix, MBEFORE|MCREATE) < 0 || chdir(prefix) < 0)
+	if(bind(".", prefix, MBEFORE|MCREATE) == -1 || chdir(prefix) < 0)
 		fprint(2, "init: %r\n");
 	loaddb(dbname);
 	loaddb(mapname);

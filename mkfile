@@ -2,13 +2,17 @@
 BIN=$home/bin/$objtype
 TARG=sce
 OFILES=\
-	ai.$O\
+	bmap.$O\
 	drw.$O\
 	fs.$O\
+	map.$O\
 	net.$O\
+	path.$O\
+	pheap.$O\
 	sce.$O\
 	sim.$O\
 	snd.$O\
+	util.$O\
 
 HFILES=dat.h fns.h
 </sys/src/cmd/mkone
