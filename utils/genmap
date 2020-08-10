@@ -9,7 +9,7 @@ BEGIN{
 	print "tileset," t
 	while(y-- > 0){
 		printf "map"
-		for(i=1; i<x; i++){
+		for(i=1; i<=x; i++){
 			v = 1 + rand() * 1000000 % e
 			printf ",%s", int(v)
 		}
