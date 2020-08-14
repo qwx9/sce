@@ -47,7 +47,8 @@ erealloc(void *p, ulong n, ulong oldn)
 	if((p = realloc(p, n)) == nil)
 		sysfatal("realloc: %r");
 	setrealloctag(p, getcallerpc(&p));
-	memset((uchar *)p + oldn, 0, n - oldn);
+	if(n > oldn)
+		memset((uchar *)p + oldn, 0, n - oldn);
 	return p;
 }
 
