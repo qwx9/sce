@@ -5,7 +5,7 @@
 #include "fns.h"
 
 int scale = 1;
-Point p0, pan;
+static Point p0, pan;
 
 static int fbsz, fbh, fbw, fbws;
 static u32int *fb, *fbvis;
@@ -287,8 +287,14 @@ redraw(void)
 	clearvis();
 	tr.min.x = pan.x / scale / Tlwidth;
 	tr.min.y = pan.y / scale / Tlheight;
-	tr.max.x = min(tr.min.x + fbw / Tlwidth + scale, terwidth);
-	tr.max.y = min(tr.min.y + fbh / Tlheight + scale, terheight);
+	tr.max.x = tr.min.x + (pan.x / scale % Tlwidth != 0);
+	tr.max.x += fbw / Tlwidth + (fbw % Tlwidth != 0);
+	if(tr.max.x > terwidth)
+		tr.max.x = terwidth;
+	tr.max.y = tr.min.y + (pan.y / scale % Tlheight != 0);
+	tr.max.y += fbh / Tlheight + (fbh % Tlwidth != 0);
+	if(tr.max.y > terheight)
+		tr.max.y = terheight;
 	mr.min.x = max(tr.min.x - 3, 0) * Tlnsub;
 	mr.min.y = max(tr.min.y - 3, 0) * Tlnsub;
 	mr.max.x = tr.max.x * Tlnsub;

@@ -8,7 +8,6 @@
 #include "dat.h"
 #include "fns.h"
 
-extern Point pan;
 void	select(Point, int);
 
 mainstacksize = 16*1024;
