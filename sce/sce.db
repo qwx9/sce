@@ -1,13 +1,18 @@
+# resource: name, init
 resource,supply,200
 resource,minerals,50
 resource,vespene gas,0
+# attack: name, dmg, range, cool
 attack,fusion cutter,5,1,15
 attack,spines,5,1,22
+# obj: name, nrot, flags, w, h, hp, def, speed, vis, cost[3], time, attack[2]
 obj,scv,32,3,4,4,60,0,5,7,1,50,0,20,fusion cutter,
 obj,drone,32,1,4,4,40,0,5,7,1,50,0,20,spines,
 obj,control,1,8,16,12,1500,1,0,1,10,400,0,1800,,
 obj,hatchery,1,8,16,12,1250,1,0,1,10,300,0,1800,,
+# spawn: objname, [obj..]
 spawn,control,scv
+# spr: objname, flags (PF enum), [frame..]
 spr,scv,1,0
 spr,scv,0x8001,0
 spr,control,1,0

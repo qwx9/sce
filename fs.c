@@ -418,7 +418,7 @@ loaddb(char *path)
 	/* parse twice to preallocate tables, otherwise cross-references will be
 	 * invalid */
 	while((s = Brdstr(bf, '\n', 1)) != nil){
-		if((p = strchr(s, ',')) == nil)
+		if(s[0] == 0 || s[0] == '#' || (p = strchr(s, ',')) == nil)
 			goto skip;
 		if(p == s || p[1] == 0)
 			goto skip;
@@ -435,7 +435,7 @@ loaddb(char *path)
 	}
 	Bseek(bf, 0, 0);
 	while((s = Brdstr(bf, '\n', 1)) != nil){
-		if((p = strchr(s, ',')) == nil)
+		if(s[0] == 0 || s[0] == '#' || (p = strchr(s, ',')) == nil)
 			goto next;
 		if(p == s || p[1] == 0)
 			goto next;
