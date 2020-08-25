@@ -361,7 +361,6 @@ readspr(char **fld, int n, Table *)
 	ppp = type & PFshadow ? &ps->shadow : &ps->p;
 	if(*ppp != nil)
 		sysfatal("readspr: %s pic type %#ux already allocated", o->name, type);
-	fprint(2, "spr %s f %ux nf %d %d nr %d %d\n", o->name, type, ps->nf, n, ps->nr, nr);
 	if(ps->nf != 0 && ps->nf != n || ps->nr != 0 && ps->nr != nr)
 		sysfatal("readspr: %s spriteset phase error", o->name);
 	ps->nf = n;
