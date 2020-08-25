@@ -350,6 +350,7 @@ resetfb(void)
 	fbh = min(mapheight * Tlsubheight * scale, Dy(screen->r));
 	selr = Rpt(screen->r.min, addpt(screen->r.min, Pt(fbws, fbh)));
 	p0 = Pt(screen->r.min.x + 8, screen->r.max.y - 3 * font->height);
+	p0.y -= (p0.y - screen->r.min.y) % scale;
 	panmax.x = max(Tlsubwidth * mapwidth * scale - Dx(screen->r), 0);
 	panmax.y = max(Tlsubheight * mapheight * scale - Dy(screen->r), 0);
 	if(p0.y < selr.max.y){
