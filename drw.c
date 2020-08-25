@@ -267,10 +267,10 @@ frm(Mobj *mo, int notshadow)
 	pp = mo->pics;
 	if(notshadow){
 		p = pp->p[tc % pp->nf];
-		p += mo->o->nr * (mo->team-1);
+		p += pp->nr * (mo->team-1);
 	}else
 		p = pp->shadow[tc % pp->nf];
-	p += mo->θ / (Nrot / mo->o->nr);
+	p += mo->θ / (Nrot / pp->nr);
 	return p;
 }
 

@@ -331,7 +331,7 @@ readobj(char **fld, int, Table *tab)
 		obj = emalloc(nobj * sizeof *obj);
 	o = obj + tab->row;
 	o->name = estrdup(*fld++);
-	unpack(fld, "ddddddddddddaa", &o->nr, &o->f, &o->w, &o->h,
+	unpack(fld, "dddddddddddaa", &o->f, &o->w, &o->h,
 		&o->hp, &o->def, &o->speed, &o->vis,
 		o->cost, o->cost+1, o->cost+2, &o->time,
 		o->atk, o->atk+1);
@@ -342,14 +342,16 @@ readobj(char **fld, int, Table *tab)
 static void
 readspr(char **fld, int n, Table *)
 {
-	int type, id;
+	int type, id, nr;
 	Obj *o;
 	Pics *ps;
 	Pic ***ppp, **p, **pe;
 
-	unpack(fld, "od", &o, &type);
-	fld += 2;
-	n -= 2;
+	if(n < 4)
+		sysfatal("readspr: %d fields < 4 mandatory columns", n);
+	unpack(fld, "odd", &o, &type, &nr);
+	fld += 3;
+	n -= 3;
 	ps = nil;
 	switch(type & 0x7f){
 	case PFidle: ps = &o->pidle; break;
@@ -359,20 +361,22 @@ readspr(char **fld, int n, Table *)
 	ppp = type & PFshadow ? &ps->shadow : &ps->p;
 	if(*ppp != nil)
 		sysfatal("readspr: %s pic type %#ux already allocated", o->name, type);
-	if(ps->nf != 0 && ps->nf != n)
+	fprint(2, "spr %s f %ux nf %d %d nr %d %d\n", o->name, type, ps->nf, n, ps->nr, nr);
+	if(ps->nf != 0 && ps->nf != n || ps->nr != 0 && ps->nr != nr)
 		sysfatal("readspr: %s spriteset phase error", o->name);
 	ps->nf = n;
+	ps->nr = nr;
 	p = emalloc(n * sizeof *ppp);
 	*ppp = p;
 	for(pe=p+n; p<pe; p++){
 		unpack(fld++, "d", &id);
-		*p = pushpic(o->name, id, type, o->nr);
+		*p = pushpic(o->name, id, type, nr);
 	}
 }
 
 Table table[] = {
 	{"mapobj", readmapobj, 4, &nobjp},
-	{"obj", readobj, 15, &nobj},
+	{"obj", readobj, 14, &nobj},
 	{"attack", readattack, 4, &nattack},
 	{"resource", readresource, 2, &nresource},
 	{"spawn", readspawn, -1, nil},

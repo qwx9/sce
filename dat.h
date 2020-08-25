@@ -79,6 +79,7 @@ struct Pics{
 	Pic **p;
 	Pic **shadow;
 	int nf;
+	int nr;
 };
 
 enum{
@@ -91,7 +92,6 @@ struct Obj{
 	char *name;
 	Pics pidle;
 	Pics pmove;
-	int nr;
 	int w;
 	int h;
 	int f;
