@@ -108,7 +108,7 @@ repath(Point p, Mobj *mo)
 	}
 	mo->movingp = linkmobj(moving, mo, mo->movingp);
 	mo->pathp = mo->paths;
-	mo->pics = mo->o->pmove.p != nil ? &mo->o->pmove : &mo->o->pidle;
+	mo->pics = mo->o->pmove.pic != nil ? &mo->o->pmove : &mo->o->pidle;
 	nextmove(mo);
 	return 0;
 }

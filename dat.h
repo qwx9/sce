@@ -63,9 +63,9 @@ struct Attack{
 };
 
 enum{
-	PFterrain = 0,
-	PFidle = 1<<0,
-	PFmove = 2<<0,
+	PFterrain = 1<<0,
+	PFidle = 1<<1,
+	PFmove = 1<<2,
 	PFshadow = 1<<15,
 };
 struct Pic{
@@ -76,7 +76,7 @@ struct Pic{
 	int dy;
 };
 struct Pics{
-	Pic **p;
+	Pic **pic;
 	Pic **shadow;
 	int nf;
 	int nr;

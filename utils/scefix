@@ -1,0 +1,93 @@
+#!/bin/rc
+rfork n
+
+fn terrain{
+	name=$1
+	shift
+	echo $name `{ls $name^.*.bit | wc -l} |\
+		awk '
+{
+	n = int($2)
+	print "!s", 32, 32*n
+	print "r = z == 0 ? 0 : Z"
+	for(i=0; i<n; i++){
+		printf "!r %s.%05d.bit a\n", $1, i+1
+		print "r = y >= 32*" i " && y < 32*" i+1 " ? a[x,y-32*" i "] : r"
+	}
+	print "!w r /tmp/a.bit"
+}
+' >/env/fuckrc
+	$home/p/pico/pico </env/fuckrc
+	iconv -c r8g8b8 /tmp/a.bit >$name^.bit
+	rm /tmp/a.bit $name^.*.bit
+}
+
+fn sprsheet{
+	name=$1
+	frm=$2
+	rot=$3
+	dim=`{read -c 72 $name^1.$frm.$rot.bit | awk 'NR>1{print $2, $3, $4, $5}'}
+	x1=$dim(1)
+	y1=$dim(2)
+	x2=$dim(3)
+	y2=$dim(4)
+	dy=`{echo $y2-$y1 | pc -n}
+	crop -b 0 255 255 -r $x1 $y1 $x2 \
+		`{echo $y1^'+'^$dy^'*8' | pc -n} \
+		$name^1.$frm.$rot.bit >/tmp/a.bit
+	sed 's/NAME/'^$name^'/g;s/FRM/'^$frm^'/g;s/ROT/'^$rot^'/g;s/DY/'^$dy^'/g' \
+		/env/fuckrc >/env/forever
+	</env/forever $home/p/pico/pico
+	iconv -c r8g8b8 /tmp/b.bit |\
+		crop -t $x1 $y1 \
+		>$name.$frm.$rot.bit
+	mv $name^s.$frm.$rot.bit $name.$frm.$rot.s.bit
+	rm /tmp/b.bit
+}
+
+fn gen32{
+	name=$1
+	shift
+	for(frm in $*){
+		for(rot in 00 02 04 06 08 10 12 14 16 17 19 21 23 25 27 29 31)
+			sprsheet $name $frm $rot
+		rm $name^?.$frm.*.bit
+	}
+	rm /tmp/a.bit
+}
+
+fn gen1{
+	name=$1
+	shift
+	for(frm in $*){
+		sprsheet $name $frm 00
+		rm $name^?.$frm.*.bit
+	}
+	rm /tmp/a.bit
+}
+
+cat <<! >/env/fuckrc
+!r /tmp/a.bit a
+r = a
+!r NAME2.FRM.ROT.bit b
+r = y >= DY*1 && y < DY*2 ? b[x,y-DY*1] : r
+!r NAME3.FRM.ROT.bit b
+r = y >= DY*2 && y < DY*3 ? b[x,y-DY*2] : r
+!r NAME4.FRM.ROT.bit b
+r = y >= DY*3 && y < DY*4 ? b[x,y-DY*3] : r
+!r NAME5.FRM.ROT.bit b
+r = y >= DY*4 && y < DY*5 ? b[x,y-DY*4] : r
+!r NAME6.FRM.ROT.bit b
+r = y >= DY*5 && y < DY*6 ? b[x,y-DY*5] : r
+!r NAME7.FRM.ROT.bit b
+r = y >= DY*6 && y < DY*7 ? b[x,y-DY*6] : r
+!r NAME8.FRM.ROT.bit b
+r = y >= DY*7 && y < DY*8 ? b[x,y-DY*7] : r
+!w r /tmp/b.bit
+!
+
+gen32 scv 00
+gen32 drone 00 01 02 03 04
+gen1 control 00
+gen1 hatchery 00 01 02 03
+terrain badlands

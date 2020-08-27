@@ -26,7 +26,7 @@ struct Table{
 	int row;
 };
 struct Picl{
-	int id;
+	int frm;
 	int type;
 	char *name;
 	char iname[64];
@@ -40,6 +40,7 @@ struct Terrainl{
 	Terrainl *l;
 };
 static Terrainl terrainl0 = {.l = &terrainl0}, *terrainl = &terrainl0;
+static Pic tilesetpic;
 static Picl pic0 = {.l = &pic0}, *pic = &pic0;
 static Objp *objp;
 static Attack *attack;
@@ -47,6 +48,9 @@ static Obj *obj;
 static char *tileset;
 static int nattack, nobj, nresource, nobjp;
 static u32int bgcol = 0x00ffff;
+static int rot17idx[17] = {
+	0,2,4,6,8,10,12,14,16,17,19,21,23,25,27,29,31
+};
 
 static void
 loadpic(char *name, Pic *pic)
@@ -87,60 +91,114 @@ loadpic(char *name, Pic *pic)
 	free(b);
 }
 
+static void
+loadshadpic(Pic *pic, Picl *pl)
+{
+	int i;
+	char path[128];
+
+	for(i=0; i<pl->nr; i++){
+		snprint(path, sizeof path, "%s.%02d.%02d.s.bit",
+			pl->name, pl->frm, rot17idx[i]);
+		loadpic(path, pic++);
+	}
+}
+
+static void
+loadobjpic(Pic *pic, Picl *pl)
+{
+	int n, i, j;
+	char path[128];
+	u32int *p0;
+	Pic pic0;
+
+	for(i=0; i<pl->nr; i++){
+		snprint(path, sizeof path, "%s.%02d.%02d.bit",
+			pl->name, pl->frm, rot17idx[i]);
+		loadpic(path, &pic0);
+		if(pic0.h % Nteam != 0)
+			sysfatal("loadobjpic: obj %s sprite sheet %d,%d: height not multiple of %d\n",
+				pl->name, pic0.w, pic0.h, Nteam);
+		pic0.h /= Nteam;
+		n = pic0.w * pic0.h;
+		/* nteam has been set by now, no point in retaining sprites
+		 * for additional teams */
+		for(j=0, p0=pic0.p; j<nteam; j++, p0+=n, pic++){
+			memcpy(pic, &pic0, sizeof *pic);
+			pic->p = emalloc(n * sizeof *pic->p);
+			memcpy(pic->p, p0, n * sizeof *pic->p);
+		}
+		free(pic0.p);
+	}
+}
+
+static void
+loadterpic(Pic *pic, Picl *pl)
+{
+	int id, size;
+	char path[128];
+
+	if(tilesetpic.p == nil){
+		snprint(path, sizeof path, "%s.bit", tileset);
+		loadpic(path, &tilesetpic);
+		if(tilesetpic.h % tilesetpic.w != 0)
+			sysfatal("loadterpic: tiles not squares: tilepic %d,%d\n",
+				tilesetpic.w, tilesetpic.h);
+	}
+	id = pl->frm;
+	size = tilesetpic.w;
+	if(size * id >= tilesetpic.h)
+		sysfatal("loadterpic: terrain tile index %d out of bounds", id);
+	pic->w = size;
+	pic->h = size;
+	size *= size;
+	pic->p = emalloc(size * sizeof *pic->p);
+	memcpy(pic->p, tilesetpic.p + size * id, size * sizeof *pic->p);
+}
+
 void
 initimg(void)
 {
-	int i, r;
-	char path[128];
 	Pic *p;
 	Picl *pl;
 
 	for(pl=pic->l; pl!=pic; pl=pic->l){
 		p = pl->p;
-		if(pl->type == PFterrain){
-			snprint(path, sizeof path, "%s.%05d.bit", tileset, pl->id);
-			loadpic(path, p);
-		}else if(pl->type & PFshadow){
-			for(r=0; r<pl->nr; r++){
-				snprint(path, sizeof path,
-					"%ss.%02d.%02d.bit",
-					pl->name, pl->id, r);
-				loadpic(path, p++);
-			}
-		}else{
-			for(i=0; i<nteam; i++)
-				for(r=0; r<pl->nr; r++){
-					snprint(path, sizeof path,
-						"%s%d.%02d.%02d.bit",
-						pl->name, i+1, pl->id, r);
-					loadpic(path, p++);
-				}
-		}
+		if(pl->type & PFterrain)
+			loadterpic(p, pl);
+		else if(pl->type & PFshadow)
+			loadshadpic(p, pl);
+		else
+			loadobjpic(p, pl);
 		pic->l = pl->l;
 		free(pl);
 	}
+	free(tilesetpic.p);
 }
 
 static Pic *
-pushpic(char *name, int id, int type, int nr)
+pushpic(char *name, int frm, int type, int nr)
 {
 	int n;
 	char iname[64];
 	Picl *pl;
 
-	snprint(iname, sizeof iname, "%s%d%02ux", name, id, type);
+	snprint(iname, sizeof iname, "%s%02d%02ux", name, frm, type);
 	for(pl=pic->l; pl!=pic; pl=pl->l)
 		if(strcmp(iname, pl->iname) == 0)
 			break;
 	if(pl == pic){
 		pl = emalloc(sizeof *pl);
 		memcpy(pl->iname, iname, nelem(pl->iname));
-		pl->id = id;
+		pl->frm = frm;
 		pl->type = type;
 		pl->name = name;
 		pl->nr = nr;
+		if(nr != 17 && nr != 1)
+			sysfatal("pushpic %s: invalid number of rotations", iname);
 		n = nr;
-		if((type & PFshadow) == 0)
+		/* nteam isn't guaranteed to be set correctly by now */
+		if((type & (PFshadow|PFterrain)) == 0)
 			n *= Nteam;
 		pl->p = emalloc(n * sizeof *pl->p);
 		pl->l = pic->l;
@@ -161,7 +219,7 @@ pushterrain(int id)
 		tl = emalloc(sizeof *tl);
 		tl->id = id;
 		tl->t = emalloc(sizeof *tl->t);
-		tl->t->p = pushpic(",", id, PFterrain, 1);
+		tl->t->p = pushpic("/tile/", id - 1, PFterrain, 1);
 		tl->l = terrainl->l;
 		terrainl->l = tl;
 	}
@@ -342,34 +400,34 @@ readobj(char **fld, int, Table *tab)
 static void
 readspr(char **fld, int n, Table *)
 {
-	int type, id, nr;
+	int type, frm, nr;
 	Obj *o;
 	Pics *ps;
 	Pic ***ppp, **p, **pe;
 
 	if(n < 4)
-		sysfatal("readspr: %d fields < 4 mandatory columns", n);
+		sysfatal("readspr %s: %d fields < 4 mandatory columns", o->name, n);
 	unpack(fld, "odd", &o, &type, &nr);
 	fld += 3;
 	n -= 3;
 	ps = nil;
-	switch(type & 0x7f){
+	switch(type & 0x7e){
 	case PFidle: ps = &o->pidle; break;
 	case PFmove: ps = &o->pmove; break;
-	default: sysfatal("readspr: invalid type %#02ux", type & 0x7f);
+	default: sysfatal("readspr %s: invalid type %#02ux", o->name, type & 0x7e);
 	}
-	ppp = type & PFshadow ? &ps->shadow : &ps->p;
+	ppp = type & PFshadow ? &ps->shadow : &ps->pic;
 	if(*ppp != nil)
-		sysfatal("readspr: %s pic type %#ux already allocated", o->name, type);
+		sysfatal("readspr %s: pic type %#ux already allocated", o->name, type);
 	if(ps->nf != 0 && ps->nf != n || ps->nr != 0 && ps->nr != nr)
-		sysfatal("readspr: %s spriteset phase error", o->name);
+		sysfatal("readspr %s: spriteset phase error", o->name);
 	ps->nf = n;
 	ps->nr = nr;
 	p = emalloc(n * sizeof *ppp);
 	*ppp = p;
 	for(pe=p+n; p<pe; p++){
-		unpack(fld++, "d", &id);
-		*p = pushpic(o->name, id, type, nr);
+		unpack(fld++, "d", &frm);
+		*p = pushpic(o->name, frm, type, nr);
 	}
 }
 

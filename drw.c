@@ -261,16 +261,26 @@ drawmap(Rectangle *r)
 static Pic *
 frm(Mobj *mo, int notshadow)
 {
+	static int rot17[Nrot] = {
+		0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,
+		9,9,10,10,11,11,12,12,13,13,14,14,15,15,16
+	};
+	int θ;
 	Pics *pp;
 	Pic *p;
 
 	pp = mo->pics;
+	switch(pp->nr){
+	case 17: θ = rot17[mo->θ]; break;
+	default: θ = 0; break;
+	}
 	if(notshadow){
-		p = pp->p[tc % pp->nf];
-		p += pp->nr * (mo->team-1);
-	}else
+		p = pp->pic[tc % pp->nf];
+		p += nteam * θ + mo->team - 1;
+	}else{
 		p = pp->shadow[tc % pp->nf];
-	p += mo->θ / (Nrot / pp->nr);
+		p += θ;
+	}
 	return p;
 }
 
