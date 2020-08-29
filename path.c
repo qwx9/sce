@@ -155,6 +155,7 @@ jumpeast(int x, int y, int w, int h, Node *b, int *ofs, int left, int rot)
 		return nil;
 	if(Δvg == 0 && (Δug < 0) ^ (Δug2 < 0)){
 		b->Δg = steps - abs(Δug2);
+		b->Δlen = b->Δg;
 		return b;
 	}
 	if(end)
@@ -164,6 +165,7 @@ jumpeast(int x, int y, int w, int h, Node *b, int *ofs, int left, int rot)
 	n->x = x;
 	n->y = y;
 	n->Δg = steps;
+	n->Δlen = steps;
 	return n;
 }
 
@@ -198,6 +200,7 @@ jumpdiag(int x, int y, int w, int h, Node *b, int dir)
 	n->x = x;
 	n->y = y;
 	n->Δg = steps;
+	n->Δlen = steps * SQRT2;
 	return n;
 }
 
@@ -343,12 +346,14 @@ a∗(Node *a, Node *b, Mobj *mo)
 				n->from = x;
 				n->g = g;
 				n->h = octdist(n, b);
+				n->len = x->len + n->Δlen;
 				n->open = 1;
 				n->step = x->step + 1;
 				pushqueue(n, &queue);
 			}else if(Δg > 0){
 				n->from = x;
 				n->step = x->step + 1;
+				n->len = x->len + n->Δlen;
 				n->g -= Δg;
 				decreasekey(n->p, Δg, &queue);
 			}
@@ -372,6 +377,7 @@ backtrack(Node *n, Node *a, Mobj *mo)
 			mo->npathbuf * sizeof mo->paths);
 		mo->npathbuf = n->step;
 	}
+	mo->pathlen = n->len;
 	p = mo->paths + n->step;
 	mo->pathe = p--;
 	for(; n!=a; n=n->from){

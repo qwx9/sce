@@ -52,25 +52,35 @@ resetcoords(Mobj *mo)
 	markmobj(mo, 1);
 }
 
-static int
+static double
 facemobj(Point p, Mobj *mo)
 {
 	int dx, dy;
-	double vx, vy, θ, d;
+	double vx, vy, d, θ, θ256, Δθ;
 
 	dx = p.x - mo->x;
 	dy = p.y - mo->y;
 	d = sqrt(dx * dx + dy * dy);
 	vx = dx / d;
 	vy = dy / d;
-	mo->u = vx;
-	mo->v = vy;
+	/* angle in radians [0;2π[ with 0 facing north */
 	θ = atan2(vy, vx) + PI / 2;
 	if(θ < 0)
 		θ += 2 * PI;
 	else if(θ >= 2 * PI)
 		θ -= 2 * PI;
-	return (θ / (2 * PI) * 360) / (90. / (Nrot / 4));
+	/* movement calculations use values in [0;256[, drawing in [0;32[ */
+	θ256 = θ * 256.0 / (2 * PI);
+	mo->u = vx;
+	mo->v = vy;
+	Δθ = θ256 - mo->θ;
+	if(Δθ <= -256 / 2)
+		Δθ += 256;
+	else if(Δθ >= 256 / 2)
+		Δθ -= 256;
+	mo->Δθs = Δθ < 0 ? -1: 1;
+	mo->Δθ = fabs(Δθ);
+	return θ256;
 }
 
 static void
@@ -85,16 +95,8 @@ freemove(Mobj *mo)
 static void
 nextmove(Mobj *mo)
 {
-	int Δθ;
-
 	resetcoords(mo);
-	Δθ = facemobj(*mo->pathp, mo) - mo->θ;
-	if(Δθ <= -Nrot / 2)
-		Δθ += Nrot;
-	else if(Δθ >= Nrot / 2)
-		Δθ -= Nrot;
-	mo->Δθ = Δθ;
-	mo->speed = mo->o->speed;
+	facemobj(*mo->pathp, mo);
 }
 
 static int
@@ -122,6 +124,7 @@ moveone(Point p, Mobj *mo, Mobj *block)
 	}
 	setgoal(&p, mo, block);
 	if(repath(p, mo) < 0){
+		mo->speed = 0.0;
 		dprint("move to %d,%d: %r\n", p.x, p.y);
 		return -1;
 	}
@@ -144,33 +147,58 @@ spawn(int x, int y, Obj *o, int n)
 	return 0;
 }
 
-static void
+static int
 tryturn(Mobj *mo)
 {
-	int Δθ;
+	int r;
+	double Δθ;
 
-	if(mo->Δθ < 0)
-		Δθ = mo->Δθ < -2 ? -2 : mo->Δθ;
-	else
-		Δθ = mo->Δθ > 2 ? 2 : mo->Δθ;
-	mo->θ = mo->θ + Δθ & Nrot - 1;
+	r = 1;
+	if(mo->Δθ <= mo->o->turn){
+		r = 0;
+		Δθ = mo->Δθ;
+	}else
+		Δθ = mo->o->turn;
+	mo->θ += mo->Δθs * Δθ;
+	if(mo->θ < 0)
+		mo->θ += 256;
+	else if(mo->θ >= 256)
+		mo->θ -= 256;
 	mo->Δθ -= Δθ;
+	return r;
+}
+
+static void
+updatespeed(Mobj *mo)
+{
+	if(mo->pathlen < (mo->speed / 8) * (mo->speed / 8) / 2 / (mo->o->accel / 8)){
+		mo->speed -= mo->o->accel;
+		if(mo->speed < 0.0)
+			mo->speed = 0.0;
+	}else if(mo->speed < mo->o->speed){
+		mo->speed += mo->o->accel;
+		if(mo->speed > mo->o->speed)
+			mo->speed = mo->o->speed;
+	}
 }
 
 static int
 trymove(Mobj *mo)
 {
-	int x, y, sx, sy, Δx, Δy, Δu, Δv, Δrx, Δry, Δpx, Δpy;
+	int x, y, px, py, sx, sy, Δx, Δy, Δu, Δv, Δrx, Δry, Δpx, Δpy;
+	double dx, dy;
 
 	markmobj(mo, 0);
+	px = mo->px;
+	py = mo->py;
 	sx = mo->subpx;
 	sy = mo->subpy;
 	Δu = mo->u * (1 << Subpxshift);
 	Δv = mo->v * (1 << Subpxshift);
 	Δx = abs(Δu);
 	Δy = abs(Δv);
-	Δrx = Δx * mo->speed;
-	Δry = Δy * mo->speed;
+	Δrx = fabs(mo->u * mo->speed) * (1 << Subpxshift);
+	Δry = fabs(mo->v * mo->speed) * (1 << Subpxshift);
 	Δpx = abs((mo->pathp->x * Tlsubwidth << Subpxshift) - sx);
 	Δpy = abs((mo->pathp->y * Tlsubwidth << Subpxshift) - sy);
 	if(Δpx < Δrx)
@@ -213,31 +241,48 @@ trymove(Mobj *mo)
 		mo->y = mo->py / Tlsubheight;
 	}
 	markmobj(mo, 1);
+	dx = mo->px - px;
+	dx *= dx;
+	dy = mo->py - py;
+	dy *= dy;
+	mo->pathlen -= sqrt(dx + dy) / Tlsubwidth;
 	return 0;
 end:
 	werrstr("trymove: can't move to %d,%d", x, y);
 	mo->subpx = mo->px << Subpxshift;
 	mo->subpy = mo->py << Subpxshift;
 	markmobj(mo, 1);
+	dx = mo->px - px;
+	dx *= dx;
+	dy = mo->py - py;
+	dy *= dy;
+	mo->pathlen -= sqrt(dx + dy) / Tlsubwidth;
 	return -1;
+}
+
+static int
+domove(Mobj *mo)
+{
+	int r;
+
+	updatespeed(mo);
+	unlinkmobj(mo->mapp);
+	r = trymove(mo);
+	linktomap(mo);
+	return r;
 }
 
 static void
 stepmove(Mobj *mo)
 {
-	int r, n;
+	int n;
 
 	n = 0;
 restart:
 	n++;
-	if(mo->Δθ != 0){
-		tryturn(mo);
+	if(tryturn(mo))
 		return;
-	}
-	unlinkmobj(mo->mapp);
-	r = trymove(mo);
-	linktomap(mo);
-	if(r < 0){
+	if(domove(mo) < 0){
 		if(n > 1){
 			fprint(2, "stepmove: %s %#p bug inducing infinite loop!\n",
 				mo->o->name, mo);
@@ -247,6 +292,7 @@ restart:
 		if(repath(mo->target, mo) < 0){
 			dprint("stepmove: %s %#p moving towards target: %r\n",
 				mo->o->name, mo);
+			mo->speed = 0.0;
 			return;
 		}
 		goto restart;
@@ -258,6 +304,7 @@ restart:
 			return;
 		}else if(mo->x == mo->target.x && mo->y == mo->target.y){
 			mo->npatherr = 0;
+			mo->speed = 0.0;
 			freemove(mo);
 			return;
 		}
@@ -266,6 +313,7 @@ restart:
 		if(mo->goalblocked && isblocked(mo->target.x, mo->target.y, mo->o)){
 			dprint("stepmove: %s %#p goal still blocked, stopping\n",
 				mo->o->name, mo);
+			mo->speed = 0.0;
 			freemove(mo);
 			return;
 		}
@@ -274,6 +322,7 @@ restart:
 			dprint("stepmove: %s %#p trying to find target: %r\n",
 				mo->o->name, mo);
 			mo->npatherr = 0;
+			mo->speed = 0.0;
 			freemove(mo);
 		}
 	}

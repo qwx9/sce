@@ -230,6 +230,7 @@ static void
 vunpack(char **fld, char *fmt, va_list a)
 {
 	int n;
+	double d;
 	char *s;
 	Attack *atk;
 	Resource *r;
@@ -243,6 +244,11 @@ vunpack(char **fld, char *fmt, va_list a)
 			if((n = strtol(*fld++, nil, 0)) < 0)
 				sysfatal("vunpack: illegal positive integer %d", n);
 			*va_arg(a, int*) = n;
+			break;
+		case 'f':
+			if((d = strtod(*fld++, nil)) < 0.0)
+				sysfatal("vunpack: illegal positive double %f", d);
+			*va_arg(a, double*) = d;
 			break;
 		case 'a':
 			s = *fld++;
@@ -389,10 +395,14 @@ readobj(char **fld, int, Table *tab)
 		obj = emalloc(nobj * sizeof *obj);
 	o = obj + tab->row;
 	o->name = estrdup(*fld++);
-	unpack(fld, "dddddddddddaa", &o->f, &o->w, &o->h,
-		&o->hp, &o->def, &o->speed, &o->vis,
+	unpack(fld, "ddddddddddaaffff", &o->f, &o->w, &o->h,
+		&o->hp, &o->def, &o->vis,
 		o->cost, o->cost+1, o->cost+2, &o->time,
-		o->atk, o->atk+1);
+		o->atk, o->atk+1, &o->speed, &o->accel, &o->halt, &o->turn);
+	o->accel /= 256.0;
+	o->halt /= 256.0;
+	/* halting distance in path node units */
+	o->halt /= Tlsubwidth;
 	if(o->w < 1 || o->h < 1)
 		sysfatal("readobj: %s invalid dimensions %d,%d", o->name, o->w, o->h);
 }
@@ -433,7 +443,7 @@ readspr(char **fld, int n, Table *)
 
 Table table[] = {
 	{"mapobj", readmapobj, 4, &nobjp},
-	{"obj", readobj, 14, &nobj},
+	{"obj", readobj, 17, &nobj},
 	{"attack", readattack, 4, &nattack},
 	{"resource", readresource, 2, &nresource},
 	{"spawn", readspawn, -1, nil},

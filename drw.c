@@ -269,9 +269,10 @@ frm(Mobj *mo, int notshadow)
 	Pics *pp;
 	Pic *p;
 
+	θ = mo->θ * 32.0 / 256;
 	pp = mo->pics;
 	switch(pp->nr){
-	case 17: θ = rot17[mo->θ]; break;
+	case 17: θ = rot17[θ]; break;
 	default: θ = 0; break;
 	}
 	if(notshadow){

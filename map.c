@@ -102,7 +102,7 @@ mapspawn(int x, int y, Obj *o)
 	mo->o = o;
 	mo->f = o->f;
 	mo->hp = o->hp;
-	mo->θ = nrand(Nrot);
+	mo->θ = frand() * 256;
 	updatemap(mo);
 	return mo;
 }

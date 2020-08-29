@@ -5,11 +5,11 @@ resource,vespene gas,0
 # attack: name, dmg, range, cool
 attack,fusion cutter,5,1,15
 attack,spines,5,1,22
-# obj: name, flags, w, h, hp, def, speed, vis, cost[3], time, attack[2]
-obj,scv,3,4,4,60,0,5,7,1,50,0,20,fusion cutter,
-obj,drone,1,4,4,40,0,5,7,1,50,0,20,spines,
-obj,control,8,16,12,1500,1,0,1,10,400,0,1800,,
-obj,hatchery,8,16,12,1250,1,0,1,10,300,0,1800,,
+# obj: name, flags, w, h, hp, def, vis, cost[3], time, attack[2], speed, accel, halt, turn
+obj,scv,3,4,4,60,0,7,1,50,0,20,fusion cutter,,4.97,67,12227,40
+obj,drone,1,4,4,40,0,7,1,50,0,20,spines,,4.97,67,12227,40
+obj,control,8,16,12,1500,1,1,10,400,0,1800,,,0,0,0,0
+obj,hatchery,8,16,12,1250,1,1,10,300,0,1800,,,0,0,0,0
 # spawn: objname, [obj..]
 spawn,control,scv
 # spr: objname, flags (PF enum), rotations, [frame..]

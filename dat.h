@@ -48,6 +48,8 @@ struct Node{
 	double g;
 	double Δg;
 	double h;
+	double len;
+	double Δlen;
 	int step;
 	int dir;
 	Node *from;
@@ -98,10 +100,13 @@ struct Obj{
 	Attack *atk[2];
 	int hp;
 	int def;
-	int speed;
 	int vis;
 	int cost[Nresource];
 	int time;
+	double speed;
+	double accel;
+	double halt;
+	double turn;
 	Obj **spawn;
 	int nspawn;
 };
@@ -110,6 +115,7 @@ struct Path{
 	int goalblocked;
 	int npatherr;
 	int npathbuf;
+	double pathlen;
 	Point *paths;
 	Point *pathp;
 	Point *pathe;
@@ -117,14 +123,15 @@ struct Path{
 struct Mobj{
 	Obj *o;
 	Pics *pics;
-	int θ;
 	Point;
 	int px;
 	int py;
 	int subpx;
 	int subpy;
+	double θ;
+	double Δθ;
+	int Δθs;
 	Path;
-	int Δθ;
 	double u;
 	double v;
 	double speed;
