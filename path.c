@@ -153,7 +153,7 @@ jumpeast(int x, int y, int w, int h, Node *b, int *ofs, int left, int rot)
 		*ofs = steps;
 	if(end && Δug2 == 0)
 		return nil;
-	if(Δvg == 0 && (Δug < 0) ^ (Δug2 < 0)){
+	if(Δvg == 0 && (Δug == 0 || (Δug < 0) ^ (Δug2 < 0))){
 		b->Δg = steps - abs(Δug2);
 		b->Δlen = b->Δg;
 		return b;
