@@ -29,7 +29,7 @@ dprint(char *fmt, ...)
 	va_start(arg, fmt);
 	vseprint(s, s+sizeof s, fmt, arg);
 	va_end(arg);
-	fprint(2, "%s\n", s);
+	fprint(2, "%s", s);
 }
 
 char *
