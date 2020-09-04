@@ -17,9 +17,7 @@ spr,scv,2,17,0
 spr,scv,0x8002,17,0
 spr,control,2,1,0
 spr,control,0x8002,1,0
-spr,drone,2,17,0
 spr,drone,4,17,0,1,2,3,4
-spr,drone,0x8002,17,0
 spr,drone,0x8004,17,0,1,2,3,4
 spr,hatchery,2,1,0,1,2,3,3,2,1,0
 spr,hatchery,0x8002,1,0,0,0,0,0,0,0,0

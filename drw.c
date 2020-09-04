@@ -265,21 +265,28 @@ frm(Mobj *mo, int notshadow)
 		0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,
 		9,9,10,10,11,11,12,12,13,13,14,14,15,15,16
 	};
-	int θ;
+	int θ, frm;
 	Pics *pp;
 	Pic *p;
 
-	θ = mo->θ * 32.0 / 256;
 	pp = mo->pics;
+	if(pp->pic != nil)
+		frm = tc % pp->nf;
+	else{
+		pp = &mo->o->pmove;
+		frm = mo->freezefrm;
+	}
+	assert(pp->pic != nil && pp->shadow != nil);
+	θ = mo->θ * 32.0 / 256;
 	switch(pp->nr){
 	case 17: θ = rot17[θ]; break;
 	default: θ = 0; break;
 	}
 	if(notshadow){
-		p = pp->pic[tc % pp->nf];
+		p = pp->pic[frm];
 		p += nteam * θ + mo->team - 1;
 	}else{
-		p = pp->shadow[tc % pp->nf];
+		p = pp->shadow[frm];
 		p += θ;
 	}
 	return p;

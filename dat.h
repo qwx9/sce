@@ -123,6 +123,7 @@ struct Path{
 struct Mobj{
 	Obj *o;
 	Pics *pics;
+	int freezefrm;
 	Point;
 	int px;
 	int py;

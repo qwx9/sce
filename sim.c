@@ -88,6 +88,8 @@ freemove(Mobj *mo)
 {
 	unlinkmobj(mo->movingp);
 	mo->pathp = nil;
+	if(mo->pics->nf > 0)
+		mo->freezefrm = tc % mo->pics->nf;
 	mo->pics = &mo->o->pidle;
 	resetcoords(mo);
 }
