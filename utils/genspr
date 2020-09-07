@@ -4,6 +4,10 @@ bind -a $home/p/pico /bin
 bind -a $home/p/sce/utils /bin
 bind -ca /sys/games/lib/sce .
 
+# pwd must contain extracted object bitmaps and corresponding shadows,
+# tile palette, tileset (wpe vr4 vx4) files
+# and sctile in /bin
+
 fn unit{
 	n=`{echo '(' $#* - 4 ')' / 2 | pc -n}
 	s1=`{echo 5 + $n - 1 | pc -n}
@@ -18,6 +22,7 @@ fn unit{
 	}
 }
 
+# individual units
 unit drone 32 -48 -47 (0 1 2 3 4) (00 01 02 03 04)
 unit scv 32 -26 -14 0 00
 
@@ -31,3 +36,14 @@ crop -t -32 -30 zhashad.grp.00000.bit >hatcherys.00.00.bit
 # command center
 sceass -s control.grp.00005.bit control 00 00 -2 -32
 crop -t -2 -32 tccShad.grp.00000.bit >controls.00.00.bit
+
+# generate tileset palette and tileset bitmap
+sctile badlands
+rm badlands.?[1-4]???.bit badlands.00[1-9]??.bit badlands.000[3-9]?.bit badlands.000^(25 26 27 28 29)^.bit badlands.00000.bit
+
+# now fix the shit we just generated...
+# (FIXME: remove the need for this)
+scefix
+crop -t -2 0 drone.01.23.bit > a && mv a drone.01.23.bit
+crop -t 2 0 drone.03.23.bit > a && mv a drone.03.23.bit
+crop -t 2 0 drone.04.23.bit > a && mv a drone.04.23.bit
