@@ -381,8 +381,8 @@ backtrack(Node *n, Node *a, Mobj *mo)
 	p = mo->paths + n->step;
 	mo->pathe = p--;
 	for(; n!=a; n=n->from){
-		x = n->x;
-		y = n->y;
+		x = n->x * Tlsubwidth;
+		y = n->y * Tlsubheight;
 		*p-- = (Point){x, y};
 	}
 	assert(p == mo->paths - 1);

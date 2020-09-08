@@ -253,7 +253,7 @@ drawmap(Rectangle *r)
 	}
 	if((mo = selected[0]) != nil && mo->pathp != nil){
 		for(p=mo->paths; p<mo->pathe; p++)
-			compose(p->x, p->y, 0x00ff00);
+			compose(p->x / Tlsubwidth, p->y / Tlsubheight, 0x00ff00);
 		compose(mo->target.x, mo->target.y, 0x00ffff);
 	}
 }

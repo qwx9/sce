@@ -58,8 +58,8 @@ facemobj(Point p, Mobj *mo)
 	int dx, dy;
 	double vx, vy, d, θ, θ256, Δθ;
 
-	dx = p.x - mo->x;
-	dy = p.y - mo->y;
+	dx = p.x - mo->px;
+	dy = p.y - mo->py;
 	d = sqrt(dx * dx + dy * dy);
 	vx = dx / d;
 	vy = dy / d;
@@ -173,7 +173,7 @@ tryturn(Mobj *mo)
 static void
 updatespeed(Mobj *mo)
 {
-	if(mo->pathlen < (mo->speed / 8) * (mo->speed / 8) / 2 / (mo->o->accel / 8)){
+	if(1 + mo->pathlen < (mo->speed / 8) * (mo->speed / 8) / 2 / (mo->o->accel / 8)){
 		mo->speed -= mo->o->accel;
 		if(mo->speed < 0.0)
 			mo->speed = 0.0;
@@ -201,8 +201,8 @@ trymove(Mobj *mo)
 	Δy = abs(Δv);
 	Δrx = fabs(mo->u * mo->speed) * (1 << Subpxshift);
 	Δry = fabs(mo->v * mo->speed) * (1 << Subpxshift);
-	Δpx = abs((mo->pathp->x * Tlsubwidth << Subpxshift) - sx);
-	Δpy = abs((mo->pathp->y * Tlsubwidth << Subpxshift) - sy);
+	Δpx = abs((mo->pathp->x << Subpxshift) - sx);
+	Δpy = abs((mo->pathp->y << Subpxshift) - sy);
 	if(Δpx < Δrx)
 		Δrx = Δpx;
 	if(Δpy < Δry)
@@ -299,7 +299,7 @@ restart:
 		}
 		goto restart;
 	}
-	if(mo->x == mo->pathp->x && mo->y == mo->pathp->y){
+	if(mo->px == mo->pathp->x && mo->py == mo->pathp->y){
 		mo->pathp++;
 		if(mo->pathp < mo->pathe){
 			nextmove(mo);
