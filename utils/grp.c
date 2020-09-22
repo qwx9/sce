@@ -1,6 +1,7 @@
 #include <u.h>
 #include <libc.h>
 #include <draw.h>
+#include <memdraw.h>
 #include <bio.h>
 
 typedef struct Hdr Hdr;
@@ -12,7 +13,7 @@ struct Hdr{
 	u32int ofs;
 };
 
-int split;
+int split, pcx, npal, idxonly;
 Biobuf *bf;
 uchar *bufp;
 u32int pal[256], bgcol = 0xffff00;
@@ -31,6 +32,8 @@ emalloc(ulong n)
 void
 putcol(u32int c)
 {
+	if(pcx)
+		*bufp++ = c >> 24;
 	*bufp++ = c >> 16;
 	*bufp++ = c >> 8;
 	*bufp++ = c;
@@ -65,6 +68,60 @@ get32(void)
 }
 
 void
+getpcxpal(char *f)
+{
+	int i, n, a, fd;
+	uchar *buf, *bp;
+	u32int v, *p;
+	Memimage *im, *im1;
+
+	if((fd = open(f, OREAD)) < 0)
+		sysfatal("getpcxpal: %r");
+	if(memimageinit() < 0)
+		sysfatal("memimageinit: %r");
+	if((im = readmemimage(fd)) == nil)
+		sysfatal("readmemimage: %r");
+	close(fd);
+	if(im->chan != RGBA32){
+		if((im1 = allocmemimage(im->r, RGBA32)) == nil)
+			sysfatal("allocmemimage: %r");
+		memfillcolor(im1, DBlack);
+		memimagedraw(im1, im1->r, im, im->r.min, memopaque, ZP, S);
+		freememimage(im);
+		im = im1;
+	}
+	if(Dx(im->r) != 256)
+		sysfatal("invalid pcx palette: %d columns", Dx(im->r));
+	n = Dx(im->r) * Dy(im->r);
+	npal = Dy(im->r);
+	buf = emalloc(n * sizeof *pal);
+	if(unloadmemimage(im, im->r, buf, n * sizeof *pal) < 0)
+		sysfatal("unloadmemimage: %r");
+	freememimage(im);
+	/* FIXME */
+	//for(i=0, p=pal, bp=buf; i<npal; i++, p++, bp+=256*4){
+	for(i=0, p=pal, bp=buf+20*4; i<npal; i++, p++, bp+=256*4){
+		v = bp[1] << 16 | bp[2]<<8 | bp[3];
+		a = 0x7f;
+		switch(npal){
+		case 63:
+			if(i > 47)
+				a = (0xff + 1) / (1 + exp(-i + 48 - 3.4) / 0.75);
+			else
+				a = (0xff + 1) / (1 + exp(-i + 10.0) / 2.2);
+			break;
+		/* FIXME */
+		case 40: a = i < 33 ? 0xff * i / 32 : 0xff * (6 - (i - 33)) / 6; break;
+		case 32: a = 0xff * i / 30; a = a > 0xff ? 0xff : a; break;
+		case 1: break;
+		default: sysfatal("unknown palette size %d", npal);
+		}
+		*p = a<<24 | v;
+	}
+	free(buf);
+}
+
+void
 getpal(char *f)
 {
 	uchar u[3];
@@ -84,10 +141,19 @@ getpal(char *f)
 void
 usage(void)
 {
-	fprint(2, "usage: %s [-s] [-b bgcol] pal pic\n", argv0);
+	fprint(2, "usage: %s [-csx] [-b bgcol] pal pic\n", argv0);
 	exits("usage");
 }
 
+/* unpack a GRP file containing sprites.
+ * palette may be a plain file with 256 RGB24 entries (3*256 bytes)
+ * or a decoded PCX image serving as a palette.
+ * in that last case, palette must be provided in image(6) format,
+ * and palette indexes in the grp reference a column (palette) in
+ * the PCX image, which is used to implement transparency.
+ * we use the first column to set color and an alpha value for
+ * compositing, rather than use remapping with the PCX palette.
+ */
 void
 main(int argc, char **argv)
 {
@@ -101,12 +167,17 @@ main(int argc, char **argv)
 
 	ARGBEGIN{
 	case 'b': bgcol = strtoul(EARGF(usage()), nil, 0); break;
+	case 'c': idxonly = 1; break;
 	case 's': split = 1; break;
+	case 'x': pcx = 1; break;
 	default: usage();
 	}ARGEND
 	if(argv[0] == nil || argv[1] == nil)
 		usage();
-	getpal(argv[0]);
+	if(pcx)
+		getpcxpal(argv[0]);
+	else
+		getpal(argv[0]);
 	if((fd = open(argv[1], OREAD)) < 0)
 		sysfatal("open: %r");
 	if((bf = Bfdopen(fd, OREAD)) == nil)
@@ -116,7 +187,7 @@ main(int argc, char **argv)
 	maxy = get16();
 	bo = nil;
 	h = emalloc(ni * sizeof *h);
-	buf = emalloc(maxx * maxy * 3 * (split ? 1 : ni));
+	buf = emalloc(maxx * maxy * sizeof(u32int) * (split ? 1 : ni));
 	ofs = emalloc(maxy * sizeof *ofs);
 	s = emalloc(strlen(argv[1]) + strlen(".00000.bit"));
 	for(hp=h; hp<h+ni; hp++){
@@ -129,12 +200,13 @@ main(int argc, char **argv)
 	bufp = buf;
 	if(!split && (bo = Bfdopen(1, OWRITE)) == nil)
 		sysfatal("Bfdopen: %r");
+	chantostr(c, pcx ? RGBA32 : RGB24);
 	for(hp=h; hp<h+ni; hp++){
 		if(split){
 			sprint(s, "%s.%05zd.bit", argv[1], hp-h);
 			if((bo = Bopen(s, OWRITE)) == nil)
 				sysfatal("Bfdopen: %r");
-			Bprint(bo, "%11s %11d %11d %11d %11d ", chantostr(c, RGB24),
+			Bprint(bo, "%11s %11d %11d %11d %11d ", c,
 				hp->dx, hp->dy, hp->dx+hp->w, hp->dy+hp->h);
 		}
 		Bseek(bf, hp->ofs, 0);
@@ -162,12 +234,25 @@ main(int argc, char **argv)
 					n &= 0x3f;
 					x += n;
 					i = get8();
-					while(n-- > 0)
-						putcol(pal[i]);
+					if(pcx && --i >= npal)
+						sysfatal("invalid pal index %d", i);
+					while(n-- > 0){
+						if(!idxonly)
+							putcol(pal[i]);
+						else
+							putcol(0xff0000 | i);
+					}
 				}else{
 					x += i;
-					while(n-- > 0)
-						putcol(pal[get8()]);
+					while(n-- > 0){
+						i = get8();
+						if(pcx && --i >= npal)
+							sysfatal("invalid pal index %d", i);
+						if(!idxonly)
+							putcol(pal[i]);
+						else
+							putcol(0xff0000 | i);
+					}
 				}
 			}
 			if(!split)
@@ -185,7 +270,7 @@ main(int argc, char **argv)
 		}
 	}
 	if(!split){
-		Bprint(bo, "%11s %11d %11d %11d %11d ", chantostr(c, RGB24), 0, 0, maxx, maxy * ni);
+		Bprint(bo, "%11s %11d %11d %11d %11d ", c, 0, 0, maxx, maxy * ni);
 		Bwrite(bo, buf, bufp - buf);
 		Bterm(bo);
 	}
