@@ -1,6 +1,6 @@
 #!/bin/rc -e
-if(! ~ $#* 2){
-	echo usage: sceass radix nrot
+if(! ~ $#* 3){
+	echo usage: sceass radix nrot chan
 	exit usage
 }
 id=`{awk 'BEGIN{for(i=1; i<='^$2^'/2-1; i++) printf "%02d\n", i}'}
@@ -14,5 +14,5 @@ echo `"{for(i in $n){
 for(i in $n){
 	t=`{read -c 46 $1^.^$id($i)^.bit | awk '{print $2, $3}'}
 	f=$1^.^$rev($i)^.bit
-	iconv -c r8g8b8 $f | crop -t $t > a && mv a $f
+	iconv -c $3 $f | crop -t $t > a && mv a $f
 }

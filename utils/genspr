@@ -18,13 +18,31 @@ fn unit{
 		for(n in `{awk 'BEGIN{s='^$rng($i)^'*17; for(i=s; i<s+17; i+=32/'^$2^') printf "%03d\n", i;}'})
 			sceass $1^.grp.^00^$n^.bit $1 $id($i) `{echo $n | awk '{printf "%02d", ($1%17) / (32/'^$2^')}'} $3 $4
 		for(n in (`{seq 1 8} s))
-			scerot $1^$n^.^$id($i) $2
+			scerot $1^$n^.^$id($i) $2 r8g8b8
+	}
+}
+
+fn asprite{
+	n=`{echo '(' $#* - 4 ')' / 2 | pc -n}
+	s1=`{echo 5 + $n - 1 | pc -n}
+	s2=`{echo $s1 + 1 | pc -n}
+	rng=$*(5-$s1)
+	id=$*($s2-)
+	for(i in `{seq 1 $#id}){
+		for(n in `{awk 'BEGIN{s='^$rng($i)^'*17; for(i=s; i<s+17; i+=32/'^$2^') printf "%03d\n", i;}'}){
+			crop -t $3 $4 $1^.grp.^00^$n^.bit >a
+			mv a $1^.^$id($i)^.^`{echo $n | awk '{printf "%02d", ($1%17) / (32/'^$2^')}'}^.bit
+		}
+		scerot $1^.^$id($i) $2 r8g8b8a8
 	}
 }
 
 # individual units
 unit drone 32 -48 -47 (0 1 2 3 4) (00 01 02 03 04)
 unit scv 32 -26 -14 0 00
+
+# sprites with transparency
+asprite tscglow 32 -26 -14 (0 1 2 3) (00 01 02 03)
 
 # hatchery
 sceass -s hatchery.grp.00000.bit hatchery 00 00 -32 -30
