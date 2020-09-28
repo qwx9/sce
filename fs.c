@@ -28,6 +28,7 @@ struct Table{
 struct Picl{
 	int frm;
 	int type;
+	int teamcol;
 	char *name;
 	char iname[64];
 	int nr;
@@ -53,7 +54,7 @@ static int rot17idx[17] = {
 };
 
 static void
-loadpic(char *name, Pic *pic)
+loadpic(char *name, Pic *pic, int alpha)
 {
 	int fd, n, m, dx, dy;
 	Image *i;
@@ -65,8 +66,8 @@ loadpic(char *name, Pic *pic)
 	if((i = readimage(display, fd, 0)) == nil)
 		sysfatal("readimage: %r");
 	close(fd);
-	if(i->chan != RGB24)
-		sysfatal("loadpic %s: non-RGB24 image", name);
+	if(alpha && i->chan != RGBA32 || !alpha && i->chan != RGB24)
+		sysfatal("loadpic %s: inappropriate image format", name);
 	dx = Dx(i->r);
 	dy = Dy(i->r);
 	n = dx * dy;
@@ -83,10 +84,12 @@ loadpic(char *name, Pic *pic)
 	s = b;
 	while(n-- > 0){
 		v = s[2] << 16 | s[1] << 8 | s[0];
-		if(v != bgcol)
+		if(alpha)
+			v |= s[3] << 24; 
+		else if(v != bgcol)
 			v |= 0xff << 24;
 		*p++ = v;
-		s += 3;
+		s += i->depth / 8;
 	}
 	free(b);
 }
@@ -100,7 +103,7 @@ loadshadpic(Pic *pic, Picl *pl)
 	for(i=0; i<pl->nr; i++){
 		snprint(path, sizeof path, "%s.%02d.%02d.s.bit",
 			pl->name, pl->frm, rot17idx[i]);
-		loadpic(path, pic++);
+		loadpic(path, pic++, 0);
 	}
 }
 
@@ -115,7 +118,11 @@ loadobjpic(Pic *pic, Picl *pl)
 	for(i=0; i<pl->nr; i++){
 		snprint(path, sizeof path, "%s.%02d.%02d.bit",
 			pl->name, pl->frm, rot17idx[i]);
-		loadpic(path, &pic0);
+		loadpic(path, &pic0, pl->type & PFalpha);
+		if(!pl->teamcol){		
+			memcpy(pic, &pic0, sizeof *pic);
+			continue;
+		}
 		if(pic0.h % Nteam != 0)
 			sysfatal("loadobjpic: obj %s sprite sheet %d,%d: height not multiple of %d\n",
 				pl->name, pic0.w, pic0.h, Nteam);
@@ -140,7 +147,7 @@ loadterpic(Pic *pic, Picl *pl)
 
 	if(tilesetpic.p == nil){
 		snprint(path, sizeof path, "%s.bit", tileset);
-		loadpic(path, &tilesetpic);
+		loadpic(path, &tilesetpic, 0);
 		if(tilesetpic.h % tilesetpic.w != 0)
 			sysfatal("loadterpic: tiles not squares: tilepic %d,%d\n",
 				tilesetpic.w, tilesetpic.h);
@@ -197,8 +204,9 @@ pushpic(char *name, int frm, int type, int nr)
 		if(nr != 17 && nr != 1)
 			sysfatal("pushpic %s: invalid number of rotations", iname);
 		n = nr;
-		/* nteam isn't guaranteed to be set correctly by now */
-		if((type & (PFshadow|PFterrain)) == 0)
+		/* nteam isn't guaranteed to be set correctly by now, so
+		 * just set to max */
+		if(pl->teamcol = (type & (PFshadow|PFterrain|PFfloat)) == 0)
 			n *= Nteam;
 		pl->p = emalloc(n * sizeof *pl->p);
 		pl->l = pic->l;
@@ -281,7 +289,7 @@ vunpack(char **fld, char *fmt, va_list a)
 			if(*s == 0)
 				sysfatal("vunpack: empty obj");
 			for(o=obj; o<obj+nobj; o++)
-				if(strcmp(s, o->name) == 0)
+				if(o->name != nil && strcmp(s, o->name) == 0)
 					break;
 			if(o == obj + nobj)
 				sysfatal("vunpack: no such obj %s", s);
@@ -387,6 +395,28 @@ readattack(char **fld, int, Table *tab)
 }
 
 static void
+readgfx(char **fld, int, Table *tab)
+{
+	int f;
+	Obj *fxo, *o;
+	OState *s;
+
+	if(obj == nil)
+		obj = emalloc(nobj * sizeof *obj);
+	fxo = obj + nobj - 1 - tab->row;
+	fxo->name = estrdup(*fld++);
+	unpack(fld, "od", &o, &f);
+	fxo->f = f;
+	s = nil;
+	switch(f){
+	case PFidle: s = o->state + OSidle; break;
+	case PFmove: s = o->state + OSmove; break;
+	default: sysfatal("readgfx: %s unknown flag", fxo->name);
+	}
+	s->gfx = fxo;
+}
+
+static void
 readobj(char **fld, int, Table *tab)
 {
 	Obj *o;
@@ -421,9 +451,9 @@ readspr(char **fld, int n, Table *)
 	fld += 3;
 	n -= 3;
 	ps = nil;
-	switch(type & 0x7e){
-	case PFidle: ps = &o->pidle; break;
-	case PFmove: ps = &o->pmove; break;
+	switch(type & 0xf){
+	case PFidle: ps = &o->state[OSidle].pics; break;
+	case PFmove: ps = &o->state[OSmove].pics; break;
 	default: sysfatal("readspr %s: invalid type %#02ux", o->name, type & 0x7e);
 	}
 	ppp = type & PFshadow ? &ps->shadow : &ps->pic;
@@ -441,15 +471,27 @@ readspr(char **fld, int n, Table *)
 	}
 }
 
+enum{
+	Tmapobj,
+	Tobj,
+	Tgfx,
+	Tattack,
+	Tresource,
+	Tspawn,
+	Ttileset,
+	Tmap,
+	Tspr,
+};
 Table table[] = {
-	{"mapobj", readmapobj, 4, &nobjp},
-	{"obj", readobj, 17, &nobj},
-	{"attack", readattack, 4, &nattack},
-	{"resource", readresource, 2, &nresource},
-	{"spawn", readspawn, -1, nil},
-	{"tileset", readtileset, 1, nil},
-	{"map", readmap, -1, &terheight},
-	{"spr", readspr, -1, nil},
+	[Tmapobj] {"mapobj", readmapobj, 4, &nobjp},
+	[Tobj] {"obj", readobj, 17, &nobj},
+	[Tgfx] {"gfx", readgfx, 3, &nobj},
+	[Tattack] {"attack", readattack, 4, &nattack},
+	[Tresource] {"resource", readresource, 2, &nresource},
+	[Tspawn] {"spawn", readspawn, -1, nil},
+	[Ttileset] {"tileset", readtileset, 1, nil},
+	[Tmap] {"map", readmap, -1, &terheight},
+	[Tspr] {"spr", readspr, -1, nil},
 };
 
 static int

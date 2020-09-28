@@ -273,7 +273,7 @@ frm(Mobj *mo, int notshadow)
 	if(pp->pic != nil)
 		frm = tc % pp->nf;
 	else{
-		pp = &mo->o->pmove;
+		pp = &mo->o->state[OSmove].pics;
 		frm = mo->freezefrm;
 	}
 	assert(pp->pic != nil && pp->shadow != nil);

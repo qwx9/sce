@@ -3,6 +3,7 @@ typedef struct Pairheap Pairheap;
 typedef struct Attack Attack;
 typedef struct Pic Pic;
 typedef struct Pics Pics;
+typedef struct OState OState;
 typedef struct Obj Obj;
 typedef struct Path Path;
 typedef struct Mobj Mobj;
@@ -68,6 +69,8 @@ enum{
 	PFterrain = 1<<0,
 	PFidle = 1<<1,
 	PFmove = 1<<2,
+	PFfloat = 1<<13,
+	PFalpha = 1<<14,
 	PFshadow = 1<<15,
 };
 struct Pic{
@@ -90,10 +93,19 @@ enum{
 	Fair = 1<<2,
 	Fbuild = 1<<3,
 };
+enum{
+	OSidle,
+	OSmove,
+	OSend
+};
+struct OState{
+	Pics pics;
+	Obj *gfx;
+	Mobj *mgfx;
+};
 struct Obj{
 	char *name;
-	Pics pidle;
-	Pics pmove;
+	OState state[OSend];
 	int w;
 	int h;
 	int f;
