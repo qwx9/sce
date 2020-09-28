@@ -62,6 +62,9 @@ rm badlands.?[1-4]???.bit badlands.00[1-9]??.bit badlands.000[3-9]?.bit badlands
 # now fix the shit we just generated...
 # (FIXME: remove the need for this)
 scefix
-crop -t -2 0 drone.01.23.bit > a && mv a drone.01.23.bit
-crop -t 2 0 drone.03.23.bit > a && mv a drone.03.23.bit
-crop -t 2 0 drone.04.23.bit > a && mv a drone.04.23.bit
+crop -t -1 0 drone.00.23.bit > a && mv a drone.00.23.bit
+crop -t -1 0 drone.00.23.s.bit > a && mv a drone.00.23.s.bit
+crop -t 1 0 drone.03.23.bit > a && mv a drone.03.23.bit
+crop -t 1 0 drone.03.23.s.bit > a && mv a drone.03.23.s.bit
+crop -t -3 0 drone.04.23.bit > a && mv a drone.04.23.bit
+crop -t -3 0 drone.04.23.s.bit > a && mv a drone.04.23.s.bit
