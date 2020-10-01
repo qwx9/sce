@@ -590,6 +590,24 @@ cleanup(void)
 }
 
 static void
+fixobjspr(void)
+{
+	Obj *o;
+	Pics *idle, *move;
+
+	for(o=obj; o<obj+nobj; o++){
+		idle = &o->state[OSidle].pics;
+		move = &o->state[OSmove].pics;
+		if(idle->pic == nil && move->pic == nil)
+			sysfatal("obj %s: no base sprites loaded", o->name);
+		if(idle->pic == nil)
+			memcpy(idle, move, sizeof *idle);
+		else if(move->pic == nil)
+			memcpy(move, idle, sizeof *move);
+	}
+}
+
+static void
 checkdb(void)
 {
 	if(tileset == nil)
@@ -610,6 +628,7 @@ initdb(void)
 	initmap();
 	initmapobj();
 	cleanup();
+	fixobjspr();
 }
 
 void

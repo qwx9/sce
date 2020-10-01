@@ -269,13 +269,8 @@ frm(Mobj *mo, int notshadow)
 	Pics *pp;
 	Pic *p;
 
-	pp = mo->pics;
-	if(pp->pic != nil)
-		frm = tc % pp->nf;
-	else{
-		pp = &mo->o->state[OSmove].pics;
-		frm = mo->freezefrm;
-	}
+	pp = &mo->o->state[mo->state].pics;
+	frm = mo->state == OSidle ? mo->freezefrm : tc % pp->nf;
 	assert(pp->pic != nil && pp->shadow != nil);
 	θ = mo->θ * 32.0 / 256;
 	switch(pp->nr){

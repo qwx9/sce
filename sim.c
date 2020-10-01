@@ -88,9 +88,8 @@ freemove(Mobj *mo)
 {
 	unlinkmobj(mo->movingp);
 	mo->pathp = nil;
-	if(mo->pics->nf > 0)
-		mo->freezefrm = tc % mo->pics->nf;
-	mo->pics = &mo->o->state[OSidle].pics;
+	mo->freezefrm = tc % mo->o->state[mo->state].pics.nf;
+	mo->state = OSidle;
 	resetcoords(mo);
 }
 
@@ -112,8 +111,7 @@ repath(Point p, Mobj *mo)
 	}
 	mo->movingp = linkmobj(moving, mo, mo->movingp);
 	mo->pathp = mo->paths;
-	mo->pics = mo->o->state[OSmove].pics.pic != nil
-		? &mo->o->state[OSmove].pics : &mo->o->state[OSidle].pics;
+	mo->state = OSmove;
 	nextmove(mo);
 	return 0;
 }
@@ -142,7 +140,7 @@ spawn(int x, int y, Obj *o, int n)
 	if((mo = mapspawn(x, y, o)) == nil)
 		return -1;
 	mo->team = n;
-	mo->pics = &mo->o->state[OSidle].pics;
+	mo->state = OSidle;
 	if(mo->f & Fbuild)
 		team[n].nbuild++;
 	else

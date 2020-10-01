@@ -134,7 +134,7 @@ struct Path{
 };
 struct Mobj{
 	Obj *o;
-	Pics *pics;
+	int state;
 	int freezefrm;
 	Point;
 	int px;
