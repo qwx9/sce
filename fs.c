@@ -95,20 +95,7 @@ loadpic(char *name, Pic *pic, int alpha)
 }
 
 static void
-loadshadpic(Pic *pic, Picl *pl)
-{
-	int i;
-	char path[128];
-
-	for(i=0; i<pl->nr; i++){
-		snprint(path, sizeof path, "%s.%02d.%02d.s.bit",
-			pl->name, pl->frm, rot17idx[i]);
-		loadpic(path, pic++, 0);
-	}
-}
-
-static void
-loadobjpic(Pic *pic, Picl *pl)
+loadobjpic(Pic *pic, Picl *pl, char *suff)
 {
 	int n, i, j;
 	char path[128];
@@ -116,11 +103,11 @@ loadobjpic(Pic *pic, Picl *pl)
 	Pic pic0;
 
 	for(i=0; i<pl->nr; i++){
-		snprint(path, sizeof path, "%s.%02d.%02d.bit",
-			pl->name, pl->frm, rot17idx[i]);
+		snprint(path, sizeof path, "%s.%02d.%02d%s.bit",
+			pl->name, pl->frm, rot17idx[i], suff);
 		loadpic(path, &pic0, pl->type & PFalpha);
 		if(!pl->teamcol){		
-			memcpy(pic, &pic0, sizeof *pic);
+			memcpy(pic++, &pic0, sizeof *pic);
 			continue;
 		}
 		if(pic0.h % Nteam != 0)
@@ -174,9 +161,11 @@ initimg(void)
 		if(pl->type & PFterrain)
 			loadterpic(p, pl);
 		else if(pl->type & PFshadow)
-			loadshadpic(p, pl);
+			loadobjpic(p, pl, ".s");
+		else if(pl->type & PFglow)
+			loadobjpic(p, pl, ".g");
 		else
-			loadobjpic(p, pl);
+			loadobjpic(p, pl, "");
 		pic->l = pl->l;
 		free(pl);
 	}
@@ -184,7 +173,7 @@ initimg(void)
 }
 
 static Pic *
-pushpic(char *name, int frm, int type, int nr)
+pushpic(char *name, int frm, int type, int nr, int hasteam)
 {
 	int n;
 	char iname[64];
@@ -201,12 +190,13 @@ pushpic(char *name, int frm, int type, int nr)
 		pl->type = type;
 		pl->name = name;
 		pl->nr = nr;
+		pl->teamcol = hasteam;
 		if(nr != 17 && nr != 1)
 			sysfatal("pushpic %s: invalid number of rotations", iname);
 		n = nr;
 		/* nteam isn't guaranteed to be set correctly by now, so
 		 * just set to max */
-		if(pl->teamcol = (type & (PFshadow|PFterrain|PFfloat)) == 0)
+		if(hasteam)
 			n *= Nteam;
 		pl->p = emalloc(n * sizeof *pl->p);
 		pl->l = pic->l;
@@ -227,7 +217,7 @@ pushterrain(int id)
 		tl = emalloc(sizeof *tl);
 		tl->id = id;
 		tl->t = emalloc(sizeof *tl->t);
-		tl->t->p = pushpic("/tile/", id - 1, PFterrain, 1);
+		tl->t->p = pushpic("/tile/", id - 1, PFterrain, 1, 0);
 		tl->l = terrainl->l;
 		terrainl->l = tl;
 	}
@@ -395,28 +385,6 @@ readattack(char **fld, int, Table *tab)
 }
 
 static void
-readgfx(char **fld, int, Table *tab)
-{
-	int f;
-	Obj *fxo, *o;
-	OState *s;
-
-	if(obj == nil)
-		obj = emalloc(nobj * sizeof *obj);
-	fxo = obj + nobj - 1 - tab->row;
-	fxo->name = estrdup(*fld++);
-	unpack(fld, "od", &o, &f);
-	fxo->f = f;
-	s = nil;
-	switch(f){
-	case PFidle: s = o->state + OSidle; break;
-	case PFmove: s = o->state + OSmove; break;
-	default: sysfatal("readgfx: %s unknown flag", fxo->name);
-	}
-	s->gfx = fxo;
-}
-
-static void
 readobj(char **fld, int, Table *tab)
 {
 	Obj *o;
@@ -452,29 +420,35 @@ readspr(char **fld, int n, Table *)
 	n -= 3;
 	ps = nil;
 	switch(type & 0xf){
-	case PFidle: ps = &o->state[OSidle].pics; break;
-	case PFmove: ps = &o->state[OSmove].pics; break;
+	case PFidle: ps = o->pics[OSidle]; break;
+	case PFmove: ps = o->pics[OSmove]; break;
 	default: sysfatal("readspr %s: invalid type %#02ux", o->name, type & 0x7e);
 	}
-	ppp = type & PFshadow ? &ps->shadow : &ps->pic;
+	if(type & PFshadow)
+		ps += PTshadow;
+	else if(type & PFglow)
+		ps += PTglow;
+	else
+		ps += PTbase;
+	ppp = &ps->pic;
 	if(*ppp != nil)
 		sysfatal("readspr %s: pic type %#ux already allocated", o->name, type);
 	if(ps->nf != 0 && ps->nf != n || ps->nr != 0 && ps->nr != nr)
 		sysfatal("readspr %s: spriteset phase error", o->name);
+	ps->teamcol = (type & (PFshadow|PFterrain|PFglow)) == 0;
 	ps->nf = n;
 	ps->nr = nr;
 	p = emalloc(n * sizeof *ppp);
 	*ppp = p;
 	for(pe=p+n; p<pe; p++){
 		unpack(fld++, "d", &frm);
-		*p = pushpic(o->name, frm, type, nr);
+		*p = pushpic(o->name, frm, type, nr, ps->teamcol);
 	}
 }
 
 enum{
 	Tmapobj,
 	Tobj,
-	Tgfx,
 	Tattack,
 	Tresource,
 	Tspawn,
@@ -485,7 +459,6 @@ enum{
 Table table[] = {
 	[Tmapobj] {"mapobj", readmapobj, 4, &nobjp},
 	[Tobj] {"obj", readobj, 17, &nobj},
-	[Tgfx] {"gfx", readgfx, 3, &nobj},
 	[Tattack] {"attack", readattack, 4, &nattack},
 	[Tresource] {"resource", readresource, 2, &nresource},
 	[Tspawn] {"spawn", readspawn, -1, nil},
@@ -596,14 +569,23 @@ fixobjspr(void)
 	Pics *idle, *move;
 
 	for(o=obj; o<obj+nobj; o++){
-		idle = &o->state[OSidle].pics;
-		move = &o->state[OSmove].pics;
-		if(idle->pic == nil && move->pic == nil)
+		if(o->f & Fbuild)
+			continue;
+		idle = o->pics[OSidle];
+		move = o->pics[OSmove];
+		if(idle[PTbase].pic == nil && move[PTbase].pic == nil)
 			sysfatal("obj %s: no base sprites loaded", o->name);
-		if(idle->pic == nil)
-			memcpy(idle, move, sizeof *idle);
-		else if(move->pic == nil)
-			memcpy(move, idle, sizeof *move);
+		if(idle[PTbase].pic == nil){
+			memcpy(idle+PTbase, move+PTbase, sizeof *idle);
+			memcpy(idle+PTshadow, move+PTshadow, sizeof *idle);
+			idle[PTbase].iscopy = 1;
+			idle[PTshadow].iscopy = 1;
+		}else if(move[PTbase].pic == nil){
+			memcpy(move+PTbase, idle+PTbase, sizeof *move);
+			memcpy(move+PTshadow, idle+PTshadow, sizeof *move);
+			move[PTbase].iscopy = 1;
+			move[PTshadow].iscopy = 1;
+		}
 	}
 }
 

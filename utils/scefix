@@ -71,6 +71,15 @@ fn clean{
 		rm $1^.??.^$rot^.bit
 }
 
+fn rename{
+	if(! ~ $3 '')
+		suf=';s/\.bit/.'^$3^'&/'
+	if not
+		suf=''
+	for(i in $1^.*)
+		mv $i `{echo $i | sed 's/'^$1^'/'^$2^'/'^$suf}
+}
+
 cat <<! >/env/fuckrc
 !r /tmp/a.bit a
 r = a
@@ -94,6 +103,7 @@ r = y >= DY*7 && y < DY*8 ? b[x,y-DY*7] : r
 gen32 scv 00
 gen32 drone 00 01 02 03 04
 clean tscglow
+rename tscglow scv g
 gen1 control 00
 gen1 hatchery 00 01 02 03
 terrain badlands

@@ -171,6 +171,8 @@ drawshadow(int x, int y, Pic *pic)
 	u32int v, *p, *e, *q;
 	Rectangle r;
 
+	if(pic->p == nil)
+		sysfatal("drawshawdow: empty pic");
 	q = pic->p;
 	r = Rect(x + pic->dx, y + pic->dy, pic->w, pic->h);
 	if(boundpic(&r, &q) < 0)
@@ -259,7 +261,7 @@ drawmap(Rectangle *r)
 }
 
 static Pic *
-frm(Mobj *mo, int notshadow)
+frm(Mobj *mo, int type)
 {
 	static int rot17[Nrot] = {
 		0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,
@@ -269,21 +271,19 @@ frm(Mobj *mo, int notshadow)
 	Pics *pp;
 	Pic *p;
 
-	pp = &mo->o->state[mo->state].pics;
-	frm = mo->state == OSidle ? mo->freezefrm : tc % pp->nf;
-	assert(pp->pic != nil && pp->shadow != nil);
+	pp = &mo->o->pics[mo->state][type];
+	assert(pp->pic != nil);
+	frm = pp->iscopy ? mo->freezefrm : tc % pp->nf;
 	θ = mo->θ * 32.0 / 256;
 	switch(pp->nr){
 	case 17: θ = rot17[θ]; break;
 	default: θ = 0; break;
 	}
-	if(notshadow){
-		p = pp->pic[frm];
+	p = pp->pic[frm];
+	if(pp->teamcol)
 		p += nteam * θ + mo->team - 1;
-	}else{
-		p = pp->shadow[frm];
+	else
 		p += θ;
-	}
 	return p;
 }
 
@@ -323,13 +323,13 @@ redraw(void)
 				mo = ml->mo;
 				if(mo->o->f & Fair)
 					break;
-				drawshadow(mo->px, mo->py, frm(mo, 0));
+				drawshadow(mo->px, mo->py, frm(mo, PTshadow));
 			}
 			for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
 				mo = ml->mo;
 				if(mo->o->f & Fair)
 					break;
-				drawpic(mo->px, mo->py, frm(mo, 1), addvis(mo));
+				drawpic(mo->px, mo->py, frm(mo, PTbase), addvis(mo));
 			}
 		}
 		m += mapwidth - (mr.max.x - mr.min.x);
@@ -340,13 +340,13 @@ redraw(void)
 				mo = ml->mo;
 				if((mo->o->f & Fair) == 0)
 					continue;
-				drawshadow(mo->px, mo->py, frm(mo, 0));
+				drawshadow(mo->px, mo->py, frm(mo, PTshadow));
 			}
 			for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
 				mo = ml->mo;
 				if((mo->o->f & Fair) == 0)
 					continue;
-				drawpic(mo->px, mo->py, frm(mo, 1), addvis(mo));
+				drawpic(mo->px, mo->py, frm(mo, PTbase), addvis(mo));
 			}
 		}
 		m += mapwidth - (mr.max.x - mr.min.x);
