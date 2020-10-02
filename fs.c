@@ -620,5 +620,6 @@ init(void)
 		fprint(2, "init: %r\n");
 	loaddb(dbname);
 	loaddb(mapname);
+	srand();
 	initdb();
 }
