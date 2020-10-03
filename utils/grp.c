@@ -82,8 +82,8 @@ getpcxpal(char *f)
 	if((im = readmemimage(fd)) == nil)
 		sysfatal("readmemimage: %r");
 	close(fd);
-	if(im->chan != RGBA32){
-		if((im1 = allocmemimage(im->r, RGBA32)) == nil)
+	if(im->chan != RGB24){
+		if((im1 = allocmemimage(im->r, RGB24)) == nil)
 			sysfatal("allocmemimage: %r");
 		memfillcolor(im1, DBlack);
 		memimagedraw(im1, im1->r, im, im->r.min, memopaque, ZP, S);
@@ -99,9 +99,9 @@ getpcxpal(char *f)
 		sysfatal("unloadmemimage: %r");
 	freememimage(im);
 	/* FIXME */
-	//for(i=0, p=pal, bp=buf; i<npal; i++, p++, bp+=256*4){
-	for(i=0, p=pal, bp=buf+20*4; i<npal; i++, p++, bp+=256*4){
-		v = bp[1] << 16 | bp[2]<<8 | bp[3];
+	//for(i=0, p=pal, bp=buf; i<npal; i++, p++, bp+=256*3){
+	for(i=0, p=pal, bp=buf+20*3; i<npal; i++, p++, bp+=256*3){
+		v = bp[0] << 24 | bp[1] << 16 | bp[2] << 8;
 		a = 0x7f;
 		switch(npal){
 		case 63:
@@ -116,7 +116,7 @@ getpcxpal(char *f)
 		case 1: break;
 		default: sysfatal("unknown palette size %d", npal);
 		}
-		*p = a<<24 | v;
+		*p = v | a;
 	}
 	free(buf);
 }
@@ -200,7 +200,7 @@ main(int argc, char **argv)
 	bufp = buf;
 	if(!split && (bo = Bfdopen(1, OWRITE)) == nil)
 		sysfatal("Bfdopen: %r");
-	chantostr(c, pcx ? RGBA32 : RGB24);
+	chantostr(c, pcx ? ARGB32 : RGB24);
 	for(hp=h; hp<h+ni; hp++){
 		if(split){
 			sprint(s, "%s.%05zd.bit", argv[1], hp-h);

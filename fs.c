@@ -66,7 +66,7 @@ loadpic(char *name, Pic *pic, int alpha)
 	if((i = readimage(display, fd, 0)) == nil)
 		sysfatal("readimage: %r");
 	close(fd);
-	if(alpha && i->chan != RGBA32 || !alpha && i->chan != RGB24)
+	if(alpha && i->chan != ARGB32 || !alpha && i->chan != RGB24)
 		sysfatal("loadpic %s: inappropriate image format", name);
 	dx = Dx(i->r);
 	dy = Dy(i->r);
@@ -85,7 +85,7 @@ loadpic(char *name, Pic *pic, int alpha)
 	while(n-- > 0){
 		v = s[2] << 16 | s[1] << 8 | s[0];
 		if(alpha)
-			v |= s[3] << 24; 
+			v |= s[3] << 24;
 		else if(v != bgcol)
 			v |= 0xff << 24;
 		*p++ = v;

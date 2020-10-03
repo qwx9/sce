@@ -165,6 +165,44 @@ drawpic(int x, int y, Pic *pic, int ivis)
 }
 
 static void
+drawpicalpha(int x, int y, Pic *pic)
+{
+	int n, Δp, Δq;
+	u8int k, a, b;
+	u32int o, A, B, *p, *e, *q;
+	Rectangle r;
+
+	if(pic->p == nil)
+		sysfatal("drawpic: empty pic");
+	q = pic->p;
+	r = Rect(x + pic->dx, y + pic->dy, pic->w, pic->h);
+	if(boundpic(&r, &q) < 0)
+		return;
+	Δq = pic->w - r.max.x / scale;
+	p = fb + r.min.y * fbws + r.min.x;
+	Δp = fbws - r.max.x;
+	while(r.max.y-- > 0){
+		e = p + r.max.x;
+		while(p < e){
+			A = *q++;
+			k = A >> 24;
+			B = *p;
+			for(n=0; n<24; n+=8){
+				a = A >> n;
+				b = B >> n;
+				o = k * (a - b);
+				o = (o + 1 + (o >> 8)) >> 8;
+				B = B & ~(0xff << n) | (o + b & 0xff) << n;
+			}
+			for(n=0; n<scale; n++)
+				*p++ = B;
+		}
+		q += Δq;
+		p += Δp;
+	}
+}
+
+static void
 drawshadow(int x, int y, Pic *pic)
 {
 	int n, Δp, Δq;
@@ -330,6 +368,20 @@ redraw(void)
 				if(mo->o->f & Fair)
 					break;
 				drawpic(mo->px, mo->py, frm(mo, PTbase), addvis(mo));
+			}
+		}
+		m += mapwidth - (mr.max.x - mr.min.x);
+	}
+	for(y=mr.min.y, m=map+y*mapwidth+mr.min.x; y<mr.max.y; y++){
+		for(x=mr.min.x; x<mr.max.x; x++, m++){
+			for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
+				mo = ml->mo;
+				if(mo->o->f & Fair)
+					break;
+				if(mo->state != OSmove
+				|| mo->o->pics[OSmove][PTglow].pic == nil)
+					continue;
+				drawpicalpha(mo->px, mo->py, frm(mo, PTglow));
 			}
 		}
 		m += mapwidth - (mr.max.x - mr.min.x);

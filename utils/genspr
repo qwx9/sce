@@ -33,7 +33,7 @@ fn asprite{
 			crop -t $3 $4 $1^.grp.^00^$n^.bit >a
 			mv a $1^.^$id($i)^.^`{echo $n | awk '{printf "%02d", ($1%17) / (32/'^$2^')}'}^.bit
 		}
-		scerot $1^.^$id($i) $2 r8g8b8a8
+		scerot $1^.^$id($i) $2 a8r8g8b8
 	}
 }
 
