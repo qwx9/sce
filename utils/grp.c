@@ -106,9 +106,13 @@ getpcxpal(char *f)
 		switch(npal){
 		case 63:
 			if(i > 47)
-				a = (0xff + 1) / (1 + exp(-i + 48 - 3.4) / 0.75);
+				a = 0xff / (1 + exp(-i + 48 - 3.4) / 0.75);
+			/* logistic growth function
+			 * max / (1 + exp(-x + xofs) / slope) + yofs
+			 * fplot -r '0:47 0:255' '255 / (1 + exp((20 - x) / 4)) + 0'
+			 */
 			else
-				a = (0xff + 1) / (1 + exp(-i + 10.0) / 2.2);
+				a = (0xff + 1) / (1 + exp((16 - i) / 3.5)) + 0;
 			break;
 		/* FIXME */
 		case 40: a = i < 33 ? 0xff * i / 32 : 0xff * (6 - (i - 33)) / 6; break;
