@@ -80,6 +80,12 @@ fn rename{
 		mv $i `{echo $i | sed 's/'^$1^'/'^$2^'/'^$suf}
 }
 
+fn translate{
+	crop -t $2 $3 $1 > a && mv a $1
+crop -t -1 0 drone.00.23.bit > a && mv a drone.00.23.bit
+
+}
+
 cat <<! >/env/fuckrc
 !r /tmp/a.bit a
 r = a
@@ -107,3 +113,19 @@ rename tscglow scv g
 gen1 control 00
 gen1 hatchery 00 01 02 03
 terrain badlands
+
+crop -t -1 0 drone.00.23.bit > a && mv a drone.00.23.bit
+crop -t -1 0 drone.00.23.s.bit > a && mv a drone.00.23.s.bit
+crop -t 1 0 drone.03.23.bit > a && mv a drone.03.23.bit
+crop -t 1 0 drone.03.23.s.bit > a && mv a drone.03.23.s.bit
+crop -t -3 0 drone.04.23.bit > a && mv a drone.04.23.bit
+crop -t -3 0 drone.04.23.s.bit > a && mv a drone.04.23.s.bit
+for(i in 00 01 02 03){
+	translate scv.$i.17.git 26 0
+	translate scv.$i.19.git 30 0
+	translate scv.$i.21.git 28 0
+	translate scv.$i.23.git 23 0
+	translate scv.$i.25.git 25 0
+	translate scv.$i.27.git 21 0
+	translate scv.$i.29.git 14 0
+}
