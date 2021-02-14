@@ -239,16 +239,12 @@ threadmain(int argc, char **argv)
 	t0 = nsec();
 	for(;;){
 		step();
+		tc += 1;
 		t = nsec();
 		Δtc = (t - t0) / tdiv;
 		if(Δtc <= 0)
 			Δtc = 1;
-		else if(Δtc > 1){
-			t0 += (vlong)(Δtc - 1) * tdiv;
-			Δtc = 1;
-		}
 		t0 += Δtc * tdiv;
-		tc += Δtc;
 		dt = (t0 - t) / Te6;
 		if(dt > 0)
 			sleep(dt);
