@@ -202,41 +202,6 @@ drawpicalpha(int x, int y, Pic *pic)
 	}
 }
 
-static void
-drawshadow(int x, int y, Pic *pic)
-{
-	int n, Δp, Δq;
-	u32int v, *p, *e, *q;
-	Rectangle r;
-
-	if(pic->p == nil)
-		sysfatal("drawshawdow: empty pic");
-	q = pic->p;
-	r = Rect(x + pic->dx, y + pic->dy, pic->w, pic->h);
-	if(boundpic(&r, &q) < 0)
-		return;
-	Δq = pic->w - r.max.x / scale;
-	p = fb + r.min.y * fbws + r.min.x;
-	Δp = fbws - r.max.x;
-	while(r.max.y-- > 0){
-		e = p + r.max.x;
-		while(p < e){
-			v = *q++;
-			if(v & 0xff << 24){
-				v = p[0];
-				v = (v & 0xff0000) * 0x7f / 0xff & 0xff0000
-				| (v & 0xff00) * 0x7f / 0xff & 0xff00
-				| (v & 0xff) * 0x7f / 0xff & 0xff;
-				for(n=0; n<scale; n++)
-					*p++ = v;
-			}else
-				p += scale;
-		}
-		q += Δq;
-		p += Δp;
-	}
-}
-
 void
 compose(int x, int y, u32int c)
 {
@@ -361,7 +326,7 @@ redraw(void)
 				mo = ml->mo;
 				if(mo->o->f & Fair)
 					break;
-				drawshadow(mo->px, mo->py, frm(mo, PTshadow));
+				drawpicalpha(mo->px, mo->py, frm(mo, PTshadow));
 			}
 			for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
 				mo = ml->mo;
@@ -392,7 +357,7 @@ redraw(void)
 				mo = ml->mo;
 				if((mo->o->f & Fair) == 0)
 					continue;
-				drawshadow(mo->px, mo->py, frm(mo, PTshadow));
+				drawpicalpha(mo->px, mo->py, frm(mo, PTshadow));
 			}
 			for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
 				mo = ml->mo;
