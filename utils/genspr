@@ -17,8 +17,9 @@ fn unit{
 	for(i in `{seq 1 $#id}){
 		for(n in `{awk 'BEGIN{s='^$rng($i)^'*17; for(i=s; i<s+17; i+=32/'^$2^') printf "%03d\n", i;}'})
 			sceass $1^.grp.^00^$n^.bit $1 $id($i) `{echo $n | awk '{printf "%02d", ($1%17) / (32/'^$2^')}'} $3 $4
-		for(n in (`{seq 1 8} s))
+		for(n in `{seq 1 8})
 			scerot $1^$n^.^$id($i) $2 r8g8b8
+		scerot $1^s^.^$id($i) $2 a8r8g8b8
 	}
 }
 
@@ -37,6 +38,18 @@ fn asprite{
 	}
 }
 
+fn genshad{
+	grp=$1
+	name=$4
+	echo '
+		!r '^$grp^' s
+		o = s[x,y,0] == 0 && s[x,y,1] == Z && s[x,y,2] == Z ? Z : 0
+		o = z == 3 ? o[x,y,0] == 0 ? Z/2+1 : 0 : o
+		!w o a
+	' | pico
+	iconv -c a8r8g8b8 a | crop -t $2 $3 > $name
+}
+
 # individual units
 unit drone 32 -48 -47 (0 1 2 3 4) (00 01 02 03 04)
 unit scv 32 -26 -14 0 00
@@ -49,11 +62,11 @@ sceass -s hatchery.grp.00000.bit hatchery 00 00 -32 -30
 sceass -s hatchery.grp.00001.bit hatchery 01 00 -32 -30
 sceass -s hatchery.grp.00002.bit hatchery 02 00 -32 -30
 sceass -s hatchery.grp.00003.bit hatchery 03 00 -32 -30
-crop -t -32 -30 zhashad.grp.00000.bit >hatcherys.00.00.bit
+genshad zhashad.grp.00000.bit 9 -7 hatcherys.00.00.bit
 
 # command center
 sceass -s control.grp.00005.bit control 00 00 -2 -32
-crop -t -2 -32 tccShad.grp.00000.bit >controls.00.00.bit
+genshad tccShad.grp.00000.bit -2 -6 controls.00.00.bit
 
 # generate tileset palette and tileset bitmap
 sctile badlands

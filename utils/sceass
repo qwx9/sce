@@ -44,9 +44,11 @@ if(~ $#noshad 0){
 		m = z == 3 ? Z : y >= Y-8 ? Z : s[x,y+8,0] != 0 || s[x,y+8,1] != Z || s[x,y+8,2] != Z ? 0 : Z
 		b = z == 3 ? Z : s[x,y,0] != 0 || s[x,y,1] != Z || s[x,y,2] != Z ? 0 : Z
 		o = z == 3 || y < 8 ? Z : Z-m + b
-		o = z == 3 ? Z : z == 2 ? Z : z == 0 ? o == 0 ? o + 35 : 0 : z == 1 ? o == 0 ? o + 35 : Z : Z
+		#o = z == 3 ? Z : z == 2 ? Z : z == 0 ? o == 0 ? o + 35 : 0 : z == 1 ? o == 0 ? o + 35 : Z : Z
+		#o = z == 3 ? (o[x,y,0] == 0 && o[x,y,1] == Z && o[x,y,2] == Z ? 0 : Z/2) : o
+		o = z == 3 ? o[x,y,0] + o[x,y,1] + o[x,y,2] > 0 ? 0 : Z/2+1 : o
 		!w o '^$f^'
 	' | pico
-	iconv -c r8g8b8 $f | crop -t $t(1) $t(3) > a && mv a $f
+	iconv -c a8r8g8b8 $f | crop -t $t(1) $t(3) > a && mv a $f
 }
 status=''
