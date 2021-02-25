@@ -18,7 +18,7 @@ static Mobj *selected[Nselect];
 static Mobj **visbuf;
 static int nvisbuf, nvis;
 
-int
+void
 dopan(Point p)
 {
 	pan.x -= p.x;
@@ -31,23 +31,21 @@ dopan(Point p)
 		pan.y = 0;
 	else if(pan.y > panmax.y)
 		pan.y = panmax.y;
-	return 1;
 }
 
-int
+void
 select(Point p)
 {
 	int i;
 
 	if(!ptinrect(p, selr))
-		return 0;
+		return;
 	p = divpt(subpt(p, selr.min), scale);
 	i = fbvis[p.y * fbw + p.x];
 	selected[0] = i == -1 ? nil : visbuf[i];
-	return 1;
 }
 
-int
+void
 move(Point p)
 {
 	int i;
@@ -55,19 +53,18 @@ move(Point p)
 	Mobj *mo;
 
 	if(!ptinrect(p, selr) || selected[0] == nil)
-		return 0;
+		return;
 	vp = divpt(subpt(p, selr.min), scale);
 	i = fbvis[vp.y * fbw + vp.x];
 	mo = i == -1 ? nil : visbuf[i];
 	if(mo == selected[0]){
 		dprint("select: %#p not moving to itself\n", visbuf[i]);
-		return 0;
+		return;
 	}
 	p = divpt(addpt(subpt(p, selr.min), pan), scale);
 	p.x /= Tlsubwidth;
 	p.y /= Tlsubheight;
 	moveone(p, selected[0], mo);
-	return 1;
 }
 
 static void
