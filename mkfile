@@ -12,6 +12,7 @@ OFILES=\
 	sce.$O\
 	sim.$O\
 	snd.$O\
+	sv.$O\
 	util.$O\
 
 HFILES=dat.h fns.h

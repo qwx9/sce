@@ -196,8 +196,14 @@ enum{
 	Tquit,
 };
 
+enum{
+	Te9 = 1000000000,
+	Te6 = 1000000,
+	Te3 = 1000,
+
+	Tfast = 6,
+};
 extern char *progname, *prefix, *dbname, *mapname;
-extern int clon;
 extern vlong tc;
 extern int pause, debugmap;
 extern int debug;

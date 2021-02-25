@@ -4,6 +4,8 @@
 #include "dat.h"
 #include "fns.h"
 
+extern QLock drawlock;
+
 int scale = 1;
 static Point p0, pan;
 
@@ -16,11 +18,11 @@ static Mobj *selected[Nselect];
 static Mobj **visbuf;
 static int nvisbuf, nvis;
 
-void
-dopan(int dx, int dy)
+int
+dopan(Point p)
 {
-	pan.x -= dx;
-	pan.y -= dy;
+	pan.x -= p.x;
+	pan.y -= p.y;
 	if(pan.x < 0)
 		pan.x = 0;
 	else if(pan.x > panmax.x)
@@ -29,36 +31,43 @@ dopan(int dx, int dy)
 		pan.y = 0;
 	else if(pan.y > panmax.y)
 		pan.y = panmax.y;
+	return 1;
 }
 
-void
-select(Point p, int b)
+int
+select(Point p)
+{
+	int i;
+
+	if(!ptinrect(p, selr))
+		return 0;
+	p = divpt(subpt(p, selr.min), scale);
+	i = fbvis[p.y * fbw + p.x];
+	selected[0] = i == -1 ? nil : visbuf[i];
+	return 1;
+}
+
+int
+move(Point p)
 {
 	int i;
 	Point vp;
 	Mobj *mo;
 
-	if(!ptinrect(p, selr))
-		return;
-	if(b & 1){
-		p = divpt(subpt(p, selr.min), scale);
-		i = fbvis[p.y * fbw + p.x];
-		selected[0] = i == -1 ? nil : visbuf[i];
-	}else if(b & 4){
-		if(selected[0] == nil)
-			return;
-		vp = divpt(subpt(p, selr.min), scale);
-		i = fbvis[vp.y * fbw + vp.x];
-		mo = i == -1 ? nil : visbuf[i];
-		if(mo == selected[0]){
-			dprint("select: %#p not moving to itself\n", visbuf[i]);
-			return;
-		}
-		p = divpt(addpt(subpt(p, selr.min), pan), scale);
-		p.x /= Tlsubwidth;
-		p.y /= Tlsubheight;
-		moveone(p, selected[0], mo);
+	if(!ptinrect(p, selr) || selected[0] == nil)
+		return 0;
+	vp = divpt(subpt(p, selr.min), scale);
+	i = fbvis[vp.y * fbw + vp.x];
+	mo = i == -1 ? nil : visbuf[i];
+	if(mo == selected[0]){
+		dprint("select: %#p not moving to itself\n", visbuf[i]);
+		return 0;
 	}
+	p = divpt(addpt(subpt(p, selr.min), pan), scale);
+	p.x /= Tlsubwidth;
+	p.y /= Tlsubheight;
+	moveone(p, selected[0], mo);
+	return 1;
 }
 
 static void
@@ -371,6 +380,15 @@ redraw(void)
 	if(debugmap)
 		drawmap(&mr);
 	drawhud();
+}
+
+void
+updatefb(void)
+{
+	qlock(&drawlock);
+	redraw();
+	qunlock(&drawlock);
+	drawfb();
 }
 
 void

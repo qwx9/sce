@@ -338,7 +338,7 @@ stepsim(void)
 		stepmove(oml->mo);
 }
 
-static void
+void
 initsim(void)
 {
 	Team *t;
@@ -347,11 +347,4 @@ initsim(void)
 		sysfatal("initgame: the only winning move is not to play");
 	for(t=team; t<=team+nteam; t++)
 		memcpy(t->r, initres, sizeof initres);
-}
-
-void
-initsv(void)
-{
-	initsim();
-	listennet();
 }

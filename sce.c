@@ -8,14 +8,15 @@
 #include "dat.h"
 #include "fns.h"
 
-void	select(Point, int);
-
 mainstacksize = 16*1024;
 
+enum{
+	Hz = 60,
+};
+
 char *progname = "sce", *dbname, *prefix, *mapname = "map1.db";
-int clon;
-vlong tc;
 int pause, debugmap;
+QLock drawlock;
 
 typedef struct Kev Kev;
 typedef struct Mev Mev;
@@ -25,19 +26,11 @@ struct Kev{
 };
 struct Mev{
 	Point;
-	int dx;
-	int dy;
+	Point Δ;
 	int b;
 };
 
-enum{
-	Te9 = 1000000000,
-	Te6 = 1000000,
-	Tfast = 6,
-};
-static int tv = Tfast, tdiv;
-static vlong Δtc;
-static Channel *reszc, *kc, *mc;
+static Channel *reszc, *kc, *mc, *tmc;
 
 static void
 mproc(void *)
@@ -64,8 +57,8 @@ mproc(void *)
 			m.x = strtol(buf+1+12*0, nil, 10);
 			m.y = strtol(buf+1+12*1, nil, 10);
 			m.b = strtol(buf+1+12*2, nil, 10);
-			m.dx = m.x - om.x;
-			m.dy = m.y - om.y;
+			m.Δ.x = m.x - om.x;
+			m.Δ.y = m.y - om.y;
 			if((m.b & 1) == 1 && (om.b & 1) == 0
 			|| (m.b & 4) == 4 && (om.b & 4) == 0
 			|| m.b & 2)
@@ -117,95 +110,63 @@ kproc(void *)
 }
 
 static void
-quit(void)
+timeproc(void *)
 {
-	packcl("u", Tquit);
-	flushcl();
-	threadexitsall(nil);
-}
+	int tdiv;
+	vlong t, t0, dt, Δtc;
 
-static void
-input(void)
-{
-	Kev ke;
-	Mev me;
-
-	if(nbrecv(reszc, nil) != 0){
-		if(getwindow(display, Refnone) < 0)
-			sysfatal("resize failed: %r");
-		resetfb();
+	tdiv = Te9 / Hz;
+	t0 = nsec();
+	for(;;){
+		nbsendul(tmc, 0);
+		t = nsec();
+		Δtc = (t - t0) / tdiv;
+		if(Δtc <= 0)
+			Δtc = 1;
+		t0 += Δtc * tdiv;
+		dt = (t0 - t) / Te6;
+		if(dt > 0)
+			sleep(dt);
 	}
-	while(nbrecv(mc, &me) > 0){
-		if(me.b & 5)
-			select(me, me.b);
-		if(me.b & 2)
-			dopan(me.dx, me.dy);
-	}
-	while(nbrecv(kc, &ke) > 0){
-		if(!ke.down)
-			continue;
-		switch(ke.r){
-		case KF|1: debugmap ^= 1; pause ^= 1; break;
-		case ' ': pause ^= 1; break;
-		case Kdel: quit(); break;
-		}
-	}
-}
-
-static void
-stepcl(void)
-{
-	if(!clon)
-		return;
-	input();
-	flushcl();
-	redraw();
-	drawfb();
-	stepsnd();
 }
 
 static void
 initcl(void)
 {
-	clon = 1;
 	if(initdraw(nil, nil, progname) < 0)
 		sysfatal("initdraw: %r");
-	if((reszc = chancreate(sizeof(int), 2)) == nil
-	|| (kc = chancreate(sizeof(Kev), 20)) == nil
-	|| (mc = chancreate(sizeof(Mev), 20)) == nil)
-		sysfatal("chancreate: %r");
-	if(proccreate(kproc, nil, 8192) < 0
-	|| proccreate(mproc, nil, 8192) < 0)
-		sysfatal("proccreate: %r");
 	initsnd();
 	initimg();
 	resetfb();
-}
-
-static void
-step(void)
-{
-	stepnet();
-	stepcl();
-	while(!pause && Δtc-- > 0)
-		stepsim();
+	if((reszc = chancreate(sizeof(int), 2)) == nil
+	|| (kc = chancreate(sizeof(Kev), 20)) == nil
+	|| (mc = chancreate(sizeof(Mev), 20)) == nil
+	|| (tmc = chancreate(sizeof(ulong), 0)) == nil)
+		sysfatal("chancreate: %r");
+	if(proccreate(kproc, nil, 8192) < 0
+	|| proccreate(mproc, nil, 8192) < 0
+	|| proccreate(timeproc, nil, 8192) < 0)
+		sysfatal("proccreate: %r");
 }
 
 static void
 usage(void)
 {
-	fprint(2, "usage: %s [-D] [-l port] [-m map] [-n name] [-s scale] [-t speed] [-x netmtpt] [sys]\n", argv0);
+	fprint(2, "usage: %s [-D] [-P port] [-m map] [-n name] [-s scale] [-t speed] [-x netmtpt] [sys]\n", argv0);
 	threadexits("usage");
 }
 
 void
 threadmain(int argc, char **argv)
 {
-	vlong t, t0, dt;
+	int tv;
+	Kev ke;
+	Mev me;
 
+	tv = Tfast;
 	ARGBEGIN{
 	case 'D': debug = 1; break;
-	case 'l': lport = strtol(EARGF(usage()), nil, 0); break;
+	case 'P': lport = strtol(EARGF(usage()), nil, 0); break;
 	case 'm': mapname = EARGF(usage()); break;
 	case 'n': progname = EARGF(usage()); break;
 	case 's':
@@ -230,23 +191,54 @@ threadmain(int argc, char **argv)
 		dbname = smprint("%s.db", progname);
 	if(prefix == nil)
 		prefix = smprint("/sys/games/lib/%s", progname);
-	init();
-	initsv();
+	srand(time(nil));
+	initfs();
+	initsv(tv, *argv);
 	initcl();
-	joinnet(*argv);
-	tdiv = Te9 / (tv * 3);
-	Δtc = 1;
-	t0 = nsec();
+	enum{
+		Aresize,
+		Amouse,
+		Akbd,
+		Atic,
+		Aend,
+	};
+	Alt a[] = {
+		{reszc, nil, CHANRCV},
+		{mc, &me, CHANRCV},
+		{kc, &ke, CHANRCV},
+		{tmc, nil, CHANRCV},
+		{nil, nil, CHANEND}
+	};
 	for(;;){
-		step();
-		tc += 1;
-		t = nsec();
-		Δtc = (t - t0) / tdiv;
-		if(Δtc <= 0)
-			Δtc = 1;
-		t0 += Δtc * tdiv;
-		dt = (t0 - t) / Te6;
-		if(dt > 0)
-			sleep(dt);
+		switch(alt(a)){
+		case Aresize:
+			if(getwindow(display, Refnone) < 0)
+				sysfatal("resize failed: %r");
+			resetfb();
+			break;
+		case Amouse:
+			qlock(&drawlock);	/* just for security */
+			if(me.b & 1)
+				select(me);
+			if(me.b & 2)
+				dopan(me.Δ);
+			if(me.b & 4)
+				move(me);
+			qunlock(&drawlock);
+			break;
+		case Akbd:
+			if(ke.r == Kdel)
+				threadexitsall(nil);
+			if(!ke.down)
+				continue;
+			switch(ke.r){
+			case KF|1: debugmap ^= 1; pause ^= 1; break;
+			case ' ': pause ^= 1; break;
+			}
+			break;
+		case Atic:
+			updatefb();
+			break;
+		}
 	}
 }

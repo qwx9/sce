@@ -614,12 +614,11 @@ initdb(void)
 }
 
 void
-init(void)
+initfs(void)
 {
 	if(bind(".", prefix, MBEFORE|MCREATE) == -1 || chdir(prefix) < 0)
 		fprint(2, "init: %r\n");
 	loaddb(dbname);
 	loaddb(mapname);
-	srand(time(nil));
 	initdb();
 }
