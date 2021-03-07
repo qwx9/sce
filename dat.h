@@ -11,6 +11,8 @@ typedef struct Terrain Terrain;
 typedef struct Map Map;
 typedef struct Resource Resource;
 typedef struct Team Team;
+typedef struct Cbuf Cbuf;
+typedef struct Msg Msg;
 
 enum{
 	Nresource = 3,
@@ -194,6 +196,17 @@ extern int scale;
 
 enum{
 	Tquit,
+	Tpause,
+
+	Nbuf = 4096,
+};
+struct Cbuf{
+	uchar buf[Nbuf];
+	int sz;
+};
+struct Msg{
+	Team *t;
+	Cbuf;
 };
 
 enum{

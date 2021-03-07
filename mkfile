@@ -3,6 +3,7 @@ BIN=$home/bin/$objtype
 TARG=sce
 OFILES=\
 	bmap.$O\
+	com.$O\
 	drw.$O\
 	fs.$O\
 	map.$O\

@@ -10,84 +10,37 @@ char *netmtpt = "/net";
 
 typedef struct Con Con;
 enum{
-	Ncon = Nteam * 4,
-	Nbuf = 4096,
+	Ncon = Nteam * 2,
 };
 struct Con{
 	int fd;
-	Team *t;
+	Msg;
+	Channel *waitc;
 };
 static Con con[Ncon];
-static Channel *lc;
-static uchar cbuf[Nbuf], *cbufp = cbuf;
+static Msg clbuf, sendbuf;
+Channel *conc;
+
+static int clpfd[2];
 
 static void
 closenet(Con *c)
 {
 	close(c->fd);
 	c->fd = -1;
+	chanfree(c->waitc);
+	c->waitc = nil;
 }
 
 static void
-flushcmd(Con *c)
+flushreq(Con *c, Cbuf *cb)
 {
-	int n;
-
-	if((n = cbufp - cbuf) == 0)
+	if(cb->sz == 0)
 		return;
-	if(write(c->fd, cbuf, n) != n){
+	if(write(c->fd, cb->buf, cb->sz) != cb->sz){
 		fprint(2, "flushcmd: %r\n");
-		closenet(c);
+		close(c->fd);
 	}
-	cbufp = cbuf;
-}
-
-static void
-writecmd(Con *c, char *fmt, va_list a)
-{
-	union{
-		uchar u[4];
-		s32int l;
-	} u;
-
-	for(;;){
-		if(cbufp - cbuf > sizeof(cbuf) - 4)
-			flushcmd(c);
-		switch(*fmt++){
-		default: sysfatal("unknown format %c", fmt[-1]);
-		case 0: return;
-		case 'u':
-			u.l = va_arg(a, s32int);
-			memcpy(cbufp, u.u, sizeof u.u);
-			cbufp += sizeof u.u;
-		}
-	}
-}
-
-static void
-packcmd(Con *c, char *fmt, ...)
-{
-	va_list a;
-
-	va_start(a, fmt);
-	writecmd(c, fmt, a);
-	va_end(a);
-}
-
-void
-flushcl(void)
-{
-	flushcmd(con);
-}
-
-void
-packcl(char *fmt, ...)
-{
-	va_list a;
-
-	va_start(a, fmt);
-	packcmd(con, fmt, a);
-	va_end(a);
 }
 
 static void
@@ -98,63 +51,76 @@ writenet(void)
 	for(c=con; c<con+nelem(con); c++){
 		if(c->fd < 0)
 			continue;
+		flushreq(c, &sendbuf);
 	}
+	sendbuf.sz = 0;
 }
 
-static void
-execbuf(Con *c, uchar *p, uchar *e)
+void
+flushcl(void)
 {
-	int n;
-
-	while(p < e){
-		n = *p++;
-		switch(n){
-		case Tquit: closenet(c); return;
-		}
-	}
+	if(clbuf.sz == 0)
+		return;
+	write(clpfd[0], clbuf.buf, clbuf.sz);
+	clbuf.sz = 0;
 }
 
-static void
+void
+clearmsg(Msg *m)
+{
+	Con *c;
+
+	for(c=con; c<con+sizeof con; c++)
+		if(m == &c->Msg)
+			break;
+	assert(c < con + sizeof con);
+	m->sz = 0;
+	nbsendul(c->waitc, 0);
+}
+
+Msg *
 readnet(void)
 {
-	int n, m;
 	Con *c;
-	uchar buf[Nbuf], *p;
 
-	for(c=con; c<con+nelem(con); c++){
-		if(c->fd < 0)
-			continue;
-		for(m=sizeof buf, p=buf; (n = flen(c->fd)) > 1 && n <= m; m-=n, p+=n){
-			if(read(c->fd, p, n) != n){
-				fprint(2, "readnet: %r\n");
-				closenet(c);
-				break;
-			}
+	if((c = nbrecvp(conc)) == nil)
+		return nil;
+	return &c->Msg;
+}
+
+Msg *
+getclbuf(void)
+{
+	return &clbuf;
+}
+
+static void
+conproc(void *cp)
+{
+	int n;
+	Con *c;
+
+	c = cp;
+	for(;;){
+		if((n = read(c->fd, c->buf, sizeof c->buf)) <= 0){
+			fprint(2, "cproc %zd: %r\n", c - con);
+			closenet(c);
+			return;
 		}
-		execbuf(c, buf, p);
+		c->sz = n;
+		sendp(conc, c);
+		recvul(c->waitc);
+		c->sz = 0;
 	}
 }
 
-void
-stepnet(void)
+static void
+initcon(Con *c)
 {
-	int fd;
-
-	if(nbrecv(lc, &fd) > 0){
-		/* FIXME: add to observers (team 0) */
-	}
-	readnet();
-	writenet();
-}
-
-void
-joinnet(char *sys)
-{
-	char s[128];
-
-	snprint(s, sizeof s, "%s/tcp!%s!%d", netmtpt, sys != nil ? sys : sysname(), lport);
-	if((con[0].fd = dial(s, nil, nil, nil)) < 0)
-		sysfatal("dial: %r");
+	if((c->waitc = chancreate(sizeof(ulong), 0)) == nil)
+		sysfatal("chancreate: %r");
+	if(proccreate(conproc, c, 8192) < 0)
+		sysfatal("proccreate: %r");
 }
 
 static int
@@ -165,16 +131,19 @@ regnet(int lfd, char *ldir)
 	for(c=con; c<con+nelem(con); c++)
 		if(c->fd < 0)
 			break;
-	if(c == con + nelem(con))
-		return reject(lfd, ldir, "no more open slots");
+	if(c == con + nelem(con)){
+		reject(lfd, ldir, "no more open slots");
+		return -1;
+	}
 	c->fd = accept(lfd, ldir);
-	return c->fd;
+	initcon(c);
+	return 0;
 }
 
 static void
-lproc(void *)
+listenproc(void *)
 {
-	int fd, lfd;
+	int lfd;
 	char adir[40], ldir[40], data[100];
 
 	snprint(data, sizeof data, "%s/tcp!*!%d", netmtpt, lport);
@@ -182,22 +151,46 @@ lproc(void *)
 		sysfatal("announce: %r");
 	for(;;){
 		if((lfd = listen(adir, ldir)) < 0
-			|| (fd = regnet(lfd, ldir)) < 0
-			|| close(lfd) < 0
-			|| send(lc, &fd) < 0)
+			|| regnet(lfd, ldir) < 0
+			|| close(lfd) < 0)
 			break;
 	}
 }
 
-void
+static void
 listennet(void)
+{
+	if(proccreate(listenproc, nil, 8192) < 0)
+		sysfatal("proccreate: %r");
+}
+
+static void
+joinnet(char *sys)
+{
+	char s[128];
+	Con *c;
+
+	snprint(s, sizeof s, "%s/tcp!%s!%d", netmtpt, sys != nil ? sys : sysname(), lport);
+	c = &con[1];
+	if((c->fd = dial(s, nil, nil, nil)) < 0)
+		sysfatal("dial: %r");
+	initcon(c);
+}
+
+void
+initnet(char *sys)
 {
 	Con *c;
 
 	for(c=con; c<con+nelem(con); c++)
 		c->fd = -1;
-	if((lc = chancreate(sizeof(int), 0)) == nil)
+	if((conc = chancreate(sizeof(uintptr), 1)) == nil)
 		sysfatal("chancreate: %r");
-	if(proccreate(lproc, nil, 8192) < 0)
-		sysfatal("proccreate: %r");
+	if(pipe(clpfd) < 0)
+		sysfatal("pipe: %r");
+	con[0].fd = clpfd[1];
+	initcon(&con[0]);
+	USED(sys);
+	//joinnet(sys);
+	//listennet();
 }

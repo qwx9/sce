@@ -8,14 +8,12 @@
 #include "dat.h"
 #include "fns.h"
 
-mainstacksize = 16*1024;
-
 enum{
 	Hz = 60,
 };
 
 char *progname = "sce", *dbname, *prefix, *mapname = "map1.db";
-int pause, debugmap;
+int debugmap;
 QLock drawlock;
 
 typedef struct Kev Kev;
@@ -80,6 +78,7 @@ kproc(void *)
 	if((fd = open("/dev/kbd", OREAD)) < 0)
 		sysfatal("kproc: %r");
 	memset(buf, 0, sizeof buf);
+	memset(down, 0, sizeof down);
 	for(;;){
 		if(buf[0] != 0){
 			n = strlen(buf)+1;
@@ -225,6 +224,7 @@ threadmain(int argc, char **argv)
 			if(me.b & 4)
 				move(me);
 			qunlock(&drawlock);
+			flushcl();
 			break;
 		case Akbd:
 			if(ke.r == Kdel)
@@ -232,9 +232,10 @@ threadmain(int argc, char **argv)
 			if(!ke.down)
 				continue;
 			switch(ke.r){
-			case KF|1: debugmap ^= 1; pause ^= 1; break;
-			case ' ': pause ^= 1; break;
+			case KF|1: debugmap ^= 1; break;
+			case ' ': sendpause(); break;
 			}
+			flushcl();
 			break;
 		case Atic:
 			updatefb();

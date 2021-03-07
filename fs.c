@@ -111,7 +111,7 @@ loadobjpic(Pic *pic, Picl *pl, char *suff)
 			continue;
 		}
 		if(pic0.h % Nteam != 0)
-			sysfatal("loadobjpic: obj %s sprite sheet %d,%d: height not multiple of %d\n",
+			sysfatal("loadobjpic: obj %s sprite sheet %d,%d: height not multiple of %d",
 				pl->name, pic0.w, pic0.h, Nteam);
 		pic0.h /= Nteam;
 		n = pic0.w * pic0.h;
@@ -136,7 +136,7 @@ loadterpic(Pic *pic, Picl *pl)
 		snprint(path, sizeof path, "%s.bit", tileset);
 		loadpic(path, &tilesetpic, 0);
 		if(tilesetpic.h % tilesetpic.w != 0)
-			sysfatal("loadterpic: tiles not squares: tilepic %d,%d\n",
+			sysfatal("loadterpic: tiles not squares: tilepic %d,%d",
 				tilesetpic.w, tilesetpic.h);
 	}
 	id = pl->frm;

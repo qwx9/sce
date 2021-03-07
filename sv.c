@@ -8,13 +8,20 @@
 extern QLock drawlock;
 
 vlong tc;
+int pause;
 
 static int tdiv;
 
 static void
 step(vlong tics)
 {
+	Msg *m;
+
 	qlock(&drawlock);
+	while((m = readnet()) != nil){
+		parsemsg(m);
+		clearmsg(m);
+	}
 	while(!pause && tics-- > 0)
 		stepsim();
 	qunlock(&drawlock);
@@ -25,7 +32,7 @@ simproc(void *sys)
 {
 	vlong t, t0, dt, Δtc;
 
-	USED(sys);
+	initnet(sys);
 	initsim();
 	Δtc = 1;
 	t0 = nsec();
@@ -47,6 +54,6 @@ void
 initsv(int tv, char *sys)
 {
 	tdiv = Te9 / (tv * 3);
-	if(proccreate(simproc, sys, 8192) < 0)
+	if(proccreate(simproc, sys, 16*1024) < 0)
 		sysfatal("proccreate: %r");
 }
