@@ -400,7 +400,7 @@ readobj(char **fld, int, Table *tab)
 	o->accel /= 256.0;
 	o->halt /= 256.0;
 	/* halting distance in path node units */
-	o->halt /= Tlsubwidth;
+	o->halt /= Nodewidth;
 	if(o->w < 1 || o->h < 1)
 		sysfatal("readobj: %s invalid dimensions %d,%d", o->name, o->w, o->h);
 }
@@ -546,7 +546,7 @@ initmapobj(void)
 	Objp *op;
 
 	for(op=objp; op<objp+nobjp; op++)
-		if(spawn(op->x * Tlnsub, op->y * Tlnsub, op->o, op->team) < 0)
+		if(spawn(op->x * Node2Tile, op->y * Node2Tile, op->o, op->team) < 0)
 			sysfatal("initmapobj: %s team %d: %r", op->o->name, op->team);
 	free(objp);
 }

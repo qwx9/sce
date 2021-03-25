@@ -215,7 +215,7 @@ trymove(Mobj *mo)
 			if(Δrx < 0)
 				sx += mo->u < 0 ? -Δrx : Δrx;
 			x = (sx >> Subpxshift) + ((sx & Subpxmask) != 0);
-			x /= Tlsubwidth;
+			x /= Nodewidth;
 		}
 		if(Δry > 0){
 			sy += Δv;
@@ -223,7 +223,7 @@ trymove(Mobj *mo)
 			if(Δry < 0)
 				sy += mo->v < 0 ? -Δry : Δry;
 			y = (sy >> Subpxshift) + ((sy & Subpxmask) != 0);
-			y /= Tlsubwidth;
+			y /= Nodewidth;
 		}
 		if(isblocked(x, y, mo->o))
 			goto end;
@@ -238,15 +238,15 @@ trymove(Mobj *mo)
 		mo->subpy = sy;
 		mo->px = sx >> Subpxshift;
 		mo->py = sy >> Subpxshift;
-		mo->x = mo->px / Tlsubwidth;
-		mo->y = mo->py / Tlsubheight;
+		mo->x = mo->px / Nodewidth;
+		mo->y = mo->py / Nodeheight;
 	}
 	markmobj(mo, 1);
 	dx = mo->px - px;
 	dx *= dx;
 	dy = mo->py - py;
 	dy *= dy;
-	mo->pathlen -= sqrt(dx + dy) / Tlsubwidth;
+	mo->pathlen -= sqrt(dx + dy) / Nodewidth;
 	return 0;
 end:
 	werrstr("trymove: can't move to %d,%d", x, y);
@@ -257,7 +257,7 @@ end:
 	dx *= dx;
 	dy = mo->py - py;
 	dy *= dy;
-	mo->pathlen -= sqrt(dx + dy) / Tlsubwidth;
+	mo->pathlen -= sqrt(dx + dy) / Nodewidth;
 	return -1;
 }
 

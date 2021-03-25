@@ -62,8 +62,8 @@ move(Point p)
 		return;
 	}
 	p = divpt(addpt(subpt(p, selr.min), pan), scale);
-	p.x /= Tlsubwidth;
-	p.y /= Tlsubheight;
+	p.x /= Nodewidth;
+	p.y /= Nodeheight;
 	moveone(p, selected[0], mo);
 }
 
@@ -215,7 +215,7 @@ compose(int x, int y, u32int c)
 	u32int v, *p, *e;
 	Rectangle r;
 
-	r = Rect(x * Tlsubwidth, y * Tlsubheight, Tlsubwidth, Tlsubheight);
+	r = Rect(x * Nodewidth, y * Nodeheight, Nodewidth, Nodeheight);
 	if(boundpic(&r, nil) < 0)
 		return;
 	p = fb + r.min.y * fbws + r.min.x;
@@ -264,7 +264,7 @@ drawmap(Rectangle *r)
 	}
 	if((mo = selected[0]) != nil && mo->pathp != nil){
 		for(p=mo->paths; p<mo->pathe; p++)
-			compose(p->x / Tlsubwidth, p->y / Tlsubheight, 0x00ff00);
+			compose(p->x / Nodewidth, p->y / Nodeheight, 0x00ff00);
 		compose(mo->target.x, mo->target.y, 0x00ffff);
 	}
 }
@@ -307,23 +307,23 @@ redraw(void)
 	Mobjl *ml;
 
 	clearvis();
-	tr.min.x = pan.x / scale / Tlwidth;
-	tr.min.y = pan.y / scale / Tlheight;
-	tr.max.x = tr.min.x + (pan.x / scale % Tlwidth != 0);
-	tr.max.x += fbw / Tlwidth + (fbw % Tlwidth != 0);
+	tr.min.x = pan.x / scale / Tilewidth;
+	tr.min.y = pan.y / scale / Tileheight;
+	tr.max.x = tr.min.x + (pan.x / scale % Tilewidth != 0);
+	tr.max.x += fbw / Tilewidth + (fbw % Tilewidth != 0);
 	if(tr.max.x > terwidth)
 		tr.max.x = terwidth;
-	tr.max.y = tr.min.y + (pan.y / scale % Tlheight != 0);
-	tr.max.y += fbh / Tlheight + (fbh % Tlwidth != 0);
+	tr.max.y = tr.min.y + (pan.y / scale % Tileheight != 0);
+	tr.max.y += fbh / Tileheight + (fbh % Tilewidth != 0);
 	if(tr.max.y > terheight)
 		tr.max.y = terheight;
-	mr.min.x = max(tr.min.x - 3, 0) * Tlnsub;
-	mr.min.y = max(tr.min.y - 3, 0) * Tlnsub;
-	mr.max.x = tr.max.x * Tlnsub;
-	mr.max.y = tr.max.y * Tlnsub;
+	mr.min.x = max(tr.min.x - 3, 0) * Node2Tile;
+	mr.min.y = max(tr.min.y - 3, 0) * Node2Tile;
+	mr.max.x = tr.max.x * Node2Tile;
+	mr.max.y = tr.max.y * Node2Tile;
 	for(y=tr.min.y, t=terrain+y*terwidth+tr.min.x; y<tr.max.y; y++){
 		for(x=tr.min.x; x<tr.max.x; x++, t++)
-			drawpic(x*Tlwidth, y*Tlheight, (*t)->p, -1);
+			drawpic(x*Tilewidth, y*Tileheight, (*t)->p, -1);
 		t += terwidth - (tr.max.x - tr.min.x);
 	}
 	for(y=mr.min.y, m=map+y*mapwidth+mr.min.x; y<mr.max.y; y++){
@@ -391,13 +391,13 @@ updatefb(void)
 void
 resetfb(void)
 {
-	fbws = min(mapwidth * Tlsubwidth * scale, Dx(screen->r));
-	fbh = min(mapheight * Tlsubheight * scale, Dy(screen->r));
+	fbws = min(mapwidth * Nodewidth * scale, Dx(screen->r));
+	fbh = min(mapheight * Nodeheight * scale, Dy(screen->r));
 	selr = Rpt(screen->r.min, addpt(screen->r.min, Pt(fbws, fbh)));
 	p0 = Pt(screen->r.min.x + 8, screen->r.max.y - 3 * font->height);
 	p0.y -= (p0.y - screen->r.min.y) % scale;
-	panmax.x = max(Tlsubwidth * mapwidth * scale - Dx(screen->r), 0);
-	panmax.y = max(Tlsubheight * mapheight * scale - Dy(screen->r), 0);
+	panmax.x = max(Nodewidth * mapwidth * scale - Dx(screen->r), 0);
+	panmax.y = max(Nodeheight * mapheight * scale - Dy(screen->r), 0);
 	if(p0.y < selr.max.y){
 		panmax.y += selr.max.y - p0.y;
 		fbh -= selr.max.y - p0.y;

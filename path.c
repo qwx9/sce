@@ -81,10 +81,10 @@ markmobj(Mobj *mo, int set)
 	int w, h;
 
 	w = mo->o->w;
-	if((mo->subpx & Subpxmask) != 0 && mo->x != (mo->px + 1) / Tlsubwidth)
+	if((mo->subpx & Subpxmask) != 0 && mo->x != (mo->px + 1) / Nodewidth)
 		w++;
 	h = mo->o->h;
-	if((mo->subpy & Subpxmask) != 0 && mo->y != (mo->py + 1) / Tlsubwidth)
+	if((mo->subpy & Subpxmask) != 0 && mo->y != (mo->py + 1) / Nodewidth)
 		h++;
 	bset(mo->x, mo->y, w, h, set);
 }
@@ -381,8 +381,8 @@ backtrack(Node *n, Node *a, Mobj *mo)
 	p = mo->paths + n->step;
 	mo->pathe = p--;
 	for(; n!=a; n=n->from){
-		x = n->x * Tlsubwidth;
-		y = n->y * Tlsubheight;
+		x = n->x * Nodewidth;
+		y = n->y * Nodeheight;
 		*p-- = (Point){x, y};
 	}
 	assert(p == mo->paths - 1);

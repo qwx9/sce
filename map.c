@@ -86,7 +86,7 @@ mapspawn(int x, int y, Obj *o)
 {
 	Mobj *mo;
 
-	if(o->f & Fbuild && (x & Tlnsub-1 || y & Tlnsub-1)){
+	if(o->f & Fbuild && (x & Node2Tile-1 || y & Node2Tile-1)){
 		werrstr("mapspawn: building spawn %d,%d not aligned to terrain map", x, y);
 		return nil;
 	}
@@ -95,8 +95,8 @@ mapspawn(int x, int y, Obj *o)
 	mo = emalloc(sizeof *mo);
 	mo->x = x;
 	mo->y = y;
-	mo->px = x * Tlsubwidth;
-	mo->py = y * Tlsubheight;
+	mo->px = x * Nodewidth;
+	mo->py = y * Nodeheight;
 	mo->subpx = mo->px << Subpxshift;
 	mo->subpy = mo->py << Subpxshift;
 	mo->o = o;
@@ -113,8 +113,8 @@ initmap(void)
 	int n;
 	Map *m;
 
-	mapwidth = terwidth * Tlnsub;
-	mapheight = terheight * Tlnsub;
+	mapwidth = terwidth * Node2Tile;
+	mapheight = terheight * Node2Tile;
 	n = mapwidth * mapheight;
 	map = emalloc(n * sizeof *map);
 	node = emalloc(n * sizeof *node);
