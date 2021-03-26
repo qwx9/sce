@@ -11,7 +11,7 @@ Resource resource[Nresource];
 typedef struct Table Table;
 typedef struct Objp Objp;
 typedef struct Picl Picl;
-typedef struct Terrainl Terrainl;
+typedef struct Tilel Tilel;
 struct Objp{
 	Obj *o;
 	int team;
@@ -35,12 +35,12 @@ struct Picl{
 	Pic *p;
 	Picl *l;
 };
-struct Terrainl{
+struct Tilel{
 	int id;
-	Terrain *t;
-	Terrainl *l;
+	Tile *t;
+	Tilel *l;
 };
-static Terrainl terrainl0 = {.l = &terrainl0}, *terrainl = &terrainl0;
+static Tilel tilel0 = {.l = &tilel0}, *tilel = &tilel0;
 static Pic tilesetpic;
 static Picl pic0 = {.l = &pic0}, *pic = &pic0;
 static Objp *objp;
@@ -127,7 +127,7 @@ loadobjpic(Pic *pic, Picl *pl, char *suff)
 }
 
 static void
-loadterpic(Pic *pic, Picl *pl)
+loadtilepic(Pic *pic, Picl *pl)
 {
 	int id, size;
 	char path[128];
@@ -136,13 +136,13 @@ loadterpic(Pic *pic, Picl *pl)
 		snprint(path, sizeof path, "%s.bit", tileset);
 		loadpic(path, &tilesetpic, 0);
 		if(tilesetpic.h % tilesetpic.w != 0)
-			sysfatal("loadterpic: tiles not squares: tilepic %d,%d",
+			sysfatal("loadtilepic: tiles not squares: tilepic %d,%d",
 				tilesetpic.w, tilesetpic.h);
 	}
 	id = pl->frm;
 	size = tilesetpic.w;
 	if(size * id >= tilesetpic.h)
-		sysfatal("loadterpic: terrain tile index %d out of bounds", id);
+		sysfatal("loadtilepic: tile tile index %d out of bounds", id);
 	pic->w = size;
 	pic->h = size;
 	size *= size;
@@ -158,8 +158,8 @@ initimg(void)
 
 	for(pl=pic->l; pl!=pic; pl=pic->l){
 		p = pl->p;
-		if(pl->type & PFterrain)
-			loadterpic(p, pl);
+		if(pl->type & PFtile)
+			loadtilepic(p, pl);
 		else if(pl->type & PFshadow)
 			loadobjpic(p, pl, ".s");
 		else if(pl->type & PFglow)
@@ -205,21 +205,21 @@ pushpic(char *name, int frm, int type, int nr, int hasteam)
 	return pl->p;
 }
 
-static Terrain *
-pushterrain(int id)
+static Tile *
+pushtile(int id)
 {
-	Terrainl *tl;
+	Tilel *tl;
 
-	for(tl=terrainl->l; tl!=terrainl; tl=tl->l)
+	for(tl=tilel->l; tl!=tilel; tl=tl->l)
 		if(tl->id == id)
 			break;
-	if(tl == terrainl){
+	if(tl == tilel){
 		tl = emalloc(sizeof *tl);
 		tl->id = id;
 		tl->t = emalloc(sizeof *tl->t);
-		tl->t->p = pushpic("/tile/", id - 1, PFterrain, 1, 0);
-		tl->l = terrainl->l;
-		terrainl->l = tl;
+		tl->t->p = pushpic("/tile/", id - 1, PFtile, 1, 0);
+		tl->l = tilel->l;
+		tilel->l = tl;
 	}
 	return tl->t;
 }
@@ -288,10 +288,10 @@ vunpack(char **fld, char *fmt, va_list a)
 		case 't':
 			s = *fld++;
 			if(*s == 0)
-				sysfatal("vunpack: empty terrain");
+				sysfatal("vunpack: empty tile");
 			if((n = strtol(s, nil, 0)) <= 0)
-				sysfatal("vunpack: illegal terrain index %d", n);
-			*va_arg(a, Terrain**) = pushterrain(n);
+				sysfatal("vunpack: illegal tile index %d", n);
+			*va_arg(a, Tile**) = pushtile(n);
 			break;
 		}
 	}
@@ -333,14 +333,14 @@ static void
 readmap(char **fld, int n, Table *tab)
 {
 	int x;
-	Terrain **t;
+	Tile **t;
 
 	if(tab->row == 0){
 		tab->ncol = n;
-		terwidth = n;
-		terrain = emalloc(terheight * terwidth * sizeof *terrain);
+		tilemapwidth = n;
+		tilemap = emalloc(tilemapheight * tilemapwidth * sizeof *tilemap);
 	}
-	t = terrain + tab->row * terwidth;
+	t = tilemap + tab->row * tilemapwidth;
 	for(x=0; x<n; x++, t++)
 		unpack(fld++, "t", t);
 }
@@ -435,7 +435,7 @@ readspr(char **fld, int n, Table *)
 		sysfatal("readspr %s: pic type %#ux already allocated", o->name, type);
 	if(ps->nf != 0 && ps->nf != n || ps->nr != 0 && ps->nr != nr)
 		sysfatal("readspr %s: spriteset phase error", o->name);
-	ps->teamcol = (type & (PFshadow|PFterrain|PFglow)) == 0;
+	ps->teamcol = (type & (PFshadow|PFtile|PFglow)) == 0;
 	ps->nf = n;
 	ps->nr = nr;
 	p = emalloc(n * sizeof *ppp);
@@ -463,7 +463,7 @@ Table table[] = {
 	[Tresource] {"resource", readresource, 2, &nresource},
 	[Tspawn] {"spawn", readspawn, -1, nil},
 	[Ttileset] {"tileset", readtileset, 1, nil},
-	[Tmap] {"map", readmap, -1, &terheight},
+	[Tmap] {"map", readmap, -1, &tilemapheight},
 	[Tspr] {"spr", readspr, -1, nil},
 };
 
@@ -554,10 +554,10 @@ initmapobj(void)
 static void
 cleanup(void)
 {
-	Terrainl *tl;
+	Tilel *tl;
 
-	for(tl=terrainl->l; tl!=terrainl; tl=terrainl->l){
-		terrainl->l = tl->l;
+	for(tl=tilel->l; tl!=tilel; tl=tilel->l){
+		tilel->l = tl->l;
 		free(tl);
 	}
 }
@@ -596,9 +596,9 @@ checkdb(void)
 		sysfatal("checkdb: no tileset defined");
 	if(nresource != Nresource)
 		sysfatal("checkdb: incomplete resource specification");
-	if(terwidth % 16 != 0 || terheight % 16 != 0 || terwidth * terheight == 0)
+	if(tilemapwidth % 16 != 0 || tilemapheight % 16 != 0 || tilemapwidth * tilemapheight == 0)
 		sysfatal("checkdb: map size %d,%d not in multiples of 16",
-			terwidth, terheight);
+			tilemapwidth, tilemapheight);
 	if(nteam < 2)
 		sysfatal("checkdb: not enough teams");
 }

@@ -4,8 +4,8 @@
 #include "dat.h"
 #include "fns.h"
 
-Terrain **terrain;
-int terwidth, terheight;
+Tile **tilemap;
+int tilemapwidth, tilemapheight;
 Map *map;
 int mapwidth, mapheight;
 Node *node;
@@ -87,7 +87,7 @@ mapspawn(int x, int y, Obj *o)
 	Mobj *mo;
 
 	if(o->f & Fbuild && (x & Node2Tile-1 || y & Node2Tile-1)){
-		werrstr("mapspawn: building spawn %d,%d not aligned to terrain map", x, y);
+		werrstr("mapspawn: building spawn %d,%d not aligned to tile map", x, y);
 		return nil;
 	}
 	if(getspawn(&x, &y, o) < 0)
@@ -113,8 +113,8 @@ initmap(void)
 	int n;
 	Map *m;
 
-	mapwidth = terwidth * Node2Tile;
-	mapheight = terheight * Node2Tile;
+	mapwidth = tilemapwidth * Node2Tile;
+	mapheight = tilemapheight * Node2Tile;
 	n = mapwidth * mapheight;
 	map = emalloc(n * sizeof *map);
 	node = emalloc(n * sizeof *node);

@@ -301,7 +301,7 @@ redraw(void)
 {
 	int x, y;
 	Rectangle mr, tr;
-	Terrain **t;
+	Tile **t;
 	Map *m;
 	Mobj *mo;
 	Mobjl *ml;
@@ -311,20 +311,20 @@ redraw(void)
 	tr.min.y = pan.y / scale / Tileheight;
 	tr.max.x = tr.min.x + (pan.x / scale % Tilewidth != 0);
 	tr.max.x += fbw / Tilewidth + (fbw % Tilewidth != 0);
-	if(tr.max.x > terwidth)
-		tr.max.x = terwidth;
+	if(tr.max.x > tilemapwidth)
+		tr.max.x = tilemapwidth;
 	tr.max.y = tr.min.y + (pan.y / scale % Tileheight != 0);
 	tr.max.y += fbh / Tileheight + (fbh % Tilewidth != 0);
-	if(tr.max.y > terheight)
-		tr.max.y = terheight;
+	if(tr.max.y > tilemapheight)
+		tr.max.y = tilemapheight;
 	mr.min.x = max(tr.min.x - 3, 0) * Node2Tile;
 	mr.min.y = max(tr.min.y - 3, 0) * Node2Tile;
 	mr.max.x = tr.max.x * Node2Tile;
 	mr.max.y = tr.max.y * Node2Tile;
-	for(y=tr.min.y, t=terrain+y*terwidth+tr.min.x; y<tr.max.y; y++){
+	for(y=tr.min.y, t=tilemap+y*tilemapwidth+tr.min.x; y<tr.max.y; y++){
 		for(x=tr.min.x; x<tr.max.x; x++, t++)
 			drawpic(x*Tilewidth, y*Tileheight, (*t)->p, -1);
-		t += terwidth - (tr.max.x - tr.min.x);
+		t += tilemapwidth - (tr.max.x - tr.min.x);
 	}
 	for(y=mr.min.y, m=map+y*mapwidth+mr.min.x; y<mr.max.y; y++){
 		for(x=mr.min.x; x<mr.max.x; x++, m++){

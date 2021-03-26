@@ -7,7 +7,7 @@ typedef struct Obj Obj;
 typedef struct Path Path;
 typedef struct Mobj Mobj;
 typedef struct Mobjl Mobjl;
-typedef struct Terrain Terrain;
+typedef struct Tile Tile;
 typedef struct Map Map;
 typedef struct Resource Resource;
 typedef struct Team Team;
@@ -66,7 +66,7 @@ struct Attack{
 };
 
 enum{
-	PFterrain = 1<<0,
+	PFtile = 1<<0,
 	PFidle = 1<<1,
 	PFmove = 1<<2,
 	PFglow = 1<<13,
@@ -162,11 +162,11 @@ struct Mobjl{
 	Mobjl *lp;
 };
 
-struct Terrain{
+struct Tile{
 	Pic *p;
 };
-extern Terrain **terrain;
-extern terwidth, terheight;
+extern Tile **tilemap;
+extern tilemapwidth, tilemapheight;
 
 struct Map{
 	Mobjl ml;
