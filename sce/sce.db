@@ -12,6 +12,7 @@ obj,control,0x8,16,12,1500,1,1,10,400,0,1800,,,0,0,0,0
 obj,hatchery,0x8,16,12,1250,1,1,10,300,0,1800,,,0,0,0,0
 # spawn: objname, [obj..]
 spawn,control,scv
+spawn,hatchery,drone
 # spr: objname, flags (PF enum), rotations, [frame..]
 spr,scv,0x2,17,0
 spr,scv,0xc002,17,0
