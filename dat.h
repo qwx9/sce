@@ -56,7 +56,8 @@ struct Node{
 	Node *from;
 	Pairheap *p;
 };
-extern Node *node;
+extern Node *nodemap;
+extern int nodemapwidth, nodemapheight;
 
 struct Attack{
 	char *name;
@@ -150,7 +151,7 @@ struct Mobj{
 	double v;
 	double speed;
 	Mobjl *movingp;
-	Mobjl *mapp;
+	Mobjl *mobjl;
 	int f;
 	int team;
 	int hp;
@@ -165,10 +166,8 @@ struct Mobjl{
 struct Tile{
 	Pic *p;
 };
-extern Tile **tilemap;
-extern tilemapwidth, tilemapheight;
-
 struct Map{
+	Tile *t;
 	Mobjl ml;
 };
 extern Map *map;

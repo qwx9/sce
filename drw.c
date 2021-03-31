@@ -235,7 +235,7 @@ compose(int x, int y, u32int c)
 }
 
 static void
-drawmap(Rectangle *r)
+drawmap(Rectangle r)
 {
 	int x, y;
 	u64int *row, v, m;
@@ -243,12 +243,13 @@ drawmap(Rectangle *r)
 	Mobj *mo;
 	Point *p;
 
-	for(y=r->min.y, n=node+y*mapwidth+r->min.x; y<r->max.y; y++){
-		x = r->min.x;
+	r = Rpt(mulpt(r.min, Node2Tile), mulpt(r.max, Node2Tile));
+	for(y=r.min.y, n=nodemap+y*nodemapwidth+r.min.x; y<r.max.y; y++){
+		x = r.min.x;
 		row = baddr(x, y);
 		v = *row++;
 		m = 1ULL << 63 - (x & Bmask);
-		for(; x<r->max.x; x++, n++, m>>=1){
+		for(; x<r.max.x; x++, n++, m>>=1){
 			if(m == 0){
 				v = *row++;
 				m = 1ULL << 63;
@@ -260,7 +261,7 @@ drawmap(Rectangle *r)
 			else if(n->open)
 				compose(x, y, 0xffff00);
 		}
-		n += mapwidth - (r->max.x - r->min.x);
+		n += nodemapwidth - (r.max.x - r.min.x);
 	}
 	if((mo = selected[0]) != nil && mo->pathp != nil){
 		for(p=mo->paths; p<mo->pathe; p++)
@@ -296,38 +297,46 @@ frm(Mobj *mo, int type)
 	return p;
 }
 
+static Rectangle
+setdrawrect(void)
+{
+	Rectangle r;
+
+	r.min.x = pan.x / scale / Tilewidth;
+	r.min.y = pan.y / scale / Tileheight;
+	r.max.x = r.min.x + (pan.x / scale % Tilewidth != 0);
+	r.max.x += fbw / Tilewidth + (fbw % Tilewidth != 0);
+	if(r.max.x > mapwidth)
+		r.max.x = mapwidth;
+	r.max.y = r.min.y + (pan.y / scale % Tileheight != 0);
+	r.max.y += fbh / Tileheight + (fbh % Tilewidth != 0);
+	if(r.max.y > mapheight)
+		r.max.y = mapheight;
+	/* enlarge window to capture units overlapping multiple tiles;
+	 * seems like the easiest way to take this into account */
+	r.min.x = max(r.min.x - 4 / scale, 0);
+	r.min.y = max(r.min.y - 4 / scale, 0);
+	return r;
+}
+
 void
 redraw(void)
 {
 	int x, y;
-	Rectangle mr, tr;
-	Tile **t;
+	Rectangle r;
 	Map *m;
 	Mobj *mo;
 	Mobjl *ml;
 
 	clearvis();
-	tr.min.x = pan.x / scale / Tilewidth;
-	tr.min.y = pan.y / scale / Tileheight;
-	tr.max.x = tr.min.x + (pan.x / scale % Tilewidth != 0);
-	tr.max.x += fbw / Tilewidth + (fbw % Tilewidth != 0);
-	if(tr.max.x > tilemapwidth)
-		tr.max.x = tilemapwidth;
-	tr.max.y = tr.min.y + (pan.y / scale % Tileheight != 0);
-	tr.max.y += fbh / Tileheight + (fbh % Tilewidth != 0);
-	if(tr.max.y > tilemapheight)
-		tr.max.y = tilemapheight;
-	mr.min.x = max(tr.min.x - 3, 0) * Node2Tile;
-	mr.min.y = max(tr.min.y - 3, 0) * Node2Tile;
-	mr.max.x = tr.max.x * Node2Tile;
-	mr.max.y = tr.max.y * Node2Tile;
-	for(y=tr.min.y, t=tilemap+y*tilemapwidth+tr.min.x; y<tr.max.y; y++){
-		for(x=tr.min.x; x<tr.max.x; x++, t++)
-			drawpic(x*Tilewidth, y*Tileheight, (*t)->p, -1);
-		t += tilemapwidth - (tr.max.x - tr.min.x);
+	r = setdrawrect();
+	for(y=r.min.y, m=map+y*mapwidth+r.min.x; y<r.max.y; y++){
+		for(x=r.min.x; x<r.max.x; x++, m++)
+			drawpic(x*Tilewidth, y*Tileheight, m->t->p, -1);
+		m += mapwidth - (r.max.x - r.min.x);
 	}
-	for(y=mr.min.y, m=map+y*mapwidth+mr.min.x; y<mr.max.y; y++){
-		for(x=mr.min.x; x<mr.max.x; x++, m++){
+	for(y=r.min.y, m=map+y*mapwidth+r.min.x; y<r.max.y; y++){
+		for(x=r.min.x; x<r.max.x; x++, m++){
 			for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
 				mo = ml->mo;
 				if(mo->o->f & Fair)
@@ -341,10 +350,10 @@ redraw(void)
 				drawpic(mo->px, mo->py, frm(mo, PTbase), addvis(mo));
 			}
 		}
-		m += mapwidth - (mr.max.x - mr.min.x);
+		m += mapwidth - (r.max.x - r.min.x);
 	}
-	for(y=mr.min.y, m=map+y*mapwidth+mr.min.x; y<mr.max.y; y++){
-		for(x=mr.min.x; x<mr.max.x; x++, m++){
+	for(y=r.min.y, m=map+y*mapwidth+r.min.x; y<r.max.y; y++){
+		for(x=r.min.x; x<r.max.x; x++, m++){
 			for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
 				mo = ml->mo;
 				if(mo->o->f & Fair)
@@ -355,10 +364,10 @@ redraw(void)
 				drawpicalpha(mo->px, mo->py, frm(mo, PTglow));
 			}
 		}
-		m += mapwidth - (mr.max.x - mr.min.x);
+		m += mapwidth - (r.max.x - r.min.x);
 	}
-	for(y=mr.min.y, m=map+y*mapwidth+mr.min.x; y<mr.max.y; y++){
-		for(x=mr.min.x; x<mr.max.x; x++, m++){
+	for(y=r.min.y, m=map+y*mapwidth+r.min.x; y<r.max.y; y++){
+		for(x=r.min.x; x<r.max.x; x++, m++){
 			for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
 				mo = ml->mo;
 				if((mo->o->f & Fair) == 0)
@@ -372,10 +381,10 @@ redraw(void)
 				drawpic(mo->px, mo->py, frm(mo, PTbase), addvis(mo));
 			}
 		}
-		m += mapwidth - (mr.max.x - mr.min.x);
+		m += mapwidth - (r.max.x - r.min.x);
 	}
 	if(debugmap)
-		drawmap(&mr);
+		drawmap(r);
 	drawhud();
 }
 
@@ -391,13 +400,13 @@ updatefb(void)
 void
 resetfb(void)
 {
-	fbws = min(mapwidth * Nodewidth * scale, Dx(screen->r));
-	fbh = min(mapheight * Nodeheight * scale, Dy(screen->r));
+	fbws = min(nodemapwidth * Nodewidth * scale, Dx(screen->r));
+	fbh = min(nodemapheight * Nodeheight * scale, Dy(screen->r));
 	selr = Rpt(screen->r.min, addpt(screen->r.min, Pt(fbws, fbh)));
 	p0 = Pt(screen->r.min.x + 8, screen->r.max.y - 3 * font->height);
 	p0.y -= (p0.y - screen->r.min.y) % scale;
-	panmax.x = max(Nodewidth * mapwidth * scale - Dx(screen->r), 0);
-	panmax.y = max(Nodeheight * mapheight * scale - Dy(screen->r), 0);
+	panmax.x = max(Nodewidth * nodemapwidth * scale - Dx(screen->r), 0);
+	panmax.y = max(Nodeheight * nodemapheight * scale - Dy(screen->r), 0);
 	if(p0.y < selr.max.y){
 		panmax.y += selr.max.y - p0.y;
 		fbh -= selr.max.y - p0.y;

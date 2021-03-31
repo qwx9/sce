@@ -333,16 +333,16 @@ static void
 readmap(char **fld, int n, Table *tab)
 {
 	int x;
-	Tile **t;
+	Map *m;
 
 	if(tab->row == 0){
 		tab->ncol = n;
-		tilemapwidth = n;
-		tilemap = emalloc(tilemapheight * tilemapwidth * sizeof *tilemap);
+		mapwidth = n;
+		map = emalloc(mapheight * n * sizeof *map);
 	}
-	t = tilemap + tab->row * tilemapwidth;
-	for(x=0; x<n; x++, t++)
-		unpack(fld++, "t", t);
+	m = map + tab->row * mapwidth;
+	for(x=0; x<n; x++, m++)
+		unpack(fld++, "t", &m->t);
 }
 
 static void
@@ -463,7 +463,7 @@ Table table[] = {
 	[Tresource] {"resource", readresource, 2, &nresource},
 	[Tspawn] {"spawn", readspawn, -1, nil},
 	[Ttileset] {"tileset", readtileset, 1, nil},
-	[Tmap] {"map", readmap, -1, &tilemapheight},
+	[Tmap] {"map", readmap, -1, &mapheight},
 	[Tspr] {"spr", readspr, -1, nil},
 };
 
@@ -544,7 +544,10 @@ static void
 initmapobj(void)
 {
 	Objp *op;
+	Map *m;
 
+	for(m=map; m<map+mapwidth*mapheight; m++)
+		m->ml.l = m->ml.lp = &m->ml;
 	for(op=objp; op<objp+nobjp; op++)
 		if(spawn(op->x * Node2Tile, op->y * Node2Tile, op->o, op->team) < 0)
 			sysfatal("initmapobj: %s team %d: %r", op->o->name, op->team);
@@ -596,9 +599,9 @@ checkdb(void)
 		sysfatal("checkdb: no tileset defined");
 	if(nresource != Nresource)
 		sysfatal("checkdb: incomplete resource specification");
-	if(tilemapwidth % 16 != 0 || tilemapheight % 16 != 0 || tilemapwidth * tilemapheight == 0)
+	if(mapwidth % 16 != 0 || mapheight % 16 != 0 || mapwidth * mapheight == 0)
 		sysfatal("checkdb: map size %d,%d not in multiples of 16",
-			tilemapwidth, tilemapheight);
+			mapwidth, mapheight);
 	if(nteam < 2)
 		sysfatal("checkdb: not enough teams");
 }

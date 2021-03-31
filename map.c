@@ -4,11 +4,10 @@
 #include "dat.h"
 #include "fns.h"
 
-Tile **tilemap;
-int tilemapwidth, tilemapheight;
 Map *map;
 int mapwidth, mapheight;
-Node *node;
+Node *nodemap;
+int nodemapwidth, nodemapheight;
 
 static void
 updatemap(Mobj *mo)
@@ -50,8 +49,10 @@ static int
 getspawn(int *nx, int *ny, Obj *o)
 {
 	int n, x, y;
-	Mobj *mo;
 	Map *m;
+	Mobjl *ml;
+	Mobj *mo;
+	Obj **os;
 
 	x = *nx;
 	y = *ny;
@@ -61,12 +62,19 @@ getspawn(int *nx, int *ny, Obj *o)
 			return -1;
 		}
 	}else if((o->f & Fair) == 0){
-		m = map + y * mapwidth + x;
-		if(m->ml.l == &m->ml || m->ml.l->mo == nil){
+		m = map + (y * mapwidth + x) / Node2Tile;
+		for(mo=nil, ml=m->ml.l; ml!=&m->ml; ml=ml->l){
+			mo = ml->mo;
+			for(os=mo->o->spawn, n=mo->o->nspawn; n>0; n--, os++)
+				if(*os == o)
+					break;
+			if(n > 0)
+				break;
+		}
+		if(ml == &m->ml){
 			werrstr("getspawn: no spawn object at %d,%d", x, y);
 			return -1;
 		}
-		mo = m->ml.l->mo;
 		for(n=0; n<3; n+=o->w)
 			if(findspawn(&x, &y, n / o->w, o, mo->o) >= 0)
 				break;
@@ -110,15 +118,8 @@ mapspawn(int x, int y, Obj *o)
 void
 initmap(void)
 {
-	int n;
-	Map *m;
-
-	mapwidth = tilemapwidth * Node2Tile;
-	mapheight = tilemapheight * Node2Tile;
-	n = mapwidth * mapheight;
-	map = emalloc(n * sizeof *map);
-	node = emalloc(n * sizeof *node);
-	for(m=map; m<map+n; m++)
-		m->ml.l = m->ml.lp = &m->ml;
+	nodemapwidth = mapwidth * Node2Tile;
+	nodemapheight = mapheight * Node2Tile;
+	nodemap = emalloc(nodemapwidth * nodemapheight * sizeof *nodemap);
 	initbmap();
 }

@@ -192,14 +192,14 @@ initbmap(void)
 {
 	int i;
 
-	bmapwidth = (mapwidth >> Bshift) + 2 * Npad;
-	bmapheight = mapheight + 2 * Npad;
-	rbmapwidth = (mapheight >> Bshift) + 2 * Npad;
-	rbmapheight = mapwidth + 2 * Npad;
+	bmapwidth = (nodemapwidth >> Bshift) + 2 * Npad;
+	bmapheight = nodemapheight + 2 * Npad;
+	rbmapwidth = (nodemapheight >> Bshift) + 2 * Npad;
+	rbmapheight = nodemapwidth + 2 * Npad;
 	bmap = emalloc(bmapwidth * bmapheight * sizeof *bmap);
 	rbmap = emalloc(rbmapwidth * rbmapheight * sizeof *rbmap);
 	for(i=0; i<Npad; i++){
-		memset(bmap + i * mapwidth, 0xff, bmapwidth * sizeof *bmap);
+		memset(bmap + i * nodemapwidth, 0xff, bmapwidth * sizeof *bmap);
 		memset(bmap + (bmapheight - i - 1) * bmapwidth, 0xff,
 			bmapwidth * sizeof *bmap);
 		memset(rbmap + i * rbmapwidth, 0xff, rbmapwidth * sizeof *rbmap);

@@ -62,7 +62,7 @@ static void
 clearpath(void)
 {
 	nukequeue(&queue);
-	memset(node, 0, mapwidth * mapheight * sizeof *node);
+	memset(nodemap, 0, nodemapwidth * nodemapheight * sizeof *nodemap);
 	nearest = nil;
 }
 
@@ -160,8 +160,8 @@ jumpeast(int x, int y, int w, int h, Node *b, int *ofs, int left, int rot)
 	}
 	if(end)
 		return nil;
-	assert(x < mapwidth && y < mapheight);
-	n = node + y * mapwidth + x;
+	assert(x < nodemapwidth && y < nodemapheight);
+	n = nodemap + y * nodemapwidth + x;
 	n->x = x;
 	n->y = y;
 	n->Δg = steps;
@@ -195,8 +195,8 @@ jumpdiag(int x, int y, int w, int h, Node *b, int dir)
 		if(ofs1 == 0 || ofs2 == 0)
 			return nil;
 	}
-	assert(x < mapwidth && y < mapheight);
-	n = node + y * mapwidth + x;
+	assert(x < nodemapwidth && y < nodemapheight);
+	n = nodemap + y * nodemapwidth + x;
 	n->x = x;
 	n->y = y;
 	n->Δg = steps;
@@ -405,7 +405,7 @@ nearestnonjump(Node *n, Node *b, Mobj *mo)
 		x = n->x + dirtab[i].x;
 		y = n->y + dirtab[i].y;
 		while(!isblocked(x, y, mo->o)){
-			m = node + y * mapwidth + x;
+			m = nodemap + y * nodemapwidth + x;
 			m->x = x;
 			m->y = y;
 			m->h = octdist(m, b);
@@ -437,14 +437,14 @@ setgoal(Point *p, Mobj *mo, Mobj *block)
 	}
 	mo->goalblocked = 1;
 	dprint("setgoal: moving goal %d,%d in block %#p ", p->x, p->y, block);
-	pm = node + p->y * mapwidth + p->x;
+	pm = nodemap + p->y * nodemapwidth + p->x;
 	pm->x = p->x;
 	pm->y = p->y;
 	Δ = 0x7ffffff;
 	x = block->x;
 	y = block->y;
-	n1 = node + y * mapwidth + x;
-	n2 = n1 + (block->o->h - 1) * mapwidth;
+	n1 = nodemap + y * nodemapwidth + x;
+	n2 = n1 + (block->o->h - 1) * nodemapwidth;
 	for(e=x+block->o->w; x<e; x++, n1++, n2++){
 		n1->x = x;
 		n1->y = y;
@@ -465,9 +465,9 @@ setgoal(Point *p, Mobj *mo, Mobj *block)
 	}
 	x = block->x;
 	y = block->y + 1;
-	n1 = node + y * mapwidth + x;
+	n1 = nodemap + y * nodemapwidth + x;
 	n2 = n1 + block->o->w - 1;
-	for(e=y+block->o->h-2; y<e; y++, n1+=mapwidth, n2+=mapwidth){
+	for(e=y+block->o->h-2; y<e; y++, n1+=nodemapwidth, n2+=nodemapwidth){
 		n1->x = x;
 		n1->y = y;
 		Δ´ = octdist(pm, n1);
@@ -495,10 +495,10 @@ findpath(Point p, Mobj *mo)
 
 	dprint("findpath %d,%d → %d,%d\n", mo->x, mo->y, p.x, p.y);
 	clearpath();
-	a = node + mo->y * mapwidth + mo->x;
+	a = nodemap + mo->y * nodemapwidth + mo->x;
 	a->x = mo->x;
 	a->y = mo->y;
-	b = node + p.y * mapwidth + p.x;
+	b = nodemap + p.y * nodemapwidth + p.x;
 	b->x = p.x;
 	b->y = p.y;
 	markmobj(mo, 0);
@@ -520,8 +520,8 @@ findpath(Point p, Mobj *mo)
 		clearpath();
 		a->x = mo->x;
 		a->y = mo->y;
-		b->x = (b - node) % mapwidth;
-		b->y = (b - node) / mapwidth;
+		b->x = (b - nodemap) % nodemapwidth;
+		b->y = (b - nodemap) / nodemapwidth;
 		if((n = a∗(a, b, mo)) == nil)
 			sysfatal("findpath: phase error");
 	}

@@ -39,8 +39,8 @@ linktomap(Mobj *mo)
 {
 	Map *m;
 
-	m = map + mo->y * mapwidth + mo->x;
-	mo->mapp = linkmobj(mo->f & Fair ? m->ml.lp : &m->ml, mo, mo->mapp);
+	m = map + (mo->y * mapwidth + mo->x) / Node2Tile;
+	mo->mobjl = linkmobj(mo->f & Fair ? m->ml.lp : &m->ml, mo, mo->mobjl);
 }
 
 static void
@@ -267,7 +267,7 @@ domove(Mobj *mo)
 	int r;
 
 	updatespeed(mo);
-	unlinkmobj(mo->mapp);
+	unlinkmobj(mo->mobjl);
 	r = trymove(mo);
 	linktomap(mo);
 	return r;
