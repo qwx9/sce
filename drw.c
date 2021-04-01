@@ -18,6 +18,17 @@ static Mobj *selected[Nselect];
 static Mobj **visbuf;
 static int nvisbuf, nvis;
 
+typedef struct Drawlist Drawlist;
+struct Drawlist {
+	Mobj **shad;
+	Mobj **mo;
+	Mobj **glow;
+	int n;
+	int glown;
+	int sz;
+};
+static Drawlist gndlist, airlist;
+
 void
 dopan(Point p)
 {
@@ -297,6 +308,60 @@ frm(Mobj *mo, int type)
 	return p;
 }
 
+static void
+clearlists(void)
+{
+	gndlist.n = gndlist.glown = 0;
+	airlist.n = airlist.glown = 0;
+}
+
+static void
+drawmobjs(Drawlist *dl)
+{
+	int i;
+	Mobj *mo;
+
+	for(i=0; i<dl->n; i++){
+		mo = dl->shad[i];
+		drawpicalpha(mo->px, mo->py, frm(mo, PTshadow));
+	}
+	for(i=0; i<dl->n; i++){
+		mo = dl->mo[i];
+		drawpic(mo->px, mo->py, frm(mo, PTbase), addvis(mo));
+	}
+	for(i=0; i<dl->glown; i++){
+		mo = dl->glow[i];
+		drawpicalpha(mo->px, mo->py, frm(mo, PTglow));
+	}
+}
+
+static void
+addmobjs(Map *m)
+{
+	int n;
+	Mobj *mo;
+	Mobjl *ml;
+	Drawlist *dl;
+
+	for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
+		mo = ml->mo;
+		dl = mo->o->f & Fair ? &airlist : &gndlist;
+		if(dl->n >= dl->sz){
+			n = dl->sz * sizeof *dl->mo;
+			dl->shad = erealloc(dl->shad, n + 16 * sizeof *dl->mo, n);
+			dl->mo = erealloc(dl->mo, n + 16 * sizeof *dl->mo, n);
+			dl->glow = erealloc(dl->glow, n + 16 * sizeof *dl->mo, n);
+			dl->sz += 16;
+		}
+		n = dl->n++;
+		dl->shad[n] = mo;
+		dl->mo[n] = mo;
+		if(mo->state == OSmove
+		&& mo->o->pics[OSmove][PTglow].pic != nil)
+			dl->glow[dl->glown++] = mo;
+	}
+}
+
 static Rectangle
 setdrawrect(void)
 {
@@ -325,64 +390,19 @@ redraw(void)
 	int x, y;
 	Rectangle r;
 	Map *m;
-	Mobj *mo;
-	Mobjl *ml;
 
 	clearvis();
+	clearlists();
 	r = setdrawrect();
 	for(y=r.min.y, m=map+y*mapwidth+r.min.x; y<r.max.y; y++){
-		for(x=r.min.x; x<r.max.x; x++, m++)
+		for(x=r.min.x; x<r.max.x; x++, m++){
 			drawpic(x*Tilewidth, y*Tileheight, m->t->p, -1);
-		m += mapwidth - (r.max.x - r.min.x);
-	}
-	for(y=r.min.y, m=map+y*mapwidth+r.min.x; y<r.max.y; y++){
-		for(x=r.min.x; x<r.max.x; x++, m++){
-			for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
-				mo = ml->mo;
-				if(mo->o->f & Fair)
-					break;
-				drawpicalpha(mo->px, mo->py, frm(mo, PTshadow));
-			}
-			for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
-				mo = ml->mo;
-				if(mo->o->f & Fair)
-					break;
-				drawpic(mo->px, mo->py, frm(mo, PTbase), addvis(mo));
-			}
+			addmobjs(m);
 		}
 		m += mapwidth - (r.max.x - r.min.x);
 	}
-	for(y=r.min.y, m=map+y*mapwidth+r.min.x; y<r.max.y; y++){
-		for(x=r.min.x; x<r.max.x; x++, m++){
-			for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
-				mo = ml->mo;
-				if(mo->o->f & Fair)
-					break;
-				if(mo->state != OSmove
-				|| mo->o->pics[OSmove][PTglow].pic == nil)
-					continue;
-				drawpicalpha(mo->px, mo->py, frm(mo, PTglow));
-			}
-		}
-		m += mapwidth - (r.max.x - r.min.x);
-	}
-	for(y=r.min.y, m=map+y*mapwidth+r.min.x; y<r.max.y; y++){
-		for(x=r.min.x; x<r.max.x; x++, m++){
-			for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
-				mo = ml->mo;
-				if((mo->o->f & Fair) == 0)
-					continue;
-				drawpicalpha(mo->px, mo->py, frm(mo, PTshadow));
-			}
-			for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
-				mo = ml->mo;
-				if((mo->o->f & Fair) == 0)
-					continue;
-				drawpic(mo->px, mo->py, frm(mo, PTbase), addvis(mo));
-			}
-		}
-		m += mapwidth - (r.max.x - r.min.x);
-	}
+	drawmobjs(&gndlist);
+	drawmobjs(&airlist);
 	if(debugmap)
 		drawmap(r);
 	drawhud();
