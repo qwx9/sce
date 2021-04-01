@@ -16,9 +16,13 @@ typedef struct Msg Msg;
 
 enum{
 	Nresource = 3,
-	Nteam = 8,
 	Nselect = 12,
 	Nrot = 32,
+	/* oh boy */
+	Nteambits = 3,
+	Nteam = 1 << Nteambits,
+	Teamshift = 32 - Nteambits,
+	Teamidxmask = ~(Nteam - 1 << Teamshift),
 	Tilewidth = 32,
 	Tileheight = Tilewidth,
 	Node2Tile = 4,
@@ -136,6 +140,8 @@ struct Path{
 };
 struct Mobj{
 	Obj *o;
+	int idx;
+	long uuid;
 	int state;
 	int freezefrm;
 	Point;
@@ -177,14 +183,17 @@ struct Resource{
 	char *name;
 	int init;
 };
-extern Resource resource[Nresource];
+extern Resource resources[Nresource];
 
 struct Team{
 	int r[Nresource];
 	int nunit;
 	int nbuild;
+	Mobj **mo;
+	int sz;
+	int firstempty;
 };
-extern Team team[Nteam], *curteam;
+extern Team teams[Nteam], *curteam;
 extern int nteam;
 
 extern int lport;
@@ -195,6 +204,8 @@ extern int scale;
 enum{
 	Tquit,
 	Tpause,
+	Tmove,
+	Tmovenear,
 
 	Nbuf = 4096,
 };

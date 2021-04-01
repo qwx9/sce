@@ -5,7 +5,7 @@
 #include "dat.h"
 #include "fns.h"
 
-Team team[Nteam], *curteam;
+Team teams[Nteam], *curteam;
 int nteam;
 int initres[Nresource], foodcap;
 
@@ -41,6 +41,30 @@ linktomap(Mobj *mo)
 
 	m = map + mo->y / Node2Tile * mapwidth + mo->x / Node2Tile;
 	mo->mobjl = linkmobj(mo->f & Fair ? m->ml.lp : &m->ml, mo, mo->mobjl);
+}
+
+static void
+refmobj(Mobj *mo)
+{
+	int n, i;
+	Team *t;
+
+	t = teams + mo->team;
+	if(mo->f & Fbuild)
+		t->nbuild++;
+	else
+		t->nunit++;
+	n = t->firstempty;
+	if(n == t->sz){
+		t->mo = erealloc(t->mo, (t->sz + 32) * sizeof *t->mo, t->sz * sizeof *t->mo);
+		t->sz += 32;
+	}
+	t->mo[n] = mo;
+	mo->idx = mo->team << Teamshift | n;
+	for(i=t->firstempty+1; i<t->sz; i++)
+		if(t->mo[i] == nil)
+			break;
+	t->firstempty = i;
 }
 
 static void
@@ -141,10 +165,7 @@ spawn(int x, int y, Obj *o, int n)
 		return -1;
 	mo->team = n;
 	mo->state = OSidle;
-	if(mo->f & Fbuild)
-		team[n].nbuild++;
-	else
-		team[n].nunit++;
+	refmobj(mo);
 	return 0;
 }
 
@@ -345,6 +366,6 @@ initsim(void)
 
 	if(nteam < 2)
 		sysfatal("initgame: the only winning move is not to play");
-	for(t=team; t<=team+nteam; t++)
+	for(t=teams; t<=teams+nteam; t++)
 		memcpy(t->r, initres, sizeof initres);
 }

@@ -75,6 +75,11 @@ move(Point p)
 	p = divpt(addpt(subpt(p, selr.min), pan), scale);
 	p.x /= Nodewidth;
 	p.y /= Nodeheight;
+	if(mo != nil)
+		sendmovenear(selected[0], p, mo);
+	else
+		sendmove(selected[0], p);
+	/* FIXME: expunge */
 	moveone(p, selected[0], mo);
 }
 

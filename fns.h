@@ -2,6 +2,8 @@ void	clearmsg(Msg*);
 Msg*	readnet(void);
 void	initnet(char*);
 int	parsemsg(Msg*);
+int	sendmovenear(Mobj*, Point, Mobj*);
+int	sendmove(Mobj*, Point);
 int	sendpause(void);
 void	stepsnd(void);
 void	initsnd(void);

@@ -14,31 +14,6 @@ struct Header{
 };
 
 static int
-vpack(uchar *p, uchar *e, char *fmt, va_list a)
-{
-	int n, sz;
-	uchar u[8];
-	u32int v;
-	u64int w;
-
-	sz = 0;
-	for(;;){
-		n = 0;
-		switch(*fmt++){
-		default: sysfatal("unknown format %c", fmt[-1]);
-		copy: if(p + n > e) sysfatal("vpack: buffer overflow");
-			memcpy(p, u, n); p += n; break;
-		case 0: return sz;
-		case 'h': v = va_arg(a, int); PBIT8(u, v); n = sizeof(u8int); goto copy;
-		case 's': v = va_arg(a, int); PBIT16(u, v); n = sizeof(u16int); goto copy;
-		case 'l': v = va_arg(a, int); PBIT32(u, v); n = sizeof(u32int); goto copy;
-		case 'v': w = va_arg(a, vlong); PBIT64(u, w); n = sizeof(u64int); goto copy;
-		}
-		sz += n;
-	}
-}
-
-static int
 vunpack(uchar *p, uchar *e, char *fmt, va_list a)
 {
 	int n, sz;
@@ -67,18 +42,6 @@ vunpack(uchar *p, uchar *e, char *fmt, va_list a)
 }
 
 static int
-pack(uchar *p, uchar *e, char *fmt, ...)
-{
-	int n;
-	va_list a;
-
-	va_start(a, fmt);
-	n = vpack(p, e, fmt, a);
-	va_end(a);
-	return n;
-}
-
-static int
 unpack(uchar *p, uchar *e, char *fmt, ...)
 {
 	int n;
@@ -91,10 +54,25 @@ unpack(uchar *p, uchar *e, char *fmt, ...)
 }
 
 static int
+reqmovenear(uchar *p, uchar *e)
+{
+	USED(p, e);
+	return 0;
+}
+
+static int
+reqmove(uchar *p, uchar *e)
+{
+	USED(p, e);
+	return 0;
+}
+
+static int
 reqpause(uchar *p, uchar *e)
 {
 	int dicks;
 
+	/* FIXME: just a usage example, we don't really want dicks */
 	if(unpack(p, e, "l", &dicks) < 0){
 		fprint(2, "reqpause: %r\n");
 		return -1;
@@ -117,6 +95,7 @@ parsemsg(Msg *m)
 {
 	int n, type;
 	uchar *p, *e;
+	int (*fn)(uchar*, uchar*);
 	Header h;
 
 	if(readhdr(m, &h) < 0)
@@ -126,19 +105,42 @@ parsemsg(Msg *m)
 	while(p < e){
 		type = *p++;
 		switch(type){
-		case Tpause:
-			if((n = reqpause(p, e)) < 0){
-				dprint("parse: invalid Tpause: %r\n");
-				return -1;
-			}
-			break;
-		default:
-			dprint("parse: invalid message type %ux\n", type);
-			return -1;
+		case Tpause: fn = reqpause; break;
+		case Tmove: fn = reqmove; break;
+		case Tmovenear: fn = reqmovenear; break;
+		default: dprint("parse: invalid message type %ux\n", type); return -1;
 		}
-		p += n;
+		if((n = fn(p, e)) < 0)
+			dprint("parse: %r\n");
+		else
+			p += n;
 	}
 	return 0;
+}
+
+static int
+vpack(uchar *p, uchar *e, char *fmt, va_list a)
+{
+	int n, sz;
+	uchar u[8];
+	u32int v;
+	u64int w;
+
+	sz = 0;
+	for(;;){
+		n = 0;
+		switch(*fmt++){
+		default: sysfatal("unknown format %c", fmt[-1]);
+		copy: if(p + n > e) sysfatal("vpack: buffer overflow");
+			memcpy(p, u, n); p += n; break;
+		case 0: return sz;
+		case 'h': v = va_arg(a, int); PBIT8(u, v); n = sizeof(u8int); goto copy;
+		case 's': v = va_arg(a, int); PBIT16(u, v); n = sizeof(u16int); goto copy;
+		case 'l': v = va_arg(a, int); PBIT32(u, v); n = sizeof(u32int); goto copy;
+		case 'v': w = va_arg(a, vlong); PBIT64(u, w); n = sizeof(u64int); goto copy;
+		}
+		sz += n;
+	}
 }
 
 static void
@@ -150,19 +152,61 @@ newmsg(Msg *m)
 	m->sz += Hdrsz;
 }
 
+static int
+pack(Msg *m, char *fmt, ...)
+{
+	int n;
+	va_list a;
+
+	if(m->sz == 0)
+		newmsg(m);
+	va_start(a, fmt);
+	n = vpack(m->buf + m->sz, m->buf + sizeof m->buf, fmt, a);
+	va_end(a);
+	if(n >= 0)
+		m->sz += n;
+	return n;
+}
+
+int
+sendmovenear(Mobj *mo, Point click, Mobj *target)
+{
+	Msg *m;
+
+	/* FIXME */
+	m = getclbuf();
+	USED(mo, click, target);
+	if(pack(m, "h", Tmovenear) < 0){
+		fprint(2, "sendmovenear: %r\n");
+		return -1;
+	}
+	return 0;
+}
+
+int
+sendmove(Mobj *mo, Point target)
+{
+	Msg *m;
+
+	/* FIXME */
+	m = getclbuf();
+	USED(mo, target);
+	if(pack(m, "h", Tmove) < 0){
+		fprint(2, "sendmove: %r\n");
+		return -1;
+	}
+	return 0;
+}
+
 int
 sendpause(void)
 {
-	int n;
 	Msg *m;
 
 	m = getclbuf();
-	if(m->sz == 0)
-		newmsg(m);
-	if((n = pack(m->buf + m->sz, m->buf + sizeof m->buf, "hl", Tpause, 0)) < 0){
+	if(pack(m, "hl", Tpause, 0) < 0){
 		fprint(2, "sendpause: %r\n");
 		return -1;
 	}
-	m->sz += n;
 	return 0;
 }

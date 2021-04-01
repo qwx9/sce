@@ -6,7 +6,7 @@
 #include "dat.h"
 #include "fns.h"
 
-Resource resource[Nresource];
+Resource resources[Nresource];
 
 typedef struct Table Table;
 typedef struct Objp Objp;
@@ -267,10 +267,10 @@ vunpack(char **fld, char *fmt, va_list a)
 				*va_arg(a, Resource**) = nil;
 				break;
 			}
-			for(r=resource; r<resource+nelem(resource); r++)
+			for(r=resources; r<resources+nelem(resources); r++)
 				if(strcmp(s, r->name) == 0)
 					break;
-			if(r == resource + nelem(resource))
+			if(r == resources + nelem(resources))
 				sysfatal("vunpack: no such resource %s", s);
 			*va_arg(a, Resource**) = r;
 			break;
@@ -354,7 +354,7 @@ readmapobj(char **fld, int, Table *tab)
 		objp = emalloc(nobjp * sizeof *objp);
 	op = objp + tab->row;
 	unpack(fld, "oddd", &op->o, &op->team, &op->x, &op->y);
-	if(op->team > nelem(team))
+	if(op->team > nelem(teams))
 		op->team = 0;
 	if(op->team > nteam)
 		nteam = op->team;
@@ -365,8 +365,8 @@ readresource(char **fld, int, Table *tab)
 {
 	Resource *r;
 
-	r = resource + tab->row;
-	if(r >= resource + nelem(resource))
+	r = resources + tab->row;
+	if(r >= resources + nelem(resources))
 		sysfatal("readresource: out of bounds reference");
 	r->name = estrdup(*fld++);
 	unpack(fld, "d", &r->init);

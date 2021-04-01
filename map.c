@@ -101,6 +101,7 @@ mapspawn(int x, int y, Obj *o)
 	if(getspawn(&x, &y, o) < 0)
 		return nil;
 	mo = emalloc(sizeof *mo);
+	mo->uuid = lrand();
 	mo->x = x;
 	mo->y = y;
 	mo->px = x * Nodewidth;
