@@ -365,7 +365,6 @@ addmobjs(Map *m)
 static Rectangle
 setdrawrect(void)
 {
-	int f;
 	Rectangle r;
 
 	r.min.x = pan.x / scale / Tilewidth;

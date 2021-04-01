@@ -39,7 +39,7 @@ linktomap(Mobj *mo)
 {
 	Map *m;
 
-	m = map + (mo->y * mapwidth + mo->x) / Node2Tile;
+	m = map + mo->y / Node2Tile * mapwidth + mo->x / Node2Tile;
 	mo->mobjl = linkmobj(mo->f & Fair ? m->ml.lp : &m->ml, mo, mo->mobjl);
 }
 

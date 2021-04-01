@@ -62,7 +62,7 @@ getspawn(int *nx, int *ny, Obj *o)
 			return -1;
 		}
 	}else if((o->f & Fair) == 0){
-		m = map + (y * mapwidth + x) / Node2Tile;
+		m = map + y / Node2Tile * mapwidth + x / Node2Tile;
 		for(mo=nil, ml=m->ml.l; ml!=&m->ml; ml=ml->l){
 			mo = ml->mo;
 			for(os=mo->o->spawn, n=mo->o->nspawn; n>0; n--, os++)
