@@ -365,6 +365,7 @@ addmobjs(Map *m)
 static Rectangle
 setdrawrect(void)
 {
+	int f;
 	Rectangle r;
 
 	r.min.x = pan.x / scale / Tilewidth;
@@ -379,8 +380,8 @@ setdrawrect(void)
 		r.max.y = mapheight;
 	/* enlarge window to capture units overlapping multiple tiles;
 	 * seems like the easiest way to take this into account */
-	r.min.x = max(r.min.x - 4 / scale, 0);
-	r.min.y = max(r.min.y - 4 / scale, 0);
+	r.min.x = max(r.min.x - 4, 0);
+	r.min.y = max(r.min.y - 4, 0);
 	return r;
 }
 
