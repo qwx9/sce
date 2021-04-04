@@ -61,6 +61,7 @@ flushcl(void)
 {
 	if(clbuf.sz == 0)
 		return;
+	endmsg(&clbuf);
 	write(clpfd[0], clbuf.buf, clbuf.sz);
 	clbuf.sz = 0;
 }

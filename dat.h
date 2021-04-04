@@ -202,10 +202,11 @@ extern char *netmtpt;
 extern int scale;
 
 enum{
-	Tquit,
+	Tquit = 0x1f,
 	Tpause,
 	Tmove,
 	Tmovenear,
+	Teom,
 
 	Nbuf = 4096,
 };

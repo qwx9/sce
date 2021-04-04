@@ -2,6 +2,7 @@ void	clearmsg(Msg*);
 Msg*	readnet(void);
 void	initnet(char*);
 int	parsemsg(Msg*);
+void	endmsg(Msg*);
 int	sendmovenear(Mobj*, Point, Mobj*);
 int	sendmove(Mobj*, Point);
 int	sendpause(void);

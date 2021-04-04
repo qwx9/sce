@@ -79,8 +79,6 @@ move(Point p)
 		sendmovenear(selected[0], p, mo);
 	else
 		sendmove(selected[0], p);
-	/* FIXME: expunge */
-	moveone(p, selected[0], mo);
 }
 
 static void
