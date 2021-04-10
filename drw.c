@@ -18,16 +18,27 @@ static Mobj *selected[Nselect];
 static Mobj **visbuf;
 static int nvisbuf, nvis;
 
-typedef struct Drawlist Drawlist;
-struct Drawlist {
-	Mobj **shad;
-	Mobj **mo;
-	Mobj **glow;
-	int n;
-	int glown;
-	int sz;
+enum{
+	DLgndshad,
+	DLgnd,
+	DLgndglow,
+	DLairshad,
+	DLair,
+	DLairglow,
+	DLend,
 };
-static Drawlist gndlist, airlist;
+typedef struct Drawlist Drawlist;
+struct Drawlist{
+	Mobj **mo;
+	Pic **pics;
+	int n;
+	int sz;
+	int noalpha;
+};
+static Drawlist drawlist[DLend] = {
+	[DLgnd] {.noalpha 1},
+	[DLair] {.noalpha 1},
+};
 
 void
 dopan(Point p)
@@ -296,7 +307,8 @@ frm(Mobj *mo, int type)
 	Pic *p;
 
 	pp = &mo->o->pics[mo->state][type];
-	assert(pp->pic != nil);
+	if(pp->pic == nil)
+		return nil;
 	frm = pp->iscopy ? mo->freezefrm : tc % pp->nf;
 	θ = mo->θ * 32.0 / 256;
 	switch(pp->nr){
@@ -314,54 +326,62 @@ frm(Mobj *mo, int type)
 static void
 clearlists(void)
 {
-	gndlist.n = gndlist.glown = 0;
-	airlist.n = airlist.glown = 0;
+	Drawlist *dl;
+
+	for(dl=drawlist; dl<drawlist+DLend; dl++)
+		dl->n = 0;
 }
 
 static void
-drawmobjs(Drawlist *dl)
+drawmobjs(void)
 {
-	int i;
+	int n;
 	Mobj *mo;
+	Drawlist *dl;
 
-	for(i=0; i<dl->n; i++){
-		mo = dl->shad[i];
-		drawpicalpha(mo->px, mo->py, frm(mo, PTshadow));
+	for(dl=drawlist; dl<drawlist+DLend; dl++)
+		for(n=0; n<dl->n; n++){
+			mo = dl->mo[n];
+			if(dl->noalpha)
+				drawpic(mo->px, mo->py, dl->pics[n], addvis(mo));
+			else
+				drawpicalpha(mo->px, mo->py, dl->pics[n]);
+		}
+}
+
+static void
+addpic(Drawlist *dl, Mobj *mo, int type)
+{
+	int n;
+	Pic *p;
+
+	if((p = frm(mo, type)) == nil)
+		return;
+	if(dl->n >= dl->sz){
+		n = dl->sz * sizeof *dl->pics;
+		dl->pics = erealloc(dl->pics, n + 16 * sizeof *dl->pics, n);
+		dl->mo = erealloc(dl->mo, n + 16 * sizeof *dl->mo, n);
+		dl->sz += 16;
 	}
-	for(i=0; i<dl->n; i++){
-		mo = dl->mo[i];
-		drawpic(mo->px, mo->py, frm(mo, PTbase), addvis(mo));
-	}
-	for(i=0; i<dl->glown; i++){
-		mo = dl->glow[i];
-		drawpicalpha(mo->px, mo->py, frm(mo, PTglow));
-	}
+	n = dl->n++;
+	dl->pics[n] = p;
+	dl->mo[n] = mo;
 }
 
 static void
 addmobjs(Map *m)
 {
-	int n;
+	int air;
 	Mobj *mo;
 	Mobjl *ml;
-	Drawlist *dl;
 
 	for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
 		mo = ml->mo;
-		dl = mo->o->f & Fair ? &airlist : &gndlist;
-		if(dl->n >= dl->sz){
-			n = dl->sz * sizeof *dl->mo;
-			dl->shad = erealloc(dl->shad, n + 16 * sizeof *dl->mo, n);
-			dl->mo = erealloc(dl->mo, n + 16 * sizeof *dl->mo, n);
-			dl->glow = erealloc(dl->glow, n + 16 * sizeof *dl->mo, n);
-			dl->sz += 16;
-		}
-		n = dl->n++;
-		dl->shad[n] = mo;
-		dl->mo[n] = mo;
-		if(mo->state == OSmove
-		&& mo->o->pics[OSmove][PTglow].pic != nil)
-			dl->glow[dl->glown++] = mo;
+		air = mo->o->f & Fair;
+		addpic(drawlist + (air ? DLairshad : DLgndshad), mo, PTshadow);
+		addpic(drawlist + (air ? DLair : DLgnd), mo, PTbase);
+		if(mo->state == OSmove)
+			addpic(drawlist + (air ? DLairglow : DLgndglow), mo, PTglow);
 	}
 }
 
@@ -404,8 +424,7 @@ redraw(void)
 		}
 		m += mapwidth - (r.max.x - r.min.x);
 	}
-	drawmobjs(&gndlist);
-	drawmobjs(&airlist);
+	drawmobjs();
 	if(debugmap)
 		drawmap(r);
 	drawhud();
