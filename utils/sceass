@@ -36,7 +36,7 @@ echo '
 ' | pico
 t=`{read -c 36 $grp | awk '{dx=$2+'^$dx^'; dy=$3+'^$dy^'; print dx, dy, dy+8}'}
 for(i in $name^?.^$frm^.^$rot.bit)
-	iconv -c r8g8b8 $i | crop -t $t(1-2) > a && mv a $i
+	iconv -c r8g8b8 $i | {crop -t $t(1-2) >[2]/dev/null || cat} > a && mv a $i
 if(~ $#noshad 0){
 	f=$name^s.^$frm^.^$rot.bit
 	echo '
@@ -49,6 +49,6 @@ if(~ $#noshad 0){
 		o = z == 3 ? o[x,y,0] + o[x,y,1] + o[x,y,2] > 0 ? 0 : Z/2+1 : o
 		!w o '^$f^'
 	' | pico
-	iconv -c a8r8g8b8 $f | crop -t $t(1) $t(3) > a && mv a $f
+	iconv -c a8r8g8b8 $f | {crop -t $t(1) $t(3) >[2]/dev/null || cat} > a && mv a $f
 }
 status=''

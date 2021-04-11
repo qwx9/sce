@@ -14,5 +14,5 @@ echo `"{for(i in $n){
 for(i in $n){
 	t=`{read -c 46 $1^.^$id($i)^.bit | awk '{print $2, $3}'}
 	f=$1^.^$rev($i)^.bit
-	iconv -c $3 $f | crop -t $t > a && mv a $f
+	iconv -c $3 $f | {crop -t $t >[2]/dev/null || cat} > a && mv a $f
 }
