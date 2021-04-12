@@ -39,7 +39,7 @@ fn sprsheet{
 		/env/fuckrc >/env/forever
 	</env/forever $home/p/pico/pico
 	iconv -c r8g8b8 /tmp/b.bit |\
-		{crop -t $x1 $y1 >[2]/dev/null || cat} \
+		crop -t $x1 $y1 \
 		>$name.$frm.$rot.bit
 	mv $name^s.$frm.$rot.bit $name.$frm.$rot.s.bit
 	rm /tmp/b.bit
@@ -81,8 +81,7 @@ fn rename{
 }
 
 fn translate{
-	if(! ~ $2 0 || ! ~ $3 0)
-		crop -t $2 $3 $1 > a && mv a $1
+	crop -t $2 $3 $1 > a && mv a $1
 }
 
 cat <<! >/env/fuckrc
