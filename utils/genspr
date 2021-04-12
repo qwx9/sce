@@ -53,6 +53,7 @@ fn genshad{
 # individual units
 unit drone 32 -48 -47 (0 1 2 3 4) (00 01 02 03 04)
 unit scv 32 -26 -14 0 00
+unit mutalid 32 -36 -38 (0 1 2 3 4) (00 01 02 03 04)
 
 # sprites with transparency
 asprite tscglow 32 -26 -14 (0 1 2 3) (00 01 02 03)

@@ -106,6 +106,7 @@ r = y >= DY*7 && y < DY*8 ? b[x,y-DY*7] : r
 
 gen32 scv 00
 gen32 drone 00 01 02 03 04
+gen32 mutalid 00 01 02 03 04
 clean tscglow
 rename tscglow scv g
 gen1 control 00
