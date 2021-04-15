@@ -64,7 +64,7 @@ redraw(void)
 	p = addpt(ui->r.min, o);
 	line(canvas, p, Pt(p.x+Nodesz, p.y), 0, 0, 0, selcol, ZP);
 	line(canvas, p, Pt(p.x, p.y+Nodesz), 0, 0, 0, selcol, ZP);
-	line(canvas, Pt(p.x, p.y+Nodesz), Pt(p.x+Nodesz, p.y+Nodesz), 0, 0, 0, selcol, ZP);
+	line(canvas, Pt(p.x, p.y+Nodesz), Pt(p.x+Nodesz+1, p.y+Nodesz), 0, 0, 0, selcol, ZP);
 	line(canvas, Pt(p.x+Nodesz, p.y), Pt(p.x+Nodesz, p.y+Nodesz), 0, 0, 0, selcol, ZP);
 	if(us != nil)
 		snprint(s, sizeof s, "%s frm %02d size %R sha %R", name, frm, r, us->r);
@@ -240,8 +240,8 @@ threadmain(int argc, char **argv)
 			case ' ': setpause(); break;
 			case Kup: shadofs.y -= 1; redraw(); break;
 			case Kdown: shadofs.y += 1; redraw(); break;
-			case Kright: rot = (rot + 1) % nrot; break;
-			case Kleft: if(--rot < 0) rot = nrot - 1; break;
+			case Kright: rot = (rot + 1) % nrot; redraw(); break;
+			case Kleft: if(--rot < 0) rot = nrot - 1; redraw(); break;
 			case Kdel: case 'q': threadexitsall(nil);
 			}
 			break;
