@@ -2,6 +2,7 @@
 TARG=\
 	grp\
 	sctile\
+	vspr\
 
 HFILES=
 </sys/src/cmd/mkmany
