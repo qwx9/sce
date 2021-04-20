@@ -67,9 +67,9 @@ redraw(void)
 	line(canvas, Pt(p.x, p.y+Nodesz), Pt(p.x+Nodesz+1, p.y+Nodesz), 0, 0, 0, selcol, ZP);
 	line(canvas, Pt(p.x+Nodesz, p.y), Pt(p.x+Nodesz, p.y+Nodesz), 0, 0, 0, selcol, ZP);
 	if(us != nil)
-		snprint(s, sizeof s, "%s frm %02d size %R sha %R", name, frm, r, us->r);
+		snprint(s, sizeof s, "%s frm %02d rot %02d size %R sha %R", name, frm, nrot==Nrot ? rot17[rot] : rot, r, us->r);
 	else
-		snprint(s, sizeof s, "%s frm %02d size %R", name, frm, r);
+		snprint(s, sizeof s, "%s frm %02d rot %02d size %R", name, frm, nrot==Nrot ? rot17[rot] : rot, r);
 	string(canvas, Pt(8,0), gridcol, ZP, font, s);
 	snprint(s, sizeof s, "ofs %P shofs %P Δt %d", pan, shadofs, Δt);
 	string(canvas, Pt(8,font->height), gridcol, ZP, font, s);
