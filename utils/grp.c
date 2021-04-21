@@ -273,7 +273,9 @@ main(int argc, char **argv)
 			bufp = buf;
 		}
 	}
-	if(!split){
+	if(split)
+		print("%d %d\n", maxx, maxy);
+	else{
 		Bprint(bo, "%11s %11d %11d %11d %11d ", c, 0, 0, maxx, maxy * ni);
 		Bwrite(bo, buf, bufp - buf);
 		Bterm(bo);
