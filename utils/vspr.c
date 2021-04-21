@@ -233,8 +233,8 @@ threadmain(int argc, char **argv)
 				}
 				break;
 			case '=':
-			case '+': Δt += Ndt; break;
-			case '-': if(Δt > Ndt) Δt -= Ndt; break;
+			case '+': Δt += Ndt; redraw(); break;
+			case '-': if(Δt > Ndt){ Δt -= Ndt; redraw(); } break;
 			case 'r':
 			case Kesc: pan = ZP; redraw(); break;
 			case ' ': setpause(); break;
