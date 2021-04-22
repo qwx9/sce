@@ -1,0 +1,163 @@
+#!/bin/rc -e
+rfork n
+bind -a $home/p/pico /bin
+bind -a $home/p/sce/utils /bin
+
+ramfs -m /n/sce
+cp unit/^(\
+terran/scv\
+terran/control\
+terran/tccShad\
+zerg/drone\
+zerg/mutalid\
+zerg/hatchery\
+zerg/zhashad\
+thingy/tscglow\
+)^.grp /n/sce/
+pcx -9t tileset/badlands/ofire.pcx >/n/sce/ofire.bit
+cp tileset/badlands.^(wpe vr4 vx4) /n/sce/
+cp SC_Unit_Palette.pal /n/sce/
+cd /n/sce
+window -m
+
+awk -v 'pid='$pid '
+function pipe(cmd){
+	if((cmd | getline x) != 1){
+		print cmd ": aborted"
+		exit("aborted")
+	}
+	return x
+}
+function exec(cmd){
+	if(system(cmd) != 0){
+		print cmd ": aborted"
+		exit("aborted")
+	}
+}
+
+function unit17(u,	i, r, n, fi, fo, fs, gf, dim, rect, Δx, Δy){
+	n = split(units[u], a)
+	gf = u ".grp"
+	split(pipe("grp -s " palfile " " gf), dim)
+	for(i=5; i<=n; i++){
+		frm = a[i] * 17
+		for(r=0; r<17; r+=2){
+			fi = sprintf(gf ".%05d.bit", frm + r)
+			fo = sprintf(u ".%02d.%02d.bit", frm, r)
+			fs = sprintf(u ".%02d.%02d.s.bit", frm, r)
+			split(pipe("read -c 60 " fi), rect)
+			Δx = rect[2] - (dim[1] / 2 - a[1])
+			Δy = rect[3] - (dim[2] / 2 - a[2])
+			exec("scespr " fi " " fo " " Δx " " Δy)
+			exec("scesha " fi " " fs " " Δx+a[3] " " Δy+a[4] " " a[3] " " a[4])
+			if(r != 16){
+				exec("rotate -l " fi " >" tmp)
+				Δx += dim[1] - rect[2] - rect[4]
+				fo = sprintf(u ".%02d.%02d.bit", frm, 31-r)
+				fs = sprintf(u ".%02d.%02d.s.bit", frm, 31-r)
+				exec("scespr " tmp " " fo " " Δx " " Δy)
+				exec("scesha " tmp " " fs " " Δx+a[3] " " Δy+a[4] " " a[3] " " a[4])
+			}
+		}
+	}
+	exec("rm -f " tmp " " gf "*")
+}
+
+function glowspr17(u,	i, r, n, fi, fo, gf, dim, rect, Δx, Δy){
+	n = split(units[u], a)
+	gf = a[1] ".grp"
+	split(pipe("grp -sx ofire.bit " gf), dim)
+	for(i=4; i<=n; i++){
+		frm = a[i] * 17
+		for(r=0; r<17; r+=2){
+			fi = sprintf(gf ".%05d.bit", frm + r)
+			fo = sprintf(u ".%02d.%02d.g.bit", frm, r)
+			split(pipe("read -c 60 " fi), rect)
+			Δx = -(dim[1] / 2 - a[2])
+			Δy = -(dim[2] / 2 - a[3])
+			exec("crop -t " Δx " " Δy " >" fo)
+			if(r != 16){
+				fo = sprintf(u ".%02d.%02d.g.bit", frm, 31-r)
+				Δx += dim[1] - rect[2] - rect[4]
+				exec("rotate -l " fi " | crop -t " Δx " " Δy " >" fo)
+			}
+		}
+	}
+	exec("rm -f " tmp " " gf "*")
+}
+
+function build(u,	i, r, n, fi, fo, gf, dim, rect, Δx, Δy){
+	n = split(builds[u], a)
+	gf = u ".grp"
+	split(pipe("grp -s " palfile " " gf), dim)
+	for(i=3; i<=n; i++){
+		frm = a[i]
+		fi = sprintf(gf ".%05d.bit", frm)
+		fo = sprintf(u ".%02d.00.bit", i-3)
+		split(pipe("read -c 60 " fi), rect)
+		Δx = rect[2] - (dim[1] / 2 - a[1]) >= 32 ? -32 : 0
+		Δy = rect[3] - (dim[2] / 2 - a[2]) >= 32 ? -32 : 0
+		exec("scespr " fi " " fo " " Δx " " Δy)
+	}
+	exec("rm -f " tmp " " gf "*")
+}
+
+function shad(u,	i, r, n, fi, fo, gf, dim, rect, Δx, Δy){
+	n = split(builds[u], a)
+	gf = a[1] ".grp"
+	split(pipe("grp -s " palfile " " gf), dim)
+	for(i=3; i<=n; i++){
+		frm = a[i]
+		fi = sprintf(gf ".%05d.bit", frm)
+		fo = sprintf(u ".%02d.00.s.bit", i-3)
+		split(pipe("read -c 60 " fi), rect)
+		Δx = rect[2] - (dim[1] / 2 - a[1]) >= 32 ? -32 : 0
+		Δy = rect[3] - (dim[2] / 2 - a[2]) >= 32 ? -32 : 0
+		exec("sceshb " fi " " fo " " Δx " " Δy)
+	}
+	exec("rm -f " tmp " " gf "*")
+}
+
+function tiles(t, ntile){
+	exec("sctile " t)
+	print "!s", 32, ntile*32 >tmp
+	print "r = z == 0 ? 0 : Z" >>tmp
+	# first tile is empty
+	for(i=1; i<=ntile; i++){
+		printf "!r %s.%05d.bit a\n", t, i >>tmp
+		printf "r = y >= %d && y < %d ? a[x,y-%d] : r\n", 32*(i-1), 32*i, 32*(i-1) >>tmp
+	}
+	print "!w r dicks" >>tmp
+	exec("pico <" tmp)
+	exec("iconv -c r8g8b8 dicks >" t ".bit")
+	exec("rm -f dicks " tmp " " t ".[0-9]*bit")
+}
+
+BEGIN{
+	palfile = "SC_Unit_Palette.pal"
+	tmp = "derp"
+	units["scv"] = "11 11 0 7 0"
+	units["drone"] = "11 11 0 7 0 1 2 3 4"
+	units["mutalid"] = "22 22 0 42 0 1 2 3 4"
+	glows["scv"] = "tscglow 11 11 0 1 2 3 4"
+	builds["control"] = "58 41 0"
+	builds["hatchery"] = "49 32 0 1 2 3"
+	shads["control"] = "tccShad 58 41 0"
+	shads["hatchery"] = "zhashad 49 32 0"
+	for(u in units)
+		unit17(u)
+	for(u in glows)
+		glowspr17(u)
+	for(u in builds)
+		build(u)
+	for(u in shads)
+		shad(u)
+	tiles("badlands", 25)
+}
+'
+
+rm -f ofire.bit *.wpe *.vr4 *.vx4
+cp * /sys/games/lib/sce/
+
+# FIXME:
+# - testing

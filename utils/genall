@@ -1,0 +1,7 @@
+#!/bin/rc -e
+genmap 16 16 25 badlands >map1.db
+genmap 64 64 25 badlands >map2.db
+genmap 256 256 25 badlands >map3.db
+# FIXME: maps unpopulated, not installed
+# FIXME: missing other .db files
+genspr

@@ -1,0 +1,20 @@
+#!/bin/rc -e
+if(! ~ $#* 4){
+	echo usage: $0 fi fo Δx Δy
+	exit usage
+}
+tmp=/tmp/sceshb.$pid
+fi=$1
+fo=$2
+Δx=$3
+Δy=$4
+
+cat <<EOF | pico
+!r $fi f
+r = z == 3 ? f[x,y,0] == 0 && f[x,y,1] == Z && f[x,y,2] == Z ? 0 : Z/2+1 : 0
+!w $tmp r
+EOF
+
+iconv -c a8r8g8b8 $tmp |\
+	crop -t $Δx $Δy >$fo
+rm $tmp
