@@ -113,12 +113,12 @@ gen1 control 00
 gen1 hatchery 00 01 02 03
 terrain badlands
 
-crop -t -1 0 drone.00.23.bit > a && mv a drone.00.23.bit
-crop -t -1 0 drone.00.23.s.bit > a && mv a drone.00.23.s.bit
-crop -t 1 0 drone.03.23.bit > a && mv a drone.03.23.bit
-crop -t 1 0 drone.03.23.s.bit > a && mv a drone.03.23.s.bit
-crop -t -3 0 drone.04.23.bit > a && mv a drone.04.23.bit
-crop -t -3 0 drone.04.23.s.bit > a && mv a drone.04.23.s.bit
+translate drone.00.23.bit -1 0
+translate drone.00.23.s.bit -1 0
+translate drone.03.23.bit 1 0
+translate drone.03.23.s.bit 1 0
+translate drone.04.23.bit -3 0
+translate drone.04.23.s.bit -3 0
 for(i in 00 01 02 03){
 	translate scv.$i.17.g.bit 26 0
 	translate scv.$i.19.g.bit 30 0
