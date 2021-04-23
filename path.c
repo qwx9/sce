@@ -75,11 +75,44 @@ isblocked(int x, int y, Obj *o)
 	return (*row & 1ULL << 63) != 0;
 }
 
+static Mobj *
+unitat(int px, int py)
+{
+	int x, y;
+	Rectangle r, mr;
+	Map *m;
+	Mobjl *ml;
+	Mobj *mo;
+
+	x = px / Node2Tile;
+	y = py / Node2Tile;
+	r = Rect(x-4, y-4, x, y);
+	for(; y>=r.min.y; y--)
+		for(x=r.max.x, m=map+y*mapwidth+x; x>=r.min.x; x--)
+			for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
+				mo = ml->mo;
+				mr.min.x = mo->x;
+				mr.min.y = mo->y;
+				mr.max.x = mr.min.x + mo->o->w;
+				mr.max.y = mr.min.y + mo->o->h;
+				if(px >= mo->x && px <= mo->x + mo->o->w
+				&& py >= mo->y && py <= mo->y + mo->o->h)
+					return mo;
+			}
+	return nil;
+}
+
 void
 markmobj(Mobj *mo, int set)
 {
 	int w, h;
+	Mobj *bmo;
 
+	if(isblocked(mo->x, mo->y, mo->o)){
+		bmo = unitat(mo->x, mo->y);
+		sysfatal("markmobj: attempt to place %s at %d,%d, non-free block having %s at %d,%d",
+			mo->o->name, mo->x, mo->y, bmo->o->name, bmo->x, bmo->y);
+	}
 	w = mo->o->w;
 	if((mo->subpx & Subpxmask) != 0 && mo->x != (mo->px + 1) / Nodewidth)
 		w++;
