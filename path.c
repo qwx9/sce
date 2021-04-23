@@ -121,6 +121,16 @@ markmobj(Mobj *mo, int set)
 }
 
 static double
+eucdist(Node *a, Node *b)
+{
+	double dx, dy;
+
+	dx = a->x - b->x;
+	dy = a->y - b->y;
+	return sqrt(dx * dx + dy * dy);
+}
+
+static double
 octdist(Node *a, Node *b)
 {
 	int dx, dy;
@@ -406,10 +416,10 @@ resizepathbuf(Mobj *mo, int nstep)
 }
 
 static void
-directpath(Node *g, Mobj *mo)
+directpath(Node *a, Node *g, Mobj *mo)
 {
 	resizepathbuf(mo, 1);
-	mo->pathlen = 1;
+	mo->pathlen = eucdist(a, g);
 	mo->pathe = mo->paths + 1;
 	mo->paths->x = g->x * Nodewidth;
 	mo->paths->y = g->y * Nodewidth;
@@ -548,7 +558,7 @@ findpath(Point p, Mobj *mo)
 	b->x = p.x;
 	b->y = p.y;
 	if(mo->o->f & Fair){
-		directpath(b, mo);
+		directpath(a, b, mo);
 		return 0;
 	}
 	markmobj(mo, 0);
