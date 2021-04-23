@@ -31,7 +31,7 @@ r = y >= 2*$dh && y < 3*$dh ? teal[x,y-2*$dh] : r
 r = y >= 3*$dh && y < 4*$dh ? purple[x,y-3*$dh] : r
 r = y >= 4*$dh && y < 5*$dh ? orange[x,y-4*$dh] : r
 r = y >= 5*$dh && y < 6*$dh ? brown[x,y-5*$dh] : r
-r = y >= 6*$dh && y < 5*$dh ? white[x,y-6*$dh] : r
+r = y >= 6*$dh && y < 7*$dh ? white[x,y-6*$dh] : r
 r = y >= 7*$dh && y < 8*$dh ? yellow[x,y-7*$dh] : r
 !w r $tmp
 EOF

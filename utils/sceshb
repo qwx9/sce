@@ -12,7 +12,7 @@ fo=$2
 cat <<EOF | pico
 !r $fi f
 r = z == 3 ? f[x,y,0] == 0 && f[x,y,1] == Z && f[x,y,2] == Z ? 0 : Z/2+1 : 0
-!w $tmp r
+!w r $tmp
 EOF
 
 iconv -c a8r8g8b8 $tmp |\
