@@ -72,24 +72,29 @@ move(Point p)
 {
 	int i;
 	Point vp;
-	Mobj *mo;
+	Mobj *mo, *it;
 
-	if(!ptinrect(p, selr) || selected[0] == nil)
+	it = selected[0];
+	if(!ptinrect(p, selr) || it == nil)
 		return;
 	vp = divpt(subpt(p, selr.min), scale);
 	i = fbvis[vp.y * fbw + vp.x];
 	mo = i == -1 ? nil : visbuf[i];
-	if(mo == selected[0]){
-		dprint("select: %#p not moving to itself\n", visbuf[i]);
+	if(mo == it){
+		dprint("select: %#p not moving to itself\n", it);
 		return;
 	}
 	p = divpt(addpt(subpt(p, selr.min), pan), scale);
 	p.x /= Nodewidth;
 	p.y /= Nodeheight;
+	if(nodemapwidth - p.x < it->o->w || nodemapheight - p.y < it->o->h){
+		dprint("select: %#p not moving beyond map edge\n", it);
+		return;
+	}
 	if(mo != nil)
-		sendmovenear(selected[0], p, mo);
+		sendmovenear(it, p, mo);
 	else
-		sendmove(selected[0], p);
+		sendmove(it, p);
 }
 
 static void
