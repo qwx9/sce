@@ -20,12 +20,13 @@ cp SC_Unit_Palette.pal /n/sce/
 cd /n/sce
 window -m
 
-awk -v 'pid='$pid '
+awk '
 function pipe(cmd){
-	if((cmd | getline x) != 1){
+	if((cmd | getline x) < 0){
 		print cmd ": aborted"
 		exit("aborted")
 	}
+	close(cmd)
 	return x
 }
 function exec(cmd){
@@ -33,9 +34,10 @@ function exec(cmd){
 		print cmd ": aborted"
 		exit("aborted")
 	}
+	close(cmd)
 }
 
-function unit17(u,	i, r, n, fi, fo, fs, gf, dim, rect, Δx, Δy){
+function unit17(u,	i, r, n, fi, fo, fs, gf, dim, rect, dx, dy){
 	n = split(units[u], a)
 	gf = u ".grp"
 	split(pipe("grp -s " palfile " " gf), dim)
@@ -43,50 +45,50 @@ function unit17(u,	i, r, n, fi, fo, fs, gf, dim, rect, Δx, Δy){
 		frm = a[i] * 17
 		for(r=0; r<17; r+=2){
 			fi = sprintf(gf ".%05d.bit", frm + r)
-			fo = sprintf(u ".%02d.%02d.bit", frm, r)
-			fs = sprintf(u ".%02d.%02d.s.bit", frm, r)
+			fo = sprintf(u ".%02d.%02d.bit", i-5, r)
+			fs = sprintf(u ".%02d.%02d.s.bit", i-5, r)
 			split(pipe("read -c 60 " fi), rect)
-			Δx = rect[2] - (dim[1] / 2 - a[1])
-			Δy = rect[3] - (dim[2] / 2 - a[2])
-			exec("scespr " fi " " fo " " Δx " " Δy)
-			exec("scesha " fi " " fs " " Δx+a[3] " " Δy+a[4] " " a[3] " " a[4])
+			dx = rect[2] - (dim[1] / 2 - a[1])
+			dy = rect[3] - (dim[2] / 2 - a[2])
+			exec("scespr " fi " " fo " " dx " " dy)
+			exec("scesha " fi " " fs " " dx+a[3] " " dy+a[4] " " a[3] " " a[4])
 			if(r != 16){
-				exec("rotate -l " fi " >" tmp)
-				Δx += dim[1] - rect[2] - rect[4]
-				fo = sprintf(u ".%02d.%02d.bit", frm, 31-r)
-				fs = sprintf(u ".%02d.%02d.s.bit", frm, 31-r)
-				exec("scespr " tmp " " fo " " Δx " " Δy)
-				exec("scesha " tmp " " fs " " Δx+a[3] " " Δy+a[4] " " a[3] " " a[4])
+				exec("rotate -l " fi " | iconv -u >" tmp)
+				dx += dim[1] - rect[2] - rect[4]
+				fo = sprintf(u ".%02d.%02d.bit", i-5, 31-r)
+				fs = sprintf(u ".%02d.%02d.s.bit", i-5, 31-r)
+				exec("scespr " tmp " " fo " " dx " " dy)
+				exec("scesha " tmp " " fs " " dx+a[3] " " dy+a[4] " " a[3] " " a[4])
 			}
 		}
 	}
 	exec("rm -f " tmp " " gf "*")
 }
 
-function glowspr17(u,	i, r, n, fi, fo, gf, dim, rect, Δx, Δy){
-	n = split(units[u], a)
+function glowspr17(u,	i, r, n, fi, fo, gf, dim, rect, dx, dy){
+	n = split(glows[u], a)
 	gf = a[1] ".grp"
 	split(pipe("grp -sx ofire.bit " gf), dim)
 	for(i=4; i<=n; i++){
 		frm = a[i] * 17
 		for(r=0; r<17; r+=2){
 			fi = sprintf(gf ".%05d.bit", frm + r)
-			fo = sprintf(u ".%02d.%02d.g.bit", frm, r)
+			fo = sprintf(u ".%02d.%02d.g.bit", i-4, r)
 			split(pipe("read -c 60 " fi), rect)
-			Δx = -(dim[1] / 2 - a[2])
-			Δy = -(dim[2] / 2 - a[3])
-			exec("crop -t " Δx " " Δy " >" fo)
+			dx = -(dim[1] / 2 - a[2])
+			dy = -(dim[2] / 2 - a[3])
+			exec("crop -t " dx " " dy " " fi " >" fo)
 			if(r != 16){
-				fo = sprintf(u ".%02d.%02d.g.bit", frm, 31-r)
-				Δx += dim[1] - rect[2] - rect[4]
-				exec("rotate -l " fi " | crop -t " Δx " " Δy " >" fo)
+				fo = sprintf(u ".%02d.%02d.g.bit", i-4, 31-r)
+				dx += dim[1] - rect[2] - rect[4]
+				exec("rotate -l " fi " | crop -t " dx " " dy " >" fo)
 			}
 		}
 	}
 	exec("rm -f " tmp " " gf "*")
 }
 
-function build(u,	i, r, n, fi, fo, gf, dim, rect, Δx, Δy){
+function build(u,	i, r, n, fi, fo, gf, dim, rect, dx, dy){
 	n = split(builds[u], a)
 	gf = u ".grp"
 	split(pipe("grp -s " palfile " " gf), dim)
@@ -95,25 +97,25 @@ function build(u,	i, r, n, fi, fo, gf, dim, rect, Δx, Δy){
 		fi = sprintf(gf ".%05d.bit", frm)
 		fo = sprintf(u ".%02d.00.bit", i-3)
 		split(pipe("read -c 60 " fi), rect)
-		Δx = rect[2] - (dim[1] / 2 - a[1]) >= 32 ? -32 : 0
-		Δy = rect[3] - (dim[2] / 2 - a[2]) >= 32 ? -32 : 0
-		exec("scespr " fi " " fo " " Δx " " Δy)
+		dx = rect[2] - ((dim[1] / 2 - a[1]) >= 32 ? 32 : 0)
+		dy = rect[3] - ((dim[2] / 2 - a[2]) >= 32 ? 32 : 0)
+		exec("scespr " fi " " fo " " dx " " dy)
 	}
 	exec("rm -f " tmp " " gf "*")
 }
 
-function shad(u,	i, r, n, fi, fo, gf, dim, rect, Δx, Δy){
-	n = split(builds[u], a)
+function shad(u,	i, r, n, fi, fo, gf, dim, rect, dx, dy){
+	n = split(shads[u], a)
 	gf = a[1] ".grp"
 	split(pipe("grp -s " palfile " " gf), dim)
-	for(i=3; i<=n; i++){
+	for(i=4; i<=n; i++){
 		frm = a[i]
 		fi = sprintf(gf ".%05d.bit", frm)
-		fo = sprintf(u ".%02d.00.s.bit", i-3)
+		fo = sprintf(u ".%02d.00.s.bit", i-4)
 		split(pipe("read -c 60 " fi), rect)
-		Δx = rect[2] - (dim[1] / 2 - a[1]) >= 32 ? -32 : 0
-		Δy = rect[3] - (dim[2] / 2 - a[2]) >= 32 ? -32 : 0
-		exec("sceshb " fi " " fo " " Δx " " Δy)
+		dx = rect[2] - ((dim[1] / 2 - a[2]) >= 32 ? 32 : 0)
+		dy = rect[3] - ((dim[2] / 2 - a[3]) >= 32 ? 32 : 0)
+		exec("sceshb " fi " " fo " " dx " " dy)
 	}
 	exec("rm -f " tmp " " gf "*")
 }
@@ -139,7 +141,7 @@ BEGIN{
 	units["scv"] = "11 11 0 7 0"
 	units["drone"] = "11 11 0 7 0 1 2 3 4"
 	units["mutalid"] = "22 22 0 42 0 1 2 3 4"
-	glows["scv"] = "tscglow 11 11 0 1 2 3 4"
+	glows["scv"] = "tscglow 11 11 0 1 2 3"
 	builds["control"] = "58 41 0"
 	builds["hatchery"] = "49 32 0 1 2 3"
 	shads["control"] = "tccShad 58 41 0"
@@ -152,12 +154,9 @@ BEGIN{
 		build(u)
 	for(u in shads)
 		shad(u)
-	tiles("badlands", 25)
+	tiles("badlands", 24)
 }
 '
 
-rm -f ofire.bit *.wpe *.vr4 *.vx4
-cp * /sys/games/lib/sce/
-
-# FIXME:
-# - testing
+rm -f ofire.bit *.wpe *.vr4 *.vx4 *.pal
+#cp * /sys/games/lib/sce/
