@@ -26,14 +26,13 @@ updatemap(Mobj *mo)
 static int
 findspawn(int *nx, int *ny, int ofs, Obj *o, Obj *spawn)
 {
-	int sz, x, y, minx, miny, maxx, maxy;
+	int x, y, minx, miny, maxx, maxy;
 
-	sz = ofs * o->w;
-	minx = *nx - sz;
-	miny = *ny - sz;
-	maxx = *nx + spawn->w + sz;
-	maxy = *ny + spawn->h + sz;
-	for(x=minx+sz, y=maxy; x<maxx; x++)
+	minx = *nx - (ofs+1) * o->w;
+	miny = *ny - (ofs+1) * o->h;
+	maxx = *nx + spawn->w + ofs * o->w;
+	maxy = *ny + spawn->h + ofs * o->h;
+	for(x=minx+o->w, y=maxy; x<maxx; x++)
 		if(!isblocked(x, y, o))
 			goto found;
 	for(x=maxx, y=maxy; y>miny; y--)
@@ -82,11 +81,11 @@ getspawn(int *nx, int *ny, Obj *o)
 			werrstr("getspawn: no spawn object at %d,%d", x, y);
 			return -1;
 		}
-		for(n=0; n<3; n+=o->w)
-			if(findspawn(&x, &y, n / o->w, o, mo->o) >= 0)
+		for(n=0; n<3; n++)
+			if(findspawn(&x, &y, n, o, mo->o) >= 0)
 				break;
 		if(n == 3){
-			werrstr("getspawn: no free spot for %s at %d,%d\n",
+			werrstr("getspawn: no free spot for %s at %d,%d",
 				o->name, x, y);
 			return -1;
 		}
