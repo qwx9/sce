@@ -67,7 +67,7 @@ getspawn(int *nx, int *ny, Obj *o)
 			werrstr("getspawn: building placement at %d,%d blocked", x, y);
 			return -1;
 		}
-	}else if((o->f & Fair) == 0){
+	}else{
 		m = map + y / Node2Tile * mapwidth + x / Node2Tile;
 		for(mo=nil, ml=m->ml.l; ml!=&m->ml; ml=ml->l){
 			mo = ml->mo;

@@ -71,6 +71,8 @@ isblocked(int x, int y, Obj *o)
 {
 	u64int *row;
 
+	if(o->f & Fair)
+		return 0;
 	row = bload(x, y, o->w, o->h, 0, 0, 0, 0);
 	return (*row & 1ULL << 63) != 0;
 }
@@ -107,6 +109,8 @@ markmobj(Mobj *mo, int set)
 {
 	int w, h;
 
+	if(mo->o->f & Fair)
+		return;
 	w = mo->o->w;
 	if((mo->subpx & Subpxmask) != 0 && mo->x != (mo->px + 1) / Nodewidth)
 		w++;
@@ -392,18 +396,33 @@ a∗(Node *a, Node *b, Mobj *mo)
 }
 
 static void
+resizepathbuf(Mobj *mo, int nstep)
+{
+	if(mo->npathbuf >= nstep)
+		return;
+	nstep = nstep + 16;
+	mo->paths = erealloc(mo->paths, nstep * sizeof mo->paths, mo->npathbuf * sizeof mo->paths);
+	mo->npathbuf = nstep;
+}
+
+static void
+directpath(Node *g, Mobj *mo)
+{
+	resizepathbuf(mo, 1);
+	mo->pathlen = 1;
+	mo->pathe = mo->paths + 1;
+	mo->paths->x = g->x * Nodewidth;
+	mo->paths->y = g->y * Nodewidth;
+}
+
+static void
 backtrack(Node *n, Node *a, Mobj *mo)
 {
 	int x, y;
 	Point *p;
 
 	assert(n != a && n->step > 0);
-	if(mo->npathbuf < n->step){
-		mo->paths = erealloc(mo->paths,
-			n->step * sizeof mo->paths,
-			mo->npathbuf * sizeof mo->paths);
-		mo->npathbuf = n->step;
-	}
+	resizepathbuf(mo, n->step);
 	mo->pathlen = n->len;
 	p = mo->paths + n->step;
 	mo->pathe = p--;
@@ -458,7 +477,7 @@ setgoal(Point *p, Mobj *mo, Mobj *block)
 	double Δ, Δ´;
 	Node *n1, *n2, *pm;
 
-	if(block == nil){
+	if(mo->o->f & Fair || block == nil){
 		mo->goalblocked = 0;
 		return;
 	}
@@ -528,6 +547,10 @@ findpath(Point p, Mobj *mo)
 	b = nodemap + p.y * nodemapwidth + p.x;
 	b->x = p.x;
 	b->y = p.y;
+	if(mo->o->f & Fair){
+		directpath(b, mo);
+		return 0;
+	}
 	markmobj(mo, 0);
 	n = a∗(a, b, mo);
 	if(n != b){
