@@ -27,6 +27,7 @@ void	drawfb(void);
 void	initimg(void);
 void	initfs(void);
 void	setgoal(Point*, Mobj*, Mobj*);
+Mobj*	unitat(int, int);
 int	isblocked(int, int, Obj*);
 void	markmobj(Mobj*, int);
 int	findpath(Point, Mobj*);

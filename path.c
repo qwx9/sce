@@ -75,7 +75,7 @@ isblocked(int x, int y, Obj *o)
 	return (*row & 1ULL << 63) != 0;
 }
 
-static Mobj *
+Mobj *
 unitat(int px, int py)
 {
 	int x, y;
@@ -106,13 +106,7 @@ void
 markmobj(Mobj *mo, int set)
 {
 	int w, h;
-	Mobj *bmo;
 
-	if(isblocked(mo->x, mo->y, mo->o)){
-		bmo = unitat(mo->x, mo->y);
-		sysfatal("markmobj: attempt to place %s at %d,%d, non-free block having %s at %d,%d",
-			mo->o->name, mo->x, mo->y, bmo->o->name, bmo->x, bmo->y);
-	}
 	w = mo->o->w;
 	if((mo->subpx & Subpxmask) != 0 && mo->x != (mo->px + 1) / Nodewidth)
 		w++;

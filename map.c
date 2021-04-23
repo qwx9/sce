@@ -12,6 +12,13 @@ int nodemapwidth, nodemapheight;
 static void
 updatemap(Mobj *mo)
 {
+	Mobj *bmo;
+
+	if(isblocked(mo->x, mo->y, mo->o)){
+		bmo = unitat(mo->x, mo->y);
+		sysfatal("markmobj: attempt to place %s at %d,%d, non-free block having %s at %d,%d",
+			mo->o->name, mo->x, mo->y, bmo->o->name, bmo->x, bmo->y);
+	}
 	linktomap(mo);
 	markmobj(mo, 1);
 }
