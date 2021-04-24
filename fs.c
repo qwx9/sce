@@ -619,8 +619,9 @@ initdb(void)
 void
 initfs(void)
 {
+	rfork(RFNAMEG);
 	if(bind(".", prefix, MBEFORE|MCREATE) == -1 || chdir(prefix) < 0)
-		fprint(2, "init: %r\n");
+		fprint(2, "initfs: %r\n");
 	loaddb(dbname);
 	loaddb(mapname);
 	initdb();
