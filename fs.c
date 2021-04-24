@@ -80,6 +80,7 @@ loadpic(char *name, Pic *pic, int alpha)
 	pic->h = dy;
 	pic->dx = i->r.min.x;
 	pic->dy = i->r.min.y;
+	m = i->depth / 8;
 	freeimage(i);
 	s = b;
 	while(n-- > 0){
@@ -89,7 +90,7 @@ loadpic(char *name, Pic *pic, int alpha)
 		else if(v != bgcol)
 			v |= 0xff << 24;
 		*p++ = v;
-		s += i->depth / 8;
+		s += m;
 	}
 	free(b);
 }
