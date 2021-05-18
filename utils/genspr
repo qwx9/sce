@@ -13,6 +13,12 @@ zerg/mutalid\
 zerg/hatchery\
 zerg/zhashad\
 thingy/tscglow\
+neutral/min01\
+neutral/min01Sha\
+neutral/min02\
+neutral/min02sha\
+neutral/min03\
+neutral/min03Sha\
 )^.grp /n/sce/
 pcx -9t tileset/badlands/ofire.pcx >/n/sce/ofire.bit
 cp tileset/badlands.^(wpe vr4 vx4) /n/sce/
@@ -39,26 +45,26 @@ function exec(cmd){
 
 function unit17(u,	i, r, n, fi, fo, fs, gf, dim, rect, dx, dy){
 	n = split(units[u], a)
-	gf = u ".grp"
+	gf = a[1] ".grp"
 	split(pipe("grp -s " palfile " " gf), dim)
-	for(i=5; i<=n; i++){
+	for(i=6; i<=n; i++){
 		frm = a[i] * 17
 		for(r=0; r<17; r+=2){
 			fi = sprintf(gf ".%05d.bit", frm + r)
 			fo = sprintf(u ".%02d.%02d.bit", i-5, r)
 			fs = sprintf(u ".%02d.%02d.s.bit", i-5, r)
 			split(pipe("read -c 60 " fi), rect)
-			dx = rect[2] - (dim[1] / 2 - a[1])
-			dy = rect[3] - (dim[2] / 2 - a[2])
+			dx = rect[2] - (dim[1] / 2 - a[2])
+			dy = rect[3] - (dim[2] / 2 - a[3])
 			exec("scespr " fi " " fo " " dx " " dy)
-			exec("scesha " fi " " fs " " dx+a[3] " " dy+a[4] " " a[3] " " a[4])
+			exec("scesha " fi " " fs " " dx+a[4] " " dy+a[5] " " a[4] " " a[5])
 			if(r != 16){
 				exec("rotate -l " fi " | iconv -u >" tmp)
 				dx += dim[1] - rect[2] - rect[4]
 				fo = sprintf(u ".%02d.%02d.bit", i-5, 31-r)
 				fs = sprintf(u ".%02d.%02d.s.bit", i-5, 31-r)
 				exec("scespr " tmp " " fo " " dx " " dy)
-				exec("scesha " tmp " " fs " " dx+a[3] " " dy+a[4] " " a[3] " " a[4])
+				exec("scesha " tmp " " fs " " dx+a[4] " " dy+a[5] " " a[4] " " a[5])
 			}
 		}
 	}
@@ -90,15 +96,15 @@ function glowspr17(u,	i, r, n, fi, fo, gf, dim, rect, dx, dy){
 
 function build(u,	i, r, n, fi, fo, gf, dim, rect, dx, dy){
 	n = split(builds[u], a)
-	gf = u ".grp"
+	gf = a[1] ".grp"
 	split(pipe("grp -s " palfile " " gf), dim)
-	for(i=3; i<=n; i++){
+	for(i=4; i<=n; i++){
 		frm = a[i]
 		fi = sprintf(gf ".%05d.bit", frm)
 		fo = sprintf(u ".%02d.00.bit", i-3)
 		split(pipe("read -c 60 " fi), rect)
-		dx = rect[2] - ((dim[1] / 2 - a[1]) >= 32 ? 32 : 0)
-		dy = rect[3] - ((dim[2] / 2 - a[2]) >= 32 ? 32 : 0)
+		dx = rect[2] - ((dim[1] / 2 - a[2]) >= 32 ? 32 : 0)
+		dy = rect[3] - ((dim[2] / 2 - a[3]) >= 32 ? 32 : 0)
 		exec("scespr " fi " " fo " " dx " " dy)
 	}
 	exec("rm -f " tmp " " gf "*")
@@ -138,14 +144,36 @@ function tiles(t, ntile){
 BEGIN{
 	palfile = "SC_Unit_Palette.pal"
 	tmp = "derp"
-	units["scv"] = "11 11 0 7 0"
-	units["drone"] = "11 11 0 7 0 1 2 3 4"
-	units["mutalid"] = "22 22 0 42 0 1 2 3 4"
+	# width/2 height/2 shadx shady frm..
+	units["scv"] = "scv 11 11 0 7 0"
+	units["drone"] = "drone 11 11 0 7 0 1 2 3 4"
+	units["mutalisk"] = "mutalid 22 22 0 42 0 1 2 3 4"
+	# grp width/2 height/2 shadx shady frm..
 	glows["scv"] = "tscglow 11 11 0 1 2 3"
-	builds["control"] = "58 41 0"
-	builds["hatchery"] = "49 32 0 1 2 3"
+	# width/2 height/2 frm..
+	builds["control"] = "control 58 41 0"
+	builds["hatchery"] = "hatchery 49 32 0 1 2 3"
+	builds["mineral0h"] = "min01 32 16 0"
+	builds["mineral0m"] = "min01 32 16 1"
+	builds["mineral0l"] = "min01 32 16 2"
+	builds["mineral1h"] = "min02 32 16 0"
+	builds["mineral1m"] = "min02 32 16 1"
+	builds["mineral1l"] = "min02 32 16 2"
+	builds["mineral2h"] = "min03 32 16 0"
+	builds["mineral2m"] = "min03 32 16 1"
+	builds["mineral2l"] = "min03 32 16 2"
+	# grp width/2 height/2 frm..
 	shads["control"] = "tccShad 58 41 0"
 	shads["hatchery"] = "zhashad 49 32 0"
+	shads["mineral0h"] = "min01Sha 32 16 0"
+	shads["mineral0m"] = "min01Sha 32 16 1"
+	shads["mineral0l"] = "min01Sha 32 16 2"
+	shads["mineral1h"] = "min02sha 32 16 0"
+	shads["mineral1m"] = "min02sha 32 16 1"
+	shads["mineral1l"] = "min02sha 32 16 2"
+	shads["mineral2h"] = "min03Sha 32 16 0"
+	shads["mineral2m"] = "min03Sha 32 16 1"
+	shads["mineral2l"] = "min03Sha 32 16 2"
 	for(u in units)
 		unit17(u)
 	for(u in glows)
