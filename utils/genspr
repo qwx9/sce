@@ -43,7 +43,7 @@ function exec(cmd){
 	close(cmd)
 }
 
-function unit17(u,	i, r, n, fi, fo, fs, gf, dim, rect, dx, dy){
+function unit17(u,	i, r, n, fi, fo, fs, gf, frm, dim, rect, dx, dy){
 	n = split(units[u], a)
 	gf = a[1] ".grp"
 	split(pipe("grp -s " palfile " " gf), dim)
@@ -71,7 +71,7 @@ function unit17(u,	i, r, n, fi, fo, fs, gf, dim, rect, dx, dy){
 	exec("rm -f " tmp " " gf "*")
 }
 
-function glowspr17(u,	i, r, n, fi, fo, gf, dim, rect, dx, dy){
+function glowspr17(u,	i, r, n, fi, fo, gf, frm, dim, rect, dx, dy){
 	n = split(glows[u], a)
 	gf = a[1] ".grp"
 	split(pipe("grp -sx ofire.bit " gf), dim)
@@ -94,7 +94,7 @@ function glowspr17(u,	i, r, n, fi, fo, gf, dim, rect, dx, dy){
 	exec("rm -f " tmp " " gf "*")
 }
 
-function build(u,	i, r, n, fi, fo, gf, dim, rect, dx, dy){
+function build(u,	i, r, n, fi, fo, gf, frm, dim, rect, dx, dy){
 	n = split(builds[u], a)
 	gf = a[1] ".grp"
 	split(pipe("grp -s " palfile " " gf), dim)
@@ -110,7 +110,7 @@ function build(u,	i, r, n, fi, fo, gf, dim, rect, dx, dy){
 	exec("rm -f " tmp " " gf "*")
 }
 
-function shad(u,	i, r, n, fi, fo, gf, dim, rect, dx, dy){
+function shad(u,	i, r, n, fi, fo, gf, frm, dim, rect, dx, dy){
 	n = split(shads[u], a)
 	gf = a[1] ".grp"
 	split(pipe("grp -s " palfile " " gf), dim)
@@ -122,6 +122,22 @@ function shad(u,	i, r, n, fi, fo, gf, dim, rect, dx, dy){
 		dx = rect[2] - ((dim[1] / 2 - a[2]) >= 32 ? 32 : 0)
 		dy = rect[3] - ((dim[2] / 2 - a[3]) >= 32 ? 32 : 0)
 		exec("sceshb " fi " " fo " " dx " " dy)
+	}
+	exec("rm -f " tmp " " gf "*")
+}
+
+function neutral(u,	i, r, n, fi, fo, gf, frm, dim, rect, dx, dy){
+	n = split(neutrals[u], a)
+	gf = a[1] ".grp"
+	split(pipe("grp -s " palfile " " gf), dim)
+	for(i=4; i<=n; i++){
+		frm = a[i]
+		fi = sprintf(gf ".%05d.bit", frm)
+		fo = sprintf(u ".%02d.00.bit", i-4)
+		split(pipe("read -c 60 " fi), rect)
+		dx = rect[2] - ((dim[1] / 2 - a[2]) >= 32 ? 32 : 0)
+		dy = rect[3] - ((dim[2] / 2 - a[3]) >= 32 ? 32 : 0)
+		exec("iconv -c r8g8b8 " fi " | crop -t " dx " " dy " >" fo)
 	}
 	exec("rm -f " tmp " " gf "*")
 }
@@ -153,27 +169,18 @@ BEGIN{
 	# width/2 height/2 frm..
 	builds["control"] = "control 58 41 0"
 	builds["hatchery"] = "hatchery 49 32 0 1 2 3"
-	builds["mineral0h"] = "min01 32 16 0"
-	builds["mineral0m"] = "min01 32 16 1"
-	builds["mineral0l"] = "min01 32 16 2"
-	builds["mineral1h"] = "min02 32 16 0"
-	builds["mineral1m"] = "min02 32 16 1"
-	builds["mineral1l"] = "min02 32 16 2"
-	builds["mineral2h"] = "min03 32 16 0"
-	builds["mineral2m"] = "min03 32 16 1"
-	builds["mineral2l"] = "min03 32 16 2"
+
+	# width/2 height/2 frm..
+	neutrals["mineral0"] = "min01 32 16 0 1 2"
+	neutrals["mineral1"] = "min02 32 16 0 1 2"
+	neutrals["mineral2"] = "min03 32 16 0 1 2"
+
 	# grp width/2 height/2 frm..
 	shads["control"] = "tccShad 58 41 0"
 	shads["hatchery"] = "zhashad 49 32 0"
-	shads["mineral0h"] = "min01Sha 32 16 0"
-	shads["mineral0m"] = "min01Sha 32 16 1"
-	shads["mineral0l"] = "min01Sha 32 16 2"
-	shads["mineral1h"] = "min02sha 32 16 0"
-	shads["mineral1m"] = "min02sha 32 16 1"
-	shads["mineral1l"] = "min02sha 32 16 2"
-	shads["mineral2h"] = "min03Sha 32 16 0"
-	shads["mineral2m"] = "min03Sha 32 16 1"
-	shads["mineral2l"] = "min03Sha 32 16 2"
+	shads["mineral0"] = "min01Sha 32 16 0 1 2"
+	shads["mineral1"] = "min02sha 32 16 0 1 2"
+	shads["mineral2"] = "min03Sha 32 16 0 1 2"
 	for(u in units)
 		unit17(u)
 	for(u in glows)
@@ -182,6 +189,8 @@ BEGIN{
 		build(u)
 	for(u in shads)
 		shad(u)
+	for(u in neutrals)
+		neutral(u)
 	tiles("badlands", 24)
 }
 '
