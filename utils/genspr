@@ -171,16 +171,16 @@ BEGIN{
 	builds["hatchery"] = "hatchery 49 32 0 1 2 3"
 
 	# width/2 height/2 frm..
-	neutrals["mineral0"] = "min01 32 16 0 1 2"
-	neutrals["mineral1"] = "min02 32 16 0 1 2"
-	neutrals["mineral2"] = "min03 32 16 0 1 2"
+	neutrals["mineral0"] = "min01 32 16 0 1 2 3"
+	neutrals["mineral1"] = "min02 32 16 0 1 2 3"
+	neutrals["mineral2"] = "min03 32 16 0 1 2 3"
 
 	# grp width/2 height/2 frm..
 	shads["control"] = "tccShad 58 41 0"
 	shads["hatchery"] = "zhashad 49 32 0"
-	shads["mineral0"] = "min01Sha 32 16 0 1 2"
-	shads["mineral1"] = "min02sha 32 16 0 1 2"
-	shads["mineral2"] = "min03Sha 32 16 0 1 2"
+	shads["mineral0"] = "min01Sha 32 16 0 1 2 3"
+	shads["mineral1"] = "min02sha 32 16 0 1 2 3"
+	shads["mineral2"] = "min03Sha 32 16 0 1 2 3"
 	for(u in units)
 		unit17(u)
 	for(u in glows)
