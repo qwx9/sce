@@ -12,6 +12,7 @@ obj,drone,0x1,4,4,40,0,224,1,50,0,20,spines,,4.92,67,12227,40
 obj,mutalisk,0x5,4,4,120,0,224,2,100,100,600,glave wurm,glave wurm,6.67,67,21745,40
 obj,control,0x8,16,12,1500,1,1,10,400,0,1800,,,0,0,0,0
 obj,hatchery,0x8,16,12,1250,1,1,10,300,0,1800,,,0,0,0,0
+obj,mineral0,0x8,8,8,1250,1,1,10,300,0,1800,,,0,0,0,0
 # spawn: objname, [obj..]
 spawn,control,scv
 spawn,hatchery,drone,mutalisk
@@ -29,3 +30,5 @@ spr,mutalisk,0x2,17,0,1,2,3,4
 spr,mutalisk,0xc002,17,0,1,2,3,4
 spr,mutalisk,0x4,17,0,1,2,3,4
 spr,mutalisk,0xc004,17,0,1,2,3,4
+spr,mineral0,2,1,0
+spr,mineral0,0xc002,1,0
