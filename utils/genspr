@@ -126,20 +126,28 @@ function shad(u,	i, r, n, fi, fo, gf, frm, dim, rect, dx, dy){
 	exec("rm -f " tmp " " gf "*")
 }
 
-function neutral(u,	i, r, n, fi, fo, gf, frm, dim, rect, dx, dy){
+function neutral(u,	i, r, n, fi, fo, gf, sf, frm, dim, rect, srect, dx, dy){
 	n = split(neutrals[u], a)
 	gf = a[1] ".grp"
+	sf = a[2] ".grp"
 	split(pipe("grp -s " palfile " " gf), dim)
-	for(i=4; i<=n; i++){
+	exec("grp -s " palfile " " sf " >/dev/null")
+	for(i=5; i<=n; i++){
 		frm = a[i]
 		fi = sprintf(gf ".%05d.bit", frm)
-		fo = sprintf(u ".%02d.00.bit", i-4)
+		fo = sprintf(u ".%02d.00.bit", i-5)
 		split(pipe("read -c 60 " fi), rect)
-		dx = rect[2] - ((dim[1] / 2 - a[2]) >= 32 ? 32 : 0)
-		dy = rect[3] - ((dim[2] / 2 - a[3]) >= 32 ? 32 : 0)
+		dx = rect[2] - ((dim[1] / 2 - a[3]) >= 32 ? 32 : 0)
+		dy = rect[3] - ((dim[2] / 2 - a[4]) >= 32 ? 32 : 0)
 		exec("iconv -c r8g8b8 " fi " | crop -t " dx " " dy " >" fo)
+		fi = sprintf(sf ".%05d.bit", frm)
+		fo = sprintf(u ".%02d.00.s.bit", i-5)
+		split(pipe("read -c 60 " fi), srect)
+		dx = srect[2] -(32 - rect[2])
+		dy = srect[3] -(32 - rect[3])
+		exec("sceshb " fi " " fo " " dx " " dy)
 	}
-	exec("rm -f " tmp " " gf "*")
+	exec("rm -f " tmp " " gf "* " sf "* ")
 }
 
 function tiles(t, ntile){
@@ -170,17 +178,14 @@ BEGIN{
 	builds["control"] = "control 58 41 0"
 	builds["hatchery"] = "hatchery 49 32 0 1 2 3"
 
-	# width/2 height/2 frm..
-	neutrals["mineral0"] = "min01 32 16 0 1 2 3"
-	neutrals["mineral1"] = "min02 32 16 0 1 2 3"
-	neutrals["mineral2"] = "min03 32 16 0 1 2 3"
+	# grp shadgrp width/2 height/2 frm..
+	neutrals["mineral0"] = "min01 min01Sha 32 16 0 1 2 3"
+	neutrals["mineral1"] = "min02 min02sha 32 16 0 1 2 3"
+	neutrals["mineral2"] = "min03 min03Sha 32 16 0 1 2 3"
 
 	# grp width/2 height/2 frm..
 	shads["control"] = "tccShad 58 41 0"
 	shads["hatchery"] = "zhashad 49 32 0"
-	shads["mineral0"] = "min01Sha 32 16 0 1 2 3"
-	shads["mineral1"] = "min02sha 32 16 0 1 2 3"
-	shads["mineral2"] = "min03Sha 32 16 0 1 2 3"
 	for(u in units)
 		unit17(u)
 	for(u in glows)
