@@ -19,7 +19,7 @@ int pause;
 QLock pauselck;
 int Δt = 1000;
 Point pan, center, shadofs;
-int frm, nfrm, rot, nrot, cansz;
+int frm, nfrm, rot, nrot, nspr, cansz;
 char *name;
 Image *canvas, *gridcol, *selcol, *bgcol, **imtab, **shtab;
 
@@ -55,7 +55,7 @@ redraw(void)
 		draw(canvas, rectaddpt(us->r, addpt(o, shadofs)), us, us, us->r.min);
 	}
 	r = ui->r;
-	r.max.y = r.min.y + Dy(r) / Nspr;
+	r.max.y = r.min.y + Dy(r) / nspr;
 	draw(canvas, rectaddpt(r, o), ui, ui, ui->r.min);
 	for(n=Nodesz; n<cansz; n+=Nodesz){
 		line(canvas, Pt(n,0), Pt(n,canvas->r.max.y), 0, 0, 0, gridcol, ZP);
@@ -136,7 +136,7 @@ timeproc(void *)
 void
 usage(void)
 {
-	fprint(2, "usage: %s [-rs] name frame..\n", argv0);
+	fprint(2, "usage: %s [-crs] name frame..\n", argv0);
 	threadexits("usage");
 }
 
@@ -150,7 +150,9 @@ threadmain(int argc, char **argv)
 
 	shad = 1;
 	nrot = Nrot;
+	nspr = Nspr;
 	ARGBEGIN{
+	case 'c': nspr = 1; break;
 	case 'r': nrot = 1; break;
 	case 's': shad = 0; break;
 	default: usage();
