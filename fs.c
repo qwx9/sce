@@ -513,8 +513,10 @@ loaddb(char *path)
 		for(t=table; t<table+nelem(table); t++)
 			if(strcmp(s, t->name) == 0)
 				break;
-		if(t == table + nelem(table))
-			sysfatal("loaddb: unknown table %s", s);
+		if(t == table + nelem(table)){
+			fprint(2, "loaddb: unknown table %s\n", s);
+			goto skip;
+		}
 		if(t->nrow != nil)
 			(*t->nrow)++;
 	skip:
@@ -530,6 +532,8 @@ loaddb(char *path)
 		for(t=table; t<table+nelem(table); t++)
 			if(strcmp(s, t->name) == 0)
 				break;
+		if(t == table + nelem(table))
+			goto next;
 		n = getcsvfields(p+1, fld, nelem(fld));
 		if(n != t->ncol && t->ncol >= 0)
 			sysfatal("loaddb: invalid row length %d for %s record %s", n, s, fld[0]);
