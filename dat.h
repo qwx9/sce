@@ -4,9 +4,10 @@ typedef struct Attack Attack;
 typedef struct Pic Pic;
 typedef struct Pics Pics;
 typedef struct Obj Obj;
+typedef struct Unit Unit;
 typedef struct Path Path;
-typedef struct Mobj Mobj;
-typedef struct Mobjl Mobjl;
+typedef struct Munit Munit;
+typedef struct Munitl Munitl;
 typedef struct Tile Tile;
 typedef struct Map Map;
 typedef struct Resource Resource;
@@ -115,6 +116,9 @@ struct Obj{
 	int w;
 	int h;
 	int f;
+};
+struct Unit{
+	Obj;
 	Attack *atk[2];
 	int hp;
 	int def;
@@ -125,7 +129,7 @@ struct Obj{
 	double accel;
 	double halt;
 	double turn;
-	Obj **spawn;
+	Unit **spawn;
 	int nspawn;
 };
 struct Path{
@@ -138,8 +142,8 @@ struct Path{
 	Point *pathp;
 	Point *pathe;
 };
-struct Mobj{
-	Obj *o;
+struct Munit{
+	Unit *u;
 	int idx;
 	long uuid;
 	int state;
@@ -153,20 +157,20 @@ struct Mobj{
 	double Δθ;
 	int Δθs;
 	Path;
-	double u;
-	double v;
+	double vx→;
+	double vy→;
 	double speed;
-	Mobjl *movingp;
-	Mobjl *mobjl;
+	Munitl *movingp;
+	Munitl *munitl;
 	int f;
 	int team;
 	int hp;
 	int xp;
 };
-struct Mobjl{
-	Mobj *mo;
-	Mobjl *l;
-	Mobjl *lp;
+struct Munitl{
+	Munit *mu;
+	Munitl *l;
+	Munitl *lp;
 };
 
 struct Tile{
@@ -174,7 +178,7 @@ struct Tile{
 };
 struct Map{
 	Tile *t;
-	Mobjl ml;
+	Munitl ml;
 };
 extern Map *map;
 extern int mapwidth, mapheight;
@@ -189,7 +193,7 @@ struct Team{
 	int r[Nresource];
 	int nunit;
 	int nbuild;
-	Mobj **mo;
+	Munit **mu;
 	int sz;
 	int firstempty;
 };

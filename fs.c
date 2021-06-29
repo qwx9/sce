@@ -9,11 +9,11 @@
 Resource resources[Nresource];
 
 typedef struct Table Table;
-typedef struct Objp Objp;
+typedef struct Unitp Unitp;
 typedef struct Picl Picl;
 typedef struct Tilel Tilel;
-struct Objp{
-	Obj *o;
+struct Unitp{
+	Unit *u;
 	int team;
 	int x;
 	int y;
@@ -43,11 +43,11 @@ struct Tilel{
 static Tilel tilel0 = {.l = &tilel0}, *tilel = &tilel0;
 static Pic tilesetpic;
 static Picl pic0 = {.l = &pic0}, *pic = &pic0;
-static Objp *objp;
+static Unitp *unitp;
 static Attack *attack;
-static Obj *obj;
+static Unit *unit;
 static char *tileset;
-static int nattack, nobj, nresource, nobjp;
+static int nattack, nunit, nresource, nunitp;
 static u32int bgcol = 0x00ffff;
 static int rot17idx[17] = {
 	0,2,4,6,8,10,12,14,16,17,19,21,23,25,27,29,31
@@ -96,7 +96,7 @@ loadpic(char *name, Pic *pic, int alpha)
 }
 
 static void
-loadobjpic(Pic *pic, Picl *pl, char *suff)
+loadunitpic(Pic *pic, Picl *pl, char *suff)
 {
 	int n, i, j;
 	char path[128];
@@ -112,7 +112,7 @@ loadobjpic(Pic *pic, Picl *pl, char *suff)
 			continue;
 		}
 		if(pic0.h % Nteam != 0)
-			sysfatal("loadobjpic: obj %s sprite sheet %d,%d: height not multiple of %d",
+			sysfatal("loadunitpic: unit %s sprite sheet %d,%d: height not multiple of %d",
 				pl->name, pic0.w, pic0.h, Nteam);
 		pic0.h /= Nteam;
 		n = pic0.w * pic0.h;
@@ -162,11 +162,11 @@ initimg(void)
 		if(pl->type & PFtile)
 			loadtilepic(p, pl);
 		else if(pl->type & PFshadow)
-			loadobjpic(p, pl, ".s");
+			loadunitpic(p, pl, ".s");
 		else if(pl->type & PFglow)
-			loadobjpic(p, pl, ".g");
+			loadunitpic(p, pl, ".g");
 		else
-			loadobjpic(p, pl, "");
+			loadunitpic(p, pl, "");
 		pic->l = pl->l;
 		free(pl);
 	}
@@ -233,7 +233,7 @@ vunpack(char **fld, char *fmt, va_list a)
 	char *s;
 	Attack *atk;
 	Resource *r;
-	Obj *o;
+	Unit *u;
 
 	for(;;){
 		switch(*fmt++){
@@ -275,16 +275,16 @@ vunpack(char **fld, char *fmt, va_list a)
 				sysfatal("vunpack: no such resource %s", s);
 			*va_arg(a, Resource**) = r;
 			break;
-		case 'o':
+		case 'u':
 			s = *fld++;
 			if(*s == 0)
-				sysfatal("vunpack: empty obj");
-			for(o=obj; o<obj+nobj; o++)
-				if(o->name != nil && strcmp(s, o->name) == 0)
+				sysfatal("vunpack: empty unit");
+			for(u=unit; u<unit+nunit; u++)
+				if(u->name != nil && strcmp(s, u->name) == 0)
 					break;
-			if(o == obj + nobj)
-				sysfatal("vunpack: no such obj %s", s);
-			*va_arg(a, Obj**) = o;
+			if(u == unit + nunit)
+				sysfatal("vunpack: no such unit %s", s);
+			*va_arg(a, Unit**) = u;
 			break;
 		case 't':
 			s = *fld++;
@@ -311,15 +311,15 @@ unpack(char **fld, char *fmt, ...)
 static void
 readspawn(char **fld, int n, Table *)
 {
-	Obj *o, **os, **oe;
+	Unit *u, **us, **ue;
 
-	unpack(fld++, "o", &o);
-	if(o->spawn != nil)
-		sysfatal("readspawn: spawn already assigned for obj %s", *fld);
-	o->spawn = emalloc(--n * sizeof *o->spawn);
-	o->nspawn = n;
-	for(os=o->spawn, oe=os+n; os<oe; os++)
-		unpack(fld++, "o", os);
+	unpack(fld++, "u", &u);
+	if(u->spawn != nil)
+		sysfatal("readspawn: spawn already assigned for unit %s", *fld);
+	u->spawn = emalloc(--n * sizeof *u->spawn);
+	u->nspawn = n;
+	for(us=u->spawn, ue=us+n; us<ue; us++)
+		unpack(fld++, "u", us);
 }
 
 static void
@@ -347,18 +347,18 @@ readmap(char **fld, int n, Table *tab)
 }
 
 static void
-readmapobj(char **fld, int, Table *tab)
+readmapunit(char **fld, int, Table *tab)
 {
-	Objp *op;
+	Unitp *up;
 
-	if(objp == nil)
-		objp = emalloc(nobjp * sizeof *objp);
-	op = objp + tab->row;
-	unpack(fld, "oddd", &op->o, &op->team, &op->x, &op->y);
-	if(op->team > nelem(teams))
-		op->team = 0;
-	if(op->team > nteam)
-		nteam = op->team;
+	if(unitp == nil)
+		unitp = emalloc(nunitp * sizeof *unitp);
+	up = unitp + tab->row;
+	unpack(fld, "uddd", &up->u, &up->team, &up->x, &up->y);
+	if(up->team > nelem(teams))
+		up->team = 0;
+	if(up->team > nteam)
+		nteam = up->team;
 }
 
 static void
@@ -386,44 +386,44 @@ readattack(char **fld, int, Table *tab)
 }
 
 static void
-readobj(char **fld, int, Table *tab)
+readunit(char **fld, int, Table *tab)
 {
-	Obj *o;
+	Unit *u;
 
-	if(obj == nil)
-		obj = emalloc(nobj * sizeof *obj);
-	o = obj + tab->row;
-	o->name = estrdup(*fld++);
-	unpack(fld, "ddddddddddaaffff", &o->f, &o->w, &o->h,
-		&o->hp, &o->def, &o->vis,
-		o->cost, o->cost+1, o->cost+2, &o->time,
-		o->atk, o->atk+1, &o->speed, &o->accel, &o->halt, &o->turn);
-	o->accel /= 256.0;
-	o->halt /= 256.0;
+	if(unit == nil)
+		unit = emalloc(nunit * sizeof *unit);
+	u = unit + tab->row;
+	u->name = estrdup(*fld++);
+	unpack(fld, "ddddddddddaaffff", &u->f, &u->w, &u->h,
+		&u->hp, &u->def, &u->vis,
+		u->cost, u->cost+1, u->cost+2, &u->time,
+		u->atk, u->atk+1, &u->speed, &u->accel, &u->halt, &u->turn);
+	u->accel /= 256.0;
+	u->halt /= 256.0;
 	/* halting distance in path node units */
-	o->halt /= Nodewidth;
-	if(o->w < 1 || o->h < 1)
-		sysfatal("readobj: %s invalid dimensions %d,%d", o->name, o->w, o->h);
+	u->halt /= Nodewidth;
+	if(u->w < 1 || u->h < 1)
+		sysfatal("readunit: %s invalid dimensions %d,%d", u->name, u->w, u->h);
 }
 
 static void
 readspr(char **fld, int n, Table *)
 {
 	int type, frm, nr;
-	Obj *o;
+	Unit *u;
 	Pics *ps;
 	Pic ***ppp, **p, **pe;
 
 	if(n < 4)
-		sysfatal("readspr %s: %d fields < 4 mandatory columns", o->name, n);
-	unpack(fld, "odd", &o, &type, &nr);
+		sysfatal("readspr %s: %d fields < 4 mandatory columns", u->name, n);
+	unpack(fld, "udd", &u, &type, &nr);
 	fld += 3;
 	n -= 3;
 	ps = nil;
 	switch(type & 0xf){
-	case PFidle: ps = o->pics[OSidle]; break;
-	case PFmove: ps = o->pics[OSmove]; break;
-	default: sysfatal("readspr %s: invalid type %#02ux", o->name, type & 0x7e);
+	case PFidle: ps = u->pics[OSidle]; break;
+	case PFmove: ps = u->pics[OSmove]; break;
+	default: sysfatal("readspr %s: invalid type %#02ux", u->name, type & 0x7e);
 	}
 	if(type & PFshadow)
 		ps += PTshadow;
@@ -433,9 +433,9 @@ readspr(char **fld, int n, Table *)
 		ps += PTbase;
 	ppp = &ps->pic;
 	if(*ppp != nil)
-		sysfatal("readspr %s: pic type %#ux already allocated", o->name, type);
+		sysfatal("readspr %s: pic type %#ux already allocated", u->name, type);
 	if(ps->nf != 0 && ps->nf != n || ps->nr != 0 && ps->nr != nr)
-		sysfatal("readspr %s: spriteset phase error", o->name);
+		sysfatal("readspr %s: spriteset phase error", u->name);
 	ps->teamcol = (type & (PFshadow|PFtile|PFglow)) == 0;
 	ps->nf = n;
 	ps->nr = nr;
@@ -443,13 +443,13 @@ readspr(char **fld, int n, Table *)
 	*ppp = p;
 	for(pe=p+n; p<pe; p++){
 		unpack(fld++, "d", &frm);
-		*p = pushpic(o->name, frm, type, nr, ps->teamcol);
+		*p = pushpic(u->name, frm, type, nr, ps->teamcol);
 	}
 }
 
 enum{
-	Tmapobj,
-	Tobj,
+	Tmapunit,
+	Tunit,
 	Tattack,
 	Tresource,
 	Tspawn,
@@ -458,8 +458,8 @@ enum{
 	Tspr,
 };
 Table table[] = {
-	[Tmapobj] {"mapobj", readmapobj, 4, &nobjp},
-	[Tobj] {"obj", readobj, 17, &nobj},
+	[Tmapunit] {"mapunit", readmapunit, 4, &nunitp},
+	[Tunit] {"unit", readunit, 17, &nunit},
 	[Tattack] {"attack", readattack, 4, &nattack},
 	[Tresource] {"resource", readresource, 2, &nresource},
 	[Tspawn] {"spawn", readspawn, -1, nil},
@@ -546,17 +546,17 @@ loaddb(char *path)
 }
 
 static void
-initmapobj(void)
+initmapunit(void)
 {
-	Objp *op;
+	Unitp *up;
 	Map *m;
 
 	for(m=map; m<map+mapwidth*mapheight; m++)
 		m->ml.l = m->ml.lp = &m->ml;
-	for(op=objp; op<objp+nobjp; op++)
-		if(spawn(op->x * Node2Tile, op->y * Node2Tile, op->o, op->team) < 0)
-			sysfatal("initmapobj: %s team %d: %r", op->o->name, op->team);
-	free(objp);
+	for(up=unitp; up<unitp+nunitp; up++)
+		if(spawn(up->x * Node2Tile, up->y * Node2Tile, up->u, up->team) < 0)
+			sysfatal("initmapunit: %s team %d: %r", up->u->name, up->team);
+	free(unitp);
 }
 
 static void
@@ -571,18 +571,18 @@ cleanup(void)
 }
 
 static void
-fixobjspr(void)
+fixunitspr(void)
 {
-	Obj *o;
+	Unit *u;
 	Pics *idle, *move;
 
-	for(o=obj; o<obj+nobj; o++){
-		if(o->f & Fbuild)
+	for(u=unit; u<unit+nunit; u++){
+		if(u->f & Fbuild)
 			continue;
-		idle = o->pics[OSidle];
-		move = o->pics[OSmove];
+		idle = u->pics[OSidle];
+		move = u->pics[OSmove];
 		if(idle[PTbase].pic == nil && move[PTbase].pic == nil)
-			sysfatal("obj %s: no base sprites loaded", o->name);
+			sysfatal("unit %s: no base sprites loaded", u->name);
 		if(idle[PTbase].pic == nil){
 			memcpy(idle+PTbase, move+PTbase, sizeof *idle);
 			memcpy(idle+PTshadow, move+PTshadow, sizeof *idle);
@@ -616,9 +616,9 @@ initdb(void)
 {
 	checkdb();
 	initmap();
-	initmapobj();
+	initmapunit();
 	cleanup();
-	fixobjspr();
+	fixunitspr();
 }
 
 void

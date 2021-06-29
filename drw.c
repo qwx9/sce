@@ -14,8 +14,8 @@ static u32int *fb, *fbvis;
 static Image *fbi;
 static Rectangle selr;
 static Point panmax;
-static Mobj *selected[Nselect];
-static Mobj **visbuf;
+static Munit *selected[Nselect];
+static Munit **visbuf;
 static int nvisbuf, nvis;
 
 enum{
@@ -29,7 +29,7 @@ enum{
 };
 typedef struct Drawlist Drawlist;
 struct Drawlist{
-	Mobj **mo;
+	Munit **mu;
 	Pic **pics;
 	int n;
 	int sz;
@@ -72,27 +72,27 @@ move(Point p)
 {
 	int i;
 	Point vp;
-	Mobj *mo, *it;
+	Munit *mu, *it;
 
 	it = selected[0];
 	if(!ptinrect(p, selr) || it == nil)
 		return;
 	vp = divpt(subpt(p, selr.min), scale);
 	i = fbvis[vp.y * fbw + vp.x];
-	mo = i == -1 ? nil : visbuf[i];
-	if(mo == it){
+	mu = i == -1 ? nil : visbuf[i];
+	if(mu == it){
 		dprint("select: %#p not moving to itself\n", it);
 		return;
 	}
 	p = divpt(addpt(subpt(p, selr.min), pan), scale);
 	p.x /= Nodewidth;
 	p.y /= Nodeheight;
-	if(nodemapwidth - p.x < it->o->w || nodemapheight - p.y < it->o->h){
+	if(nodemapwidth - p.x < it->u->w || nodemapheight - p.y < it->u->h){
 		dprint("select: %#p not moving beyond map edge\n", it);
 		return;
 	}
-	if(mo != nil)
-		sendmovenear(it, p, mo);
+	if(mu != nil)
+		sendmovenear(it, p, mu);
 	else
 		sendmove(it, p);
 }
@@ -101,18 +101,18 @@ static void
 drawhud(void)
 {
 	char s[256];
-	Mobj *mo;
+	Munit *mu;
 
 	draw(screen, Rpt(p0, screen->r.max), display->black, nil, ZP);
-	mo = selected[0];
-	if(mo == nil)
+	mu = selected[0];
+	if(mu == nil)
 		return;
-	snprint(s, sizeof s, "%s %d/%d", mo->o->name, mo->hp, mo->o->hp);
+	snprint(s, sizeof s, "%s %d/%d", mu->u->name, mu->hp, mu->u->hp);
 	string(screen, p0, display->white, ZP, font, s);
 }
 
 static int
-addvis(Mobj *mo)
+addvis(Munit *mu)
 {
 	int i;
 
@@ -121,7 +121,7 @@ addvis(Mobj *mo)
 			nvisbuf * sizeof *visbuf);
 		nvisbuf += 16;
 	}
-	visbuf[i] = mo;
+	visbuf[i] = mu;
 	return i;
 }
 
@@ -270,7 +270,7 @@ drawmap(Rectangle r)
 	int x, y;
 	u64int *row, v, m;
 	Node *n;
-	Mobj *mo;
+	Munit *mu;
 	Point *p;
 
 	r = Rpt(mulpt(r.min, Node2Tile), mulpt(r.max, Node2Tile));
@@ -293,15 +293,15 @@ drawmap(Rectangle r)
 		}
 		n += nodemapwidth - (r.max.x - r.min.x);
 	}
-	if((mo = selected[0]) != nil && mo->pathp != nil){
-		for(p=mo->paths; p<mo->pathe; p++)
+	if((mu = selected[0]) != nil && mu->pathp != nil){
+		for(p=mu->paths; p<mu->pathe; p++)
 			compose(p->x / Nodewidth, p->y / Nodeheight, 0x00ff00);
-		compose(mo->target.x, mo->target.y, 0x00ffff);
+		compose(mu->target.x, mu->target.y, 0x00ffff);
 	}
 }
 
 static Pic *
-frm(Mobj *mo, int type)
+frm(Munit *mu, int type)
 {
 	static int rot17[Nrot] = {
 		0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,
@@ -311,18 +311,18 @@ frm(Mobj *mo, int type)
 	Pics *pp;
 	Pic *p;
 
-	pp = &mo->o->pics[mo->state][type];
+	pp = &mu->u->pics[mu->state][type];
 	if(pp->pic == nil)
 		return nil;
-	frm = pp->iscopy ? mo->freezefrm : tc % pp->nf;
-	θ = mo->θ * 32.0 / 256;
+	frm = pp->iscopy ? mu->freezefrm : tc % pp->nf;
+	θ = mu->θ * 32.0 / 256;
 	switch(pp->nr){
 	case 17: θ = rot17[θ]; break;
 	default: θ = 0; break;
 	}
 	p = pp->pic[frm];
 	if(pp->teamcol)
-		p += nteam * θ + mo->team - 1;
+		p += nteam * θ + mu->team - 1;
 	else
 		p += θ;
 	return p;
@@ -338,55 +338,55 @@ clearlists(void)
 }
 
 static void
-drawmobjs(void)
+drawmunits(void)
 {
 	int n;
-	Mobj *mo;
+	Munit *mu;
 	Drawlist *dl;
 
 	for(dl=drawlist; dl<drawlist+DLend; dl++)
 		for(n=0; n<dl->n; n++){
-			mo = dl->mo[n];
+			mu = dl->mu[n];
 			if(dl->noalpha)
-				drawpic(mo->px, mo->py, dl->pics[n], addvis(mo));
+				drawpic(mu->px, mu->py, dl->pics[n], addvis(mu));
 			else
-				drawpicalpha(mo->px, mo->py, dl->pics[n]);
+				drawpicalpha(mu->px, mu->py, dl->pics[n]);
 		}
 }
 
 static void
-addpic(Drawlist *dl, Mobj *mo, int type)
+addpic(Drawlist *dl, Munit *mu, int type)
 {
 	int n;
 	Pic *p;
 
-	if((p = frm(mo, type)) == nil)
+	if((p = frm(mu, type)) == nil)
 		return;
 	if(dl->n >= dl->sz){
 		n = dl->sz * sizeof *dl->pics;
 		dl->pics = erealloc(dl->pics, n + 16 * sizeof *dl->pics, n);
-		dl->mo = erealloc(dl->mo, n + 16 * sizeof *dl->mo, n);
+		dl->mu = erealloc(dl->mu, n + 16 * sizeof *dl->mu, n);
 		dl->sz += 16;
 	}
 	n = dl->n++;
 	dl->pics[n] = p;
-	dl->mo[n] = mo;
+	dl->mu[n] = mu;
 }
 
 static void
-addmobjs(Map *m)
+addmunits(Map *m)
 {
 	int air;
-	Mobj *mo;
-	Mobjl *ml;
+	Munit *mu;
+	Munitl *ml;
 
 	for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
-		mo = ml->mo;
-		air = mo->o->f & Fair;
-		addpic(drawlist + (air ? DLairshad : DLgndshad), mo, PTshadow);
-		addpic(drawlist + (air ? DLair : DLgnd), mo, PTbase);
-		if(mo->state == OSmove)
-			addpic(drawlist + (air ? DLairglow : DLgndglow), mo, PTglow);
+		mu = ml->mu;
+		air = mu->u->f & Fair;
+		addpic(drawlist + (air ? DLairshad : DLgndshad), mu, PTshadow);
+		addpic(drawlist + (air ? DLair : DLgnd), mu, PTbase);
+		if(mu->state == OSmove)
+			addpic(drawlist + (air ? DLairglow : DLgndglow), mu, PTglow);
 	}
 }
 
@@ -425,11 +425,11 @@ redraw(void)
 	for(y=r.min.y, m=map+y*mapwidth+r.min.x; y<r.max.y; y++){
 		for(x=r.min.x; x<r.max.x; x++, m++){
 			drawpic(x*Tilewidth, y*Tileheight, m->t->p, -1);
-			addmobjs(m);
+			addmunits(m);
 		}
 		m += mapwidth - (r.max.x - r.min.x);
 	}
-	drawmobjs();
+	drawmunits();
 	if(debugmap)
 		drawmap(r);
 	drawhud();

@@ -6,17 +6,21 @@ resource,vespene gas,0
 attack,fusion cutter,5,10,15
 attack,spines,5,10,22
 attack,glave wurm,9,96,30
-# obj: name, flags, w, h, hp, def, vis, cost[3], time, attack[2], speed, accel, halt, turn
-obj,scv,0x3,4,4,60,0,224,1,50,0,20,fusion cutter,,4.92,67,12227,40
-obj,drone,0x1,4,4,40,0,224,1,50,0,20,spines,,4.92,67,12227,40
-obj,mutalisk,0x5,4,4,120,0,224,2,100,100,600,glave wurm,glave wurm,6.67,67,21745,40
-obj,control,0x8,16,12,1500,1,1,10,400,0,1800,,,0,0,0,0
-obj,hatchery,0x8,16,12,1250,1,1,10,300,0,1800,,,0,0,0,0
-obj,mineral0,0x8,8,8,1250,1,1,10,300,0,1800,,,0,0,0,0
-# spawn: objname, [obj..]
+# unit: name, flags, w, h, hp, def, vis, cost[3], time, attack[2], speed, accel, halt, turn
+unit,scv,0x3,4,4,60,0,224,1,50,0,20,fusion cutter,,4.92,67,12227,40
+unit,drone,0x1,4,4,40,0,224,1,50,0,20,spines,,4.92,67,12227,40
+unit,mutalisk,0x5,4,4,120,0,224,2,100,100,600,glave wurm,glave wurm,6.67,67,21745,40
+unit,control,0x8,16,12,1500,1,1,10,400,0,1800,,,0,0,0,0
+unit,hatchery,0x8,16,12,1250,1,1,10,300,0,1800,,,0,0,0,0
+unit,mineral0,0x8,8,8,1250,1,1,10,300,0,1800,,,0,0,0,0
+# gather: name, resource, w, h, state frame, [state frame..]
+gather,mineral0,minerals,12,8,0,1,2,3
+gather,mineral1,minerals,12,8,0,1,2,3
+gather,mineral2,minerals,12,8,0,1,2,3
+# spawn: unitname, [unit..]
 spawn,control,scv
 spawn,hatchery,drone,mutalisk
-# spr: objname, flags (PF enum), rotations, [frame..]
+# spr: unitname, flags (PF enum), rotations, [frame..]
 spr,scv,0x2,17,0
 spr,scv,0xc002,17,0
 spr,scv,0x6004,17,0,1,2,3
@@ -30,5 +34,6 @@ spr,mutalisk,0x2,17,0,1,2,3,4
 spr,mutalisk,0xc002,17,0,1,2,3,4
 spr,mutalisk,0x4,17,0,1,2,3,4
 spr,mutalisk,0xc004,17,0,1,2,3,4
+FIXME: flag: not animation frames, but state? or do it some other way; no team
 spr,mineral0,2,1,0
 spr,mineral0,0xc002,1,0
