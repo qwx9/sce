@@ -9,14 +9,14 @@ Team teams[Nteam], *curteam;
 int nteam;
 int initres[Nresource], foodcap;
 
-static Munitl moving0 = {.l = &moving0, .lp = &moving0}, *moving = &moving0;
+static Mobjl moving0 = {.l = &moving0, .lp = &moving0}, *moving = &moving0;
 
-static Munitl *
-linkmunit(Munitl *l, Munit *mu, Munitl *p)
+static Mobjl *
+linkmobj(Mobjl *l, Mobj *mo, Mobjl *p)
 {
 	if(p == nil)
 		p = emalloc(sizeof *p);
-	p->mu = mu;
+	p->mo = mo;
 	p->l = l->l;
 	p->lp = l;
 	l->l->lp = p;
@@ -25,7 +25,7 @@ linkmunit(Munitl *l, Munit *mu, Munitl *p)
 }
 
 static void
-unlinkmunit(Munitl *ml)
+unlinkmobj(Mobjl *ml)
 {
 	if(ml == nil || ml->l == nil || ml->lp == nil)
 		return;
@@ -35,55 +35,55 @@ unlinkmunit(Munitl *ml)
 }
 
 void
-linktomap(Munit *mu)
+linktomap(Mobj *mo)
 {
 	Map *m;
 
-	m = map + mu->y / Node2Tile * mapwidth + mu->x / Node2Tile;
-	mu->munitl = linkmunit(mu->f & Fair ? m->ml.lp : &m->ml, mu, mu->munitl);
+	m = map + mo->y / Node2Tile * mapwidth + mo->x / Node2Tile;
+	mo->mobjl = linkmobj(mo->f & Fair ? m->ml.lp : &m->ml, mo, mo->mobjl);
 }
 
 static void
-refmunit(Munit *mu)
+refmobj(Mobj *mo)
 {
 	int n, i;
 	Team *t;
 
-	t = teams + mu->team;
-	if(mu->f & Fbuild)
+	t = teams + mo->team;
+	if(mo->f & Fbuild)
 		t->nbuild++;
 	else
 		t->nunit++;
 	n = t->firstempty;
 	if(n == t->sz){
-		t->mu = erealloc(t->mu, (t->sz + 32) * sizeof *t->mu, t->sz * sizeof *t->mu);
+		t->mo = erealloc(t->mo, (t->sz + 32) * sizeof *t->mo, t->sz * sizeof *t->mo);
 		t->sz += 32;
 	}
-	t->mu[n] = mu;
-	mu->idx = mu->team << Teamshift | n;
+	t->mo[n] = mo;
+	mo->idx = mo->team << Teamshift | n;
 	for(i=t->firstempty+1; i<t->sz; i++)
-		if(t->mu[i] == nil)
+		if(t->mo[i] == nil)
 			break;
 	t->firstempty = i;
 }
 
 static void
-resetcoords(Munit *mu)
+resetcoords(Mobj *mo)
 {
-	markmunit(mu, 0);
-	mu->subpx = mu->px << Subpxshift;
-	mu->subpy = mu->py << Subpxshift;
-	markmunit(mu, 1);
+	markmobj(mo, 0);
+	mo->subpx = mo->px << Subpxshift;
+	mo->subpy = mo->py << Subpxshift;
+	markmobj(mo, 1);
 }
 
 static double
-facemunit(Point p, Munit *mu)
+facemobj(Point p, Mobj *mo)
 {
 	int dx, dy;
 	double vx, vy, d, θ, θ256, Δθ;
 
-	dx = p.x - mu->px;
-	dy = p.y - mu->py;
+	dx = p.x - mo->px;
+	dy = p.y - mo->py;
 	d = sqrt(dx * dx + dy * dy);
 	vx = dx / d;
 	vy = dy / d;
@@ -95,61 +95,61 @@ facemunit(Point p, Munit *mu)
 		θ -= 2 * PI;
 	/* movement calculations use values in [0;256[, drawing in [0;32[ */
 	θ256 = θ * 256.0 / (2 * PI);
-	mu->vx→ = vx;
-	mu->vy→ = vy;
-	Δθ = θ256 - mu->θ;
+	mo->u = vx;
+	mo->v = vy;
+	Δθ = θ256 - mo->θ;
 	if(Δθ <= -256 / 2)
 		Δθ += 256;
 	else if(Δθ >= 256 / 2)
 		Δθ -= 256;
-	mu->Δθs = Δθ < 0 ? -1: 1;
-	mu->Δθ = fabs(Δθ);
+	mo->Δθs = Δθ < 0 ? -1: 1;
+	mo->Δθ = fabs(Δθ);
 	return θ256;
 }
 
 static void
-freemove(Munit *mu)
+freemove(Mobj *mo)
 {
-	unlinkmunit(mu->movingp);
-	mu->pathp = nil;
-	mu->freezefrm = tc % mu->u->pics[mu->state][PTbase].nf;
-	mu->state = OSidle;
-	resetcoords(mu);
+	unlinkmobj(mo->movingp);
+	mo->pathp = nil;
+	mo->freezefrm = tc % mo->o->pics[mo->state][PTbase].nf;
+	mo->state = OSidle;
+	resetcoords(mo);
 }
 
 static void
-nextmove(Munit *mu)
+nextmove(Mobj *mo)
 {
-	resetcoords(mu);
-	facemunit(*mu->pathp, mu);
+	resetcoords(mo);
+	facemobj(*mo->pathp, mo);
 }
 
 static int
-repath(Point p, Munit *mu)
+repath(Point p, Mobj *mo)
 {
-	freemove(mu);
-	mu->target = p;
-	if(findpath(p, mu) < 0){
-		mu->θ = facemunit(p, mu);
+	freemove(mo);
+	mo->target = p;
+	if(findpath(p, mo) < 0){
+		mo->θ = facemobj(p, mo);
 		return -1;
 	}
-	mu->movingp = linkmunit(moving, mu, mu->movingp);
-	mu->pathp = mu->paths;
-	mu->state = OSmove;
-	nextmove(mu);
+	mo->movingp = linkmobj(moving, mo, mo->movingp);
+	mo->pathp = mo->paths;
+	mo->state = OSmove;
+	nextmove(mo);
 	return 0;
 }
 
 int
-moveone(Point p, Munit *mu, Munit *block)
+moveone(Point p, Mobj *mo, Mobj *block)
 {
-	if(mu->u->speed == 0){
-		dprint("move: unit %s can't move\n", mu->u->name);
+	if(mo->o->speed == 0){
+		dprint("move: obj %s can't move\n", mo->o->name);
 		return -1;
 	}
-	setgoal(&p, mu, block);
-	if(repath(p, mu) < 0){
-		mu->speed = 0.0;
+	setgoal(&p, mo, block);
+	if(repath(p, mo) < 0){
+		mo->speed = 0.0;
 		dprint("move to %d,%d: %r\n", p.x, p.y);
 		return -1;
 	}
@@ -157,84 +157,84 @@ moveone(Point p, Munit *mu, Munit *block)
 }
 
 int
-spawn(int x, int y, Unit *u, int n)
+spawn(int x, int y, Obj *o, int n)
 {
-	Munit *mu;
+	Mobj *mo;
 
-	if((mu = mapspawn(x, y, u)) == nil)
+	if((mo = mapspawn(x, y, o)) == nil)
 		return -1;
-	mu->team = n;
-	mu->state = OSidle;
-	refmunit(mu);
+	mo->team = n;
+	mo->state = OSidle;
+	refmobj(mo);
 	return 0;
 }
 
 static int
-tryturn(Munit *mu)
+tryturn(Mobj *mo)
 {
 	int r;
 	double Δθ;
 
 	r = 1;
-	if(mu->Δθ <= mu->u->turn){
+	if(mo->Δθ <= mo->o->turn){
 		r = 0;
-		Δθ = mu->Δθ;
+		Δθ = mo->Δθ;
 	}else
-		Δθ = mu->u->turn;
-	mu->θ += mu->Δθs * Δθ;
-	if(mu->θ < 0)
-		mu->θ += 256;
-	else if(mu->θ >= 256)
-		mu->θ -= 256;
-	mu->Δθ -= Δθ;
+		Δθ = mo->o->turn;
+	mo->θ += mo->Δθs * Δθ;
+	if(mo->θ < 0)
+		mo->θ += 256;
+	else if(mo->θ >= 256)
+		mo->θ -= 256;
+	mo->Δθ -= Δθ;
 	return r;
 }
 
 static void
-updatespeed(Munit *mu)
+updatespeed(Mobj *mo)
 {
-	if(1 + mu->pathlen < (mu->speed / 8) * (mu->speed / 8) / 2 / (mu->u->accel / 8)){
-		mu->speed -= mu->u->accel;
-		if(mu->speed < 0.0)
-			mu->speed = 0.0;
-	}else if(mu->speed < mu->u->speed){
-		mu->speed += mu->u->accel;
-		if(mu->speed > mu->u->speed)
-			mu->speed = mu->u->speed;
+	if(1 + mo->pathlen < (mo->speed / 8) * (mo->speed / 8) / 2 / (mo->o->accel / 8)){
+		mo->speed -= mo->o->accel;
+		if(mo->speed < 0.0)
+			mo->speed = 0.0;
+	}else if(mo->speed < mo->o->speed){
+		mo->speed += mo->o->accel;
+		if(mo->speed > mo->o->speed)
+			mo->speed = mo->o->speed;
 	}
 }
 
 static int
-trymove(Munit *mu)
+trymove(Mobj *mo)
 {
 	int x, y, px, py, sx, sy, Δx, Δy, Δu, Δv, Δrx, Δry, Δpx, Δpy;
 	double dx, dy;
 
-	markmunit(mu, 0);
-	px = mu->px;
-	py = mu->py;
-	sx = mu->subpx;
-	sy = mu->subpy;
-	Δu = mu->vx→ * (1 << Subpxshift);
-	Δv = mu->vy→ * (1 << Subpxshift);
+	markmobj(mo, 0);
+	px = mo->px;
+	py = mo->py;
+	sx = mo->subpx;
+	sy = mo->subpy;
+	Δu = mo->u * (1 << Subpxshift);
+	Δv = mo->v * (1 << Subpxshift);
 	Δx = abs(Δu);
 	Δy = abs(Δv);
-	Δrx = fabs(mu->vx→ * mu->speed) * (1 << Subpxshift);
-	Δry = fabs(mu->vy→ * mu->speed) * (1 << Subpxshift);
-	Δpx = abs((mu->pathp->x << Subpxshift) - sx);
-	Δpy = abs((mu->pathp->y << Subpxshift) - sy);
+	Δrx = fabs(mo->u * mo->speed) * (1 << Subpxshift);
+	Δry = fabs(mo->v * mo->speed) * (1 << Subpxshift);
+	Δpx = abs((mo->pathp->x << Subpxshift) - sx);
+	Δpy = abs((mo->pathp->y << Subpxshift) - sy);
 	if(Δpx < Δrx)
 		Δrx = Δpx;
 	if(Δpy < Δry)
 		Δry = Δpy;
 	while(Δrx > 0 || Δry > 0){
-		x = mu->x;
-		y = mu->y;
+		x = mo->x;
+		y = mo->y;
 		if(Δrx > 0){
 			sx += Δu;
 			Δrx -= Δx;
 			if(Δrx < 0)
-				sx += mu->vx→ < 0 ? -Δrx : Δrx;
+				sx += mo->u < 0 ? -Δrx : Δrx;
 			x = (sx >> Subpxshift) + ((sx & Subpxmask) != 0);
 			x /= Nodewidth;
 		}
@@ -242,110 +242,110 @@ trymove(Munit *mu)
 			sy += Δv;
 			Δry -= Δy;
 			if(Δry < 0)
-				sy += mu->vy→ < 0 ? -Δry : Δry;
+				sy += mo->v < 0 ? -Δry : Δry;
 			y = (sy >> Subpxshift) + ((sy & Subpxmask) != 0);
 			y /= Nodewidth;
 		}
-		if(isblocked(x, y, mu->u))
+		if(isblocked(x, y, mo->o))
 			goto end;
 		/* disallow corner coasting */
-		if(x != mu->x && y != mu->y
-		&& (isblocked(x, mu->y, mu->u) || isblocked(mu->x, y, mu->u))){
+		if(x != mo->x && y != mo->y
+		&& (isblocked(x, mo->y, mo->o) || isblocked(mo->x, y, mo->o))){
 			dprint("detected corner coasting %d,%d vs %d,%d\n",
-				x, y, mu->x, mu->y);
+				x, y, mo->x, mo->y);
 			goto end;
 		}
-		mu->subpx = sx;
-		mu->subpy = sy;
-		mu->px = sx >> Subpxshift;
-		mu->py = sy >> Subpxshift;
-		mu->x = mu->px / Nodewidth;
-		mu->y = mu->py / Nodeheight;
+		mo->subpx = sx;
+		mo->subpy = sy;
+		mo->px = sx >> Subpxshift;
+		mo->py = sy >> Subpxshift;
+		mo->x = mo->px / Nodewidth;
+		mo->y = mo->py / Nodeheight;
 	}
-	markmunit(mu, 1);
-	dx = mu->px - px;
+	markmobj(mo, 1);
+	dx = mo->px - px;
 	dx *= dx;
-	dy = mu->py - py;
+	dy = mo->py - py;
 	dy *= dy;
-	mu->pathlen -= sqrt(dx + dy) / Nodewidth;
+	mo->pathlen -= sqrt(dx + dy) / Nodewidth;
 	return 0;
 end:
 	werrstr("trymove: can't move to %d,%d", x, y);
-	mu->subpx = mu->px << Subpxshift;
-	mu->subpy = mu->py << Subpxshift;
-	markmunit(mu, 1);
-	dx = mu->px - px;
+	mo->subpx = mo->px << Subpxshift;
+	mo->subpy = mo->py << Subpxshift;
+	markmobj(mo, 1);
+	dx = mo->px - px;
 	dx *= dx;
-	dy = mu->py - py;
+	dy = mo->py - py;
 	dy *= dy;
-	mu->pathlen -= sqrt(dx + dy) / Nodewidth;
+	mo->pathlen -= sqrt(dx + dy) / Nodewidth;
 	return -1;
 }
 
 static int
-domove(Munit *mu)
+domove(Mobj *mo)
 {
 	int r;
 
-	updatespeed(mu);
-	unlinkmunit(mu->munitl);
-	r = trymove(mu);
-	linktomap(mu);
+	updatespeed(mo);
+	unlinkmobj(mo->mobjl);
+	r = trymove(mo);
+	linktomap(mo);
 	return r;
 }
 
 static void
-stepmove(Munit *mu)
+stepmove(Mobj *mo)
 {
 	int n;
 
 	n = 0;
 restart:
 	n++;
-	if(tryturn(mu))
+	if(tryturn(mo))
 		return;
-	if(domove(mu) < 0){
+	if(domove(mo) < 0){
 		if(n > 1){
 			fprint(2, "stepmove: %s %#p bug inducing infinite loop!\n",
-				mu->u->name, mu);
+				mo->o->name, mo);
 			return;
 		}
 		dprint("stepmove: failed to move: %r\n");
-		if(repath(mu->target, mu) < 0){
+		if(repath(mo->target, mo) < 0){
 			dprint("stepmove: %s %#p moving towards target: %r\n",
-				mu->u->name, mu);
-			mu->speed = 0.0;
+				mo->o->name, mo);
+			mo->speed = 0.0;
 			return;
 		}
 		goto restart;
 	}
-	if(mu->px == mu->pathp->x && mu->py == mu->pathp->y){
-		mu->pathp++;
-		if(mu->pathp < mu->pathe){
-			nextmove(mu);
+	if(mo->px == mo->pathp->x && mo->py == mo->pathp->y){
+		mo->pathp++;
+		if(mo->pathp < mo->pathe){
+			nextmove(mo);
 			return;
-		}else if(mu->x == mu->target.x && mu->y == mu->target.y){
-			mu->npatherr = 0;
-			mu->speed = 0.0;
-			freemove(mu);
+		}else if(mo->x == mo->target.x && mo->y == mo->target.y){
+			mo->npatherr = 0;
+			mo->speed = 0.0;
+			freemove(mo);
 			return;
 		}
 		dprint("stepmove: %s %#p reached final node, but not target\n",
-			mu->u->name, mu);
-		if(mu->goalblocked && isblocked(mu->target.x, mu->target.y, mu->u)){
+			mo->o->name, mo);
+		if(mo->goalblocked && isblocked(mo->target.x, mo->target.y, mo->o)){
 			dprint("stepmove: %s %#p goal still blocked, stopping\n",
-				mu->u->name, mu);
-			mu->speed = 0.0;
-			freemove(mu);
+				mo->o->name, mo);
+			mo->speed = 0.0;
+			freemove(mo);
 			return;
 		}
-		if(mu->npatherr++ > 1
-		|| repath(mu->target, mu) < 0){
+		if(mo->npatherr++ > 1
+		|| repath(mo->target, mo) < 0){
 			dprint("stepmove: %s %#p trying to find target: %r\n",
-				mu->u->name, mu);
-			mu->npatherr = 0;
-			mu->speed = 0.0;
-			freemove(mu);
+				mo->o->name, mo);
+			mo->npatherr = 0;
+			mo->speed = 0.0;
+			freemove(mo);
 		}
 	}
 }
@@ -353,10 +353,10 @@ restart:
 void
 stepsim(void)
 {
-	Munitl *ml, *uml;
+	Mobjl *ml, *oml;
 
-	for(uml=moving->l, ml=uml->l; uml!=moving; uml=ml, ml=ml->l)
-		stepmove(uml->mu);
+	for(oml=moving->l, ml=oml->l; oml!=moving; oml=ml, ml=ml->l)
+		stepmove(oml->mo);
 }
 
 void

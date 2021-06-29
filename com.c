@@ -58,11 +58,11 @@ unpack(uchar *p, uchar *e, char *fmt, ...)
 	return n;
 }
 
-static Munit *
-getmunit(Munit *r)
+static Mobj *
+getmobj(Mobj *r)
 {
 	int n;
-	Munit *mu;
+	Mobj *mo;
 	Team *t;
 
 	n = r->idx >> Teamshift & Nteam - 1;
@@ -72,18 +72,18 @@ getmunit(Munit *r)
 	}
 	t = teams + n;
 	n = r->idx & Teamidxmask;
-	if(n > t->sz || (mu = t->mu[n]) == nil){
-		werrstr("unit index %d out of bounds", n);
+	if(n > t->sz || (mo = t->mo[n]) == nil){
+		werrstr("obj index %d out of bounds", n);
 		return nil;
 	}
-	if(mu->idx != r->idx || mu->uuid != r->uuid
-	|| mu->x != r->x || mu->y != r->y){
+	if(mo->idx != r->idx || mo->uuid != r->uuid
+	|| mo->x != r->x || mo->y != r->y){
 		werrstr("phase error: %s at %d,%d has %#ux,%ld, req has %d,%d %#ux,%ld",
-			mu->u->name, mu->x, mu->y, mu->idx, mu->uuid,
+			mo->o->name, mo->x, mo->y, mo->idx, mo->uuid,
 			r->x, r->y, r->idx, r->uuid);
 		return nil;
 	}
-	return mu;
+	return mo;
 }
 
 static int
@@ -91,22 +91,22 @@ reqmovenear(uchar *p, uchar *e)
 {
 	int n;
 	Point click;
-	Munit reqm, reqt, *mu, *tgt;
+	Mobj reqm, reqt, *mo, *tgt;
 
 	if((n = unpack(p, e, "dldd dd dldd",
 	&reqm.idx, &reqm.uuid, &reqm.x, &reqm.y,
 	&click.x, &click.y,
 	&reqt.idx, &reqt.uuid, &reqt.x, &reqt.y)) < 0)
 		goto error;
-	if((mu = getmunit(&reqm)) == nil)
+	if((mo = getmobj(&reqm)) == nil)
 		goto error;
-	if((tgt = getmunit(&reqt)) == nil)
+	if((tgt = getmobj(&reqt)) == nil)
 		goto error;
 	if(click.x >= nodemapwidth || click.y >= nodemapheight){
 		werrstr("reqmove: invalid location %d,%d", click.x, click.y);
 		return -1;
 	}
-	moveone(click, mu, tgt);
+	moveone(click, mo, tgt);
 	return n;
 error:
 	return -1;
@@ -117,19 +117,19 @@ reqmove(uchar *p, uchar *e)
 {
 	int n;
 	Point tgt;
-	Munit reqm, *mu;
+	Mobj reqm, *mo;
 
 	if((n = unpack(p, e, "dldd dd",
 	&reqm.idx, &reqm.uuid, &reqm.x, &reqm.y,
 	&tgt.x, &tgt.y)) < 0)
 		goto error;
-	if((mu = getmunit(&reqm)) == nil)
+	if((mo = getmobj(&reqm)) == nil)
 		goto error;
 	if(tgt.x >= nodemapwidth || tgt.y >= nodemapheight){
 		werrstr("reqmove: invalid target %d,%d", tgt.x, tgt.y);
 		return -1;
 	}
-	moveone(tgt, mu, nil);
+	moveone(tgt, mo, nil);
 	return n;
 error:
 	return -1;
@@ -257,13 +257,13 @@ endmsg(Msg *m)
 }
 
 int
-sendmovenear(Munit *mu, Point click, Munit *tgt)
+sendmovenear(Mobj *mo, Point click, Mobj *tgt)
 {
 	Msg *m;
 
 	m = getclbuf();
 	if(packmsg(m, "h dldd dd dldd", Tmovenear,
-	mu->idx, mu->uuid, mu->x, mu->y,
+	mo->idx, mo->uuid, mo->x, mo->y,
 	click.x, click.y,
 	tgt->idx, tgt->uuid, tgt->x, tgt->y) < 0){
 		fprint(2, "sendmovenear: %r\n");
@@ -273,13 +273,13 @@ sendmovenear(Munit *mu, Point click, Munit *tgt)
 }
 
 int
-sendmove(Munit *mu, Point tgt)
+sendmove(Mobj *mo, Point tgt)
 {
 	Msg *m;
 
 	m = getclbuf();
 	if(packmsg(m, "h dldd dd", Tmove,
-	mu->idx, mu->uuid, mu->x, mu->y,
+	mo->idx, mo->uuid, mo->x, mo->y,
 	tgt.x, tgt.y) < 0){
 		fprint(2, "sendmove: %r\n");
 		return -1;
