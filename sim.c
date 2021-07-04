@@ -40,7 +40,7 @@ linktomap(Mobj *mo)
 	Map *m;
 
 	m = map + mo->y / Node2Tile * mapwidth + mo->x / Node2Tile;
-	mo->mobjl = linkmobj(mo->f & Fair ? m->ml.lp : &m->ml, mo, mo->mobjl);
+	mo->mobjl = linkmobj(mo->o->f & Fair ? m->ml.lp : &m->ml, mo, mo->mobjl);
 }
 
 static void
@@ -50,7 +50,7 @@ refmobj(Mobj *mo)
 	Team *t;
 
 	t = teams + mo->team;
-	if(mo->f & Fbuild)
+	if(mo->o->f & (Fbuild|Fimmutable))
 		t->nbuild++;
 	else
 		t->nunit++;
@@ -143,10 +143,6 @@ repath(Point p, Mobj *mo)
 int
 moveone(Point p, Mobj *mo, Mobj *block)
 {
-	if(mo->o->speed == 0){
-		dprint("move: obj %s can't move\n", mo->o->name);
-		return -1;
-	}
 	setgoal(&p, mo, block);
 	if(repath(p, mo) < 0){
 		mo->speed = 0.0;
@@ -157,14 +153,30 @@ moveone(Point p, Mobj *mo, Mobj *block)
 }
 
 int
-spawn(int x, int y, Obj *o, int n)
+spawnunit(int x, int y, Obj *o, int team)
 {
 	Mobj *mo;
 
 	if((mo = mapspawn(x, y, o)) == nil)
 		return -1;
-	mo->team = n;
+	mo->team = team;
+	mo->θ = frand() * 256;
+	mo->hp = o->hp;
 	mo->state = OSidle;
+	refmobj(mo);
+	return 0;
+}
+
+int
+spawnresource(int x, int y, Obj *o, int amount)
+{
+	Mobj *mo;
+
+	if((mo = mapspawn(x, y, o)) == nil)
+		return -1;
+	mo->state = -1;
+	mo->team = 0;
+	mo->amount = amount;
 	refmobj(mo);
 	return 0;
 }

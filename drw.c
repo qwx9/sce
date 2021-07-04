@@ -75,7 +75,7 @@ move(Point p)
 	Mobj *mo, *it;
 
 	it = selected[0];
-	if(!ptinrect(p, selr) || it == nil)
+	if(it == nil || it->o->f & Fimmutable || !ptinrect(p, selr))
 		return;
 	vp = divpt(subpt(p, selr.min), scale);
 	i = fbvis[vp.y * fbw + vp.x];
@@ -107,7 +107,10 @@ drawhud(void)
 	mo = selected[0];
 	if(mo == nil)
 		return;
-	snprint(s, sizeof s, "%s %d/%d", mo->o->name, mo->hp, mo->o->hp);
+	if(mo->o->f & Fresource)
+		snprint(s, sizeof s, "%s %d", mo->o->name, mo->amount);
+	else
+		snprint(s, sizeof s, "%s %d/%d", mo->o->name, mo->hp, mo->o->hp);
 	string(screen, p0, display->white, ZP, font, s);
 }
 
@@ -300,6 +303,16 @@ drawmap(Rectangle r)
 	}
 }
 
+static int
+stateframe(Mobj *mo)
+{
+	/* FIXME: will be replaced */
+	if(mo->o->f & Fresource){
+		return OSrich;
+	}
+	return mo->state;
+}
+
 static Pic *
 frm(Mobj *mo, int type)
 {
@@ -307,11 +320,16 @@ frm(Mobj *mo, int type)
 		0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,
 		9,9,10,10,11,11,12,12,13,13,14,14,15,15,16
 	};
-	int θ, frm;
+	int n, θ, frm;
 	Pics *pp;
 	Pic *p;
 
-	pp = &mo->o->pics[mo->state][type];
+	n = stateframe(mo);
+	if(n < 0 || n > OSend){
+		dprint("frm: %s invalid animation frame %d\n", mo->o->name, n);
+		return nil;
+	}
+	pp = &mo->o->pics[n][type];
 	if(pp->pic == nil)
 		return nil;
 	frm = pp->iscopy ? mo->freezefrm : tc % pp->nf;

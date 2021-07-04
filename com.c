@@ -66,7 +66,7 @@ getmobj(Mobj *r)
 	Team *t;
 
 	n = r->idx >> Teamshift & Nteam - 1;
-	if(n > nteam){
+	if(n < 0 || n > nteam){
 		werrstr("invalid team number %d", n);
 		return nil;
 	}
@@ -97,19 +97,21 @@ reqmovenear(uchar *p, uchar *e)
 	&reqm.idx, &reqm.uuid, &reqm.x, &reqm.y,
 	&click.x, &click.y,
 	&reqt.idx, &reqt.uuid, &reqt.x, &reqt.y)) < 0)
-		goto error;
+		return -1;
 	if((mo = getmobj(&reqm)) == nil)
-		goto error;
+		return -1;
+	if((mo->o->f & Fimmutable) || mo->o->speed == 0.0){
+		werrstr("reqmovenear: object %s can't move", mo->o->name);
+		return -1;
+	}
 	if((tgt = getmobj(&reqt)) == nil)
-		goto error;
+		return -1;
 	if(click.x >= nodemapwidth || click.y >= nodemapheight){
-		werrstr("reqmove: invalid location %d,%d", click.x, click.y);
+		werrstr("reqmovenear: invalid location %d,%d", click.x, click.y);
 		return -1;
 	}
 	moveone(click, mo, tgt);
 	return n;
-error:
-	return -1;
 }
 
 static int
@@ -122,17 +124,19 @@ reqmove(uchar *p, uchar *e)
 	if((n = unpack(p, e, "dldd dd",
 	&reqm.idx, &reqm.uuid, &reqm.x, &reqm.y,
 	&tgt.x, &tgt.y)) < 0)
-		goto error;
+		return -1;
 	if((mo = getmobj(&reqm)) == nil)
-		goto error;
+		return -1;
+	if((mo->o->f & Fimmutable) || mo->o->speed == 0.0){
+		werrstr("reqmove: object %s can't move", mo->o->name);
+		return -1;
+	}
 	if(tgt.x >= nodemapwidth || tgt.y >= nodemapheight){
 		werrstr("reqmove: invalid target %d,%d", tgt.x, tgt.y);
 		return -1;
 	}
 	moveone(tgt, mo, nil);
 	return n;
-error:
-	return -1;
 }
 
 static int

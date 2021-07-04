@@ -14,9 +14,11 @@ typedef struct Picl Picl;
 typedef struct Tilel Tilel;
 struct Objp{
 	Obj *o;
-	int team;
+	int resource;
 	int x;
 	int y;
+	int team;
+	int amount;
 };
 struct Table{
 	char name[64];
@@ -111,10 +113,10 @@ loadobjpic(Pic *pic, Picl *pl, char *suff)
 			memcpy(pic++, &pic0, sizeof *pic);
 			continue;
 		}
-		if(pic0.h % Nteam != 0)
+		if(pic0.h % Nplayteam != 0)
 			sysfatal("loadobjpic: obj %s sprite sheet %d,%d: height not multiple of %d",
-				pl->name, pic0.w, pic0.h, Nteam);
-		pic0.h /= Nteam;
+				pl->name, pic0.w, pic0.h, Nplayteam);
+		pic0.h /= Nplayteam;
 		n = pic0.w * pic0.h;
 		/* nteam has been set by now, no point in retaining sprites
 		 * for additional teams */
@@ -198,7 +200,7 @@ pushpic(char *name, int frm, int type, int nr, int hasteam)
 		/* nteam isn't guaranteed to be set correctly by now, so
 		 * just set to max */
 		if(hasteam)
-			n *= Nteam;
+			n *= Nplayteam;
 		pl->p = emalloc(n * sizeof *pl->p);
 		pl->l = pic->l;
 		pic->l = pl;
@@ -349,16 +351,24 @@ readmap(char **fld, int n, Table *tab)
 static void
 readmapobj(char **fld, int, Table *tab)
 {
+	int arg;
 	Objp *op;
 
 	if(objp == nil)
 		objp = emalloc(nobjp * sizeof *objp);
 	op = objp + tab->row;
-	unpack(fld, "oddd", &op->o, &op->team, &op->x, &op->y);
-	if(op->team > nelem(teams))
+	unpack(fld, "oddd", &op->o, &op->x, &op->y, &arg);
+	if(op->o->f & Fresource){
 		op->team = 0;
-	if(op->team > nteam)
-		nteam = op->team;
+		op->resource = 1;
+		op->amount = arg;
+	}else{
+		op->team = arg;
+		if(op->team <= 0 || op->team > nelem(teams))
+			sysfatal("readmapobj: invalid team number %d", op->team);
+		if(op->team > nteam)
+			nteam = op->team;
+	}
 }
 
 static void
@@ -398,10 +408,14 @@ readobj(char **fld, int, Table *tab)
 		&o->hp, &o->def, &o->vis,
 		o->cost, o->cost+1, o->cost+2, &o->time,
 		o->atk, o->atk+1, &o->speed, &o->accel, &o->halt, &o->turn);
-	o->accel /= 256.0;
-	o->halt /= 256.0;
-	/* halting distance in path node units */
-	o->halt /= Nodewidth;
+	if(o->f & Fresource)
+		o->f |= Fimmutable;
+	else{
+		o->accel /= 256.0;
+		o->halt /= 256.0;
+		/* halting distance in path node units */
+		o->halt /= Nodewidth;
+	}
 	if(o->w < 1 || o->h < 1)
 		sysfatal("readobj: %s invalid dimensions %d,%d", o->name, o->w, o->h);
 }
@@ -409,7 +423,7 @@ readobj(char **fld, int, Table *tab)
 static void
 readspr(char **fld, int n, Table *)
 {
-	int type, frm, nr;
+	int type, frm, nr, state;
 	Obj *o;
 	Pics *ps;
 	Pic ***ppp, **p, **pe;
@@ -419,24 +433,24 @@ readspr(char **fld, int n, Table *)
 	unpack(fld, "odd", &o, &type, &nr);
 	fld += 3;
 	n -= 3;
-	ps = nil;
-	switch(type & 0xf){
-	case PFidle: ps = o->pics[OSidle]; break;
-	case PFmove: ps = o->pics[OSmove]; break;
-	default: sysfatal("readspr %s: invalid type %#02ux", o->name, type & 0x7e);
-	}
-	if(type & PFshadow)
+	state = type & PFstatemask;
+	if(state > OSend)
+		sysfatal("readspr %s: invalid state %#02ux", o->name, state);
+	ps = o->pics[state];
+	if(type & PFshadow){
 		ps += PTshadow;
-	else if(type & PFglow)
+		type |= PFimmutable;
+	}else if(type & PFglow){
 		ps += PTglow;
-	else
+		type |= PFimmutable;
+	}else
 		ps += PTbase;
 	ppp = &ps->pic;
 	if(*ppp != nil)
 		sysfatal("readspr %s: pic type %#ux already allocated", o->name, type);
 	if(ps->nf != 0 && ps->nf != n || ps->nr != 0 && ps->nr != nr)
 		sysfatal("readspr %s: spriteset phase error", o->name);
-	ps->teamcol = (type & (PFshadow|PFtile|PFglow)) == 0;
+	ps->teamcol = (type & PFimmutable) == 0;
 	ps->nf = n;
 	ps->nr = nr;
 	p = emalloc(n * sizeof *ppp);
@@ -548,14 +562,21 @@ loaddb(char *path)
 static void
 initmapobj(void)
 {
+	int x, y;
 	Objp *op;
 	Map *m;
 
 	for(m=map; m<map+mapwidth*mapheight; m++)
 		m->ml.l = m->ml.lp = &m->ml;
-	for(op=objp; op<objp+nobjp; op++)
-		if(spawn(op->x * Node2Tile, op->y * Node2Tile, op->o, op->team) < 0)
-			sysfatal("initmapobj: %s team %d: %r", op->o->name, op->team);
+	for(op=objp; op<objp+nobjp; op++){
+		x = op->x * Node2Tile;
+		y = op->y * Node2Tile;
+		if(op->resource){
+			if(spawnresource(x, y, op->o, op->amount) < 0)
+				sysfatal("initmapobj: %s at %d,%d: %r", op->o->name, op->x, op->y);
+		}else if(spawnunit(x, y, op->o, op->team) < 0)
+			sysfatal("initmapobj: %s team %d at %d,%d: %r", op->o->name, op->team, op->x, op->y);
+	}
 	free(objp);
 }
 
@@ -577,7 +598,7 @@ fixobjspr(void)
 	Pics *idle, *move;
 
 	for(o=obj; o<obj+nobj; o++){
-		if(o->f & Fbuild)
+		if(o->f & (Fbuild|Fimmutable))
 			continue;
 		idle = o->pics[OSidle];
 		move = o->pics[OSmove];

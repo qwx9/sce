@@ -5,6 +5,8 @@ typedef struct Pic Pic;
 typedef struct Pics Pics;
 typedef struct Obj Obj;
 typedef struct Path Path;
+typedef struct Munit Munit;
+typedef struct Mresource Mresource;
 typedef struct Mobj Mobj;
 typedef struct Mobjl Mobjl;
 typedef struct Tile Tile;
@@ -19,7 +21,8 @@ enum{
 	Nselect = 12,
 	Nrot = 32,
 	/* oh boy */
-	Nteambits = 3,
+	Nplayteam = 8,		/* non-neutral player teams */
+	Nteambits = 4,
 	Nteam = 1 << Nteambits,
 	Teamshift = 32 - Nteambits,
 	Teamidxmask = ~(Nteam - 1 << Teamshift),
@@ -63,21 +66,6 @@ struct Node{
 extern Node *nodemap;
 extern int nodemapwidth, nodemapheight;
 
-struct Attack{
-	char *name;
-	int dmg;
-	int range;
-	int cool;
-};
-
-enum{
-	PFtile = 1<<0,
-	PFidle = 1<<1,
-	PFmove = 1<<2,
-	PFglow = 1<<13,
-	PFalpha = 1<<14,
-	PFshadow = 1<<15,
-};
 struct Pic{
 	u32int *p;
 	int w;
@@ -93,11 +81,20 @@ struct Pics{
 	int iscopy;
 };
 
+struct Attack{
+	char *name;
+	int dmg;
+	int range;
+	int cool;
+};
+
 enum{
 	Fbio = 1<<0,
 	Fmech = 1<<1,
 	Fair = 1<<2,
 	Fbuild = 1<<3,
+	Fresource = 1<<14,
+	Fimmutable = 1<<15,
 };
 enum{
 	PTbase,
@@ -105,9 +102,36 @@ enum{
 	PTglow,
 	PTend,
 
-	OSidle = 0,
-	OSmove,
-	OSend,
+	OState0 = 0,
+	OState1,
+	OState2,
+	OState3,
+ 	OSend,
+
+	/* unit */
+	OSidle = OState0,
+	OSmove = OState1,
+
+	/* resource */
+	OSrich = OState0,
+	OSmed = OState1,
+	OSlow = OState2,
+	OSpoor = OState3,
+};
+enum{
+	PFidle = OSidle,
+	PFmove = OSmove,
+	PFrich = OSrich,
+	PFmed = OSmed,
+	PFlow = OSlow,
+	PFpoor = OSpoor,
+	PFstatemask = (1 << 5) - 1,
+
+	PFimmutable = 1<<12,
+	PFglow = 1<<13,
+	PFalpha = 1<<14,
+	PFshadow = 1<<15,
+	PFtile = 1<<16,
 };
 struct Obj{
 	char *name;
@@ -138,17 +162,15 @@ struct Path{
 	Point *pathp;
 	Point *pathe;
 };
-struct Mobj{
-	Obj *o;
-	int idx;
-	long uuid;
+struct Mresource{
+	int amount;
+};
+struct Munit{
 	int state;
+	int team;
+	int hp;
+	int xp;
 	int freezefrm;
-	Point;
-	int px;
-	int py;
-	int subpx;
-	int subpy;
 	double θ;
 	double Δθ;
 	int Δθs;
@@ -158,10 +180,18 @@ struct Mobj{
 	double speed;
 	Mobjl *movingp;
 	Mobjl *mobjl;
-	int f;
-	int team;
-	int hp;
-	int xp;
+};
+struct Mobj{
+	Obj *o;
+	int idx;
+	long uuid;
+	Point;
+	int px;
+	int py;
+	int subpx;
+	int subpy;
+	Munit;
+	Mresource;
 };
 struct Mobjl{
 	Mobj *mo;

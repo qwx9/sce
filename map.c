@@ -62,7 +62,7 @@ getspawn(int *nx, int *ny, Obj *o)
 
 	x = *nx;
 	y = *ny;
-	if(o->f & Fbuild){
+	if(o->f & (Fbuild|Fimmutable)){
 		if(isblocked(x, y, o)){
 			werrstr("getspawn: building placement at %d,%d blocked", x, y);
 			return -1;
@@ -100,7 +100,7 @@ mapspawn(int x, int y, Obj *o)
 {
 	Mobj *mo;
 
-	if(o->f & Fbuild && (x & Node2Tile-1 || y & Node2Tile-1)){
+	if(o->f & (Fbuild|Fimmutable) && (x & Node2Tile-1 || y & Node2Tile-1)){
 		werrstr("mapspawn: building spawn %d,%d not aligned to tile map", x, y);
 		return nil;
 	}
@@ -115,9 +115,6 @@ mapspawn(int x, int y, Obj *o)
 	mo->subpx = mo->px << Subpxshift;
 	mo->subpy = mo->py << Subpxshift;
 	mo->o = o;
-	mo->f = o->f;
-	mo->hp = o->hp;
-	mo->θ = frand() * 256;
 	updatemap(mo);
 	return mo;
 }
