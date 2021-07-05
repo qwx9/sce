@@ -19,7 +19,7 @@ int pause;
 QLock pauselck;
 int Δt = 1000;
 Point pan, center, shadofs;
-int frm, nfrm, rot, nrot, nspr, cansz;
+int frm, nfrm, nshfrm, rot, nrot, nspr, cansz;
 char *name;
 Image *canvas, *gridcol, *selcol, *bgcol, **imtab, **shtab;
 
@@ -51,7 +51,7 @@ redraw(void)
 	ui = imtab[nrot * frm + rot];
 	us = nil;
 	if(shtab != nil){
-		us = shtab[nrot * frm + rot];
+		us = shtab[nrot * (nshfrm != 1 ? frm : 0) + rot];
 		draw(canvas, rectaddpt(us->r, addpt(o, shadofs)), us, us, us->r.min);
 	}
 	r = ui->r;
@@ -87,8 +87,10 @@ loadframe(char *frm, int rot, int shad)
 
 	if((path = smprint("/sys/games/lib/sce/%s.%s.%02ud%s.bit", name, frm, rot, shad?".s":"")) == nil)
 		sysfatal("mprint: %r");
-	if((fd = open(path, OREAD)) < 0)
-		sysfatal("open: %r");
+	if((fd = open(path, OREAD)) < 0){
+		fprint(2, "open: %r\n");
+		return nil;
+	}
 	if((i = readimage(display, fd, 0)) == nil)
 		sysfatal("readimage: %r");
 	close(fd);
@@ -164,21 +166,30 @@ threadmain(int argc, char **argv)
 	name = *argv++;
 	argc--;
 	nfrm = argc;
+	nshfrm = nfrm;
 	if((imtab = malloc(nfrm * nrot * sizeof *imtab)) == nil)
 		sysfatal("malloc: %r");
-	if(shad && (shtab = malloc(nfrm * nrot * sizeof *shtab)) == nil)
+	if(shad && (shtab = malloc(nshfrm * nrot * sizeof *shtab)) == nil)
 		sysfatal("malloc: %r");
 	i = imtab;
 	s = shtab;
 	while(*argv != nil){
 		for(n=0; n<nrot; n++){
 			nr = nrot == Nrot ? rot17[n] : n;
-			*i++ = loadframe(*argv, nr, 0);
-			if(shad)
-				*s++ = loadframe(*argv, nr, 1);
+			if((*i++ = loadframe(*argv, nr, 0)) == nil)
+				sysfatal("missing frame");
+			if(shad){
+				if((*s++ = loadframe(*argv, nr, 1)) == nil){
+					if(s - shtab == 1 || n != 0)
+						sysfatal("missing frame");
+					nshfrm = 1;
+				}
+			}
 		}
 		argv++;
 	}
+	if(nshfrm == 1 && nfrm > 1)
+		fprint(2, "only one shadow frame will be used\n");
 	fmtinstall('P', Pfmt);
 	fmtinstall('R', Rfmt);
 	resetdraw();
