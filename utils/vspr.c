@@ -251,8 +251,12 @@ threadmain(int argc, char **argv)
 			case 'r':
 			case Kesc: pan = ZP; redraw(); break;
 			case ' ': setpause(); break;
-			case Kup: shadofs.y -= 1; redraw(); break;
-			case Kdown: shadofs.y += 1; redraw(); break;
+			case 'w': shadofs.y--; redraw(); break;
+			case 's': shadofs.y++; redraw(); break;
+			case 'a': shadofs.x--; redraw(); break;
+			case 'd': shadofs.x++; redraw(); break;
+			case Kup: pan.y--; redraw(); break;
+			case Kdown: pan.y++; redraw(); break;
 			case Kright: rot = (rot + 1) % nrot; redraw(); break;
 			case Kleft: if(--rot < 0) rot = nrot - 1; redraw(); break;
 			case Kdel: case 'q': threadexitsall(nil);
