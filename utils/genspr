@@ -137,14 +137,14 @@ function neutral(u,	i, r, n, fi, fo, gf, sf, frm, dim, rect, srect, dx, dy){
 		fi = sprintf(gf ".%05d.bit", frm)
 		fo = sprintf(u ".%02d.00.bit", i-5)
 		split(pipe("read -c 60 " fi), rect)
-		dx = rect[2] - ((dim[1] / 2 - a[3]) >= 32 ? 32 : 0)
-		dy = rect[3] - ((dim[2] / 2 - a[4]) >= 32 ? 32 : 0)
+		dx = 0
+		dy = -31
 		exec("iconv -c r8g8b8 " fi " | crop -t " dx " " dy " >" fo)
 		fi = sprintf(sf ".%05d.bit", frm)
 		fo = sprintf(u ".%02d.00.s.bit", i-5)
 		split(pipe("read -c 60 " fi), srect)
-		dx = srect[2] -(32 - rect[2])
-		dy = srect[3] -(32 - rect[3])
+		dx = srect[2] - 32
+		dy = srect[3] - 31
 		exec("sceshb " fi " " fo " " dx " " dy)
 	}
 	exec("rm -f " tmp " " gf "* " sf "* ")
