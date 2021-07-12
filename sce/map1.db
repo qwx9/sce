@@ -28,3 +28,5 @@ mapobj,drone,10,10,2
 mapobj,mutalisk,10,10,2
 # overloaded for now
 mapobj,mineral0,8,2,1500
+mapobj,mineral1,10,2,1500
+mapobj,mineral2,12,2,1500

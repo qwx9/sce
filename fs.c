@@ -311,6 +311,25 @@ unpack(char **fld, char *fmt, ...)
 }
 
 static void
+readgather(char **fld, int n, Table *)
+{
+	Obj *o, **os;
+	Resource *r;
+
+	unpack(fld, "ro", &r, &o);
+	if(o->res != nil && o->res != r)
+		sysfatal("readgather %s: obj %s already assigned to %s",
+			r->name, o->name, o->res->name);
+	for(os=r->obj; os<r->obj+r->nobj; os++)
+		if(*os == o)
+			sysfatal("readgather: duplicate entry %s in %s\n", o->name, r->name);
+	n = r->nobj + 1;
+	r->obj = erealloc(r->obj, n * sizeof *r->obj, r->nobj * sizeof *r->obj);
+	r->obj[r->nobj++] = o;
+	o->res = r;
+}
+
+static void
 readspawn(char **fld, int n, Table *)
 {
 	Obj *o, **os, **oe;
@@ -372,15 +391,28 @@ readmapobj(char **fld, int, Table *tab)
 }
 
 static void
-readresource(char **fld, int, Table *tab)
+readresource(char **fld, int n, Table *tab)
 {
 	Resource *r;
+	int *ts, *te;
 
 	r = resources + tab->row;
 	if(r >= resources + nelem(resources))
 		sysfatal("readresource: out of bounds reference");
 	r->name = estrdup(*fld++);
-	unpack(fld, "d", &r->init);
+	unpack(fld++, "d", &r->init);
+	n -= 2;
+	if(n <= 0)
+		return;
+	if(n > OSend)
+		sysfatal("readresource: invalid number of states %d", n);
+	r->thresh = emalloc(n * sizeof *r->thresh);
+	r->nthresh = n;
+	for(ts=r->thresh, te=ts+n; ts<te; ts++){
+		unpack(fld++, "d", ts);
+		if(*ts < 1)
+			sysfatal("readresource: invalid threshold %d\n", *ts);
+	}
 }
 
 static void
@@ -470,16 +502,18 @@ enum{
 	Ttileset,
 	Tmap,
 	Tspr,
+	Tgather,
 };
 Table table[] = {
 	[Tmapobj] {"mapobj", readmapobj, 4, &nobjp},
 	[Tobj] {"obj", readobj, 17, &nobj},
 	[Tattack] {"attack", readattack, 4, &nattack},
-	[Tresource] {"resource", readresource, 2, &nresource},
+	[Tresource] {"resource", readresource, -1, &nresource},
 	[Tspawn] {"spawn", readspawn, -1, nil},
 	[Ttileset] {"tileset", readtileset, 1, nil},
 	[Tmap] {"map", readmap, -1, &mapheight},
 	[Tspr] {"spr", readspr, -1, nil},
+	[Tgather] {"gather", readgather, -1, nil},
 };
 
 static int

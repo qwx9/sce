@@ -151,6 +151,7 @@ struct Obj{
 	double turn;
 	Obj **spawn;
 	int nspawn;
+	Resource *res;
 };
 struct Path{
 	Point target;
@@ -212,6 +213,10 @@ extern int mapwidth, mapheight;
 struct Resource{
 	char *name;
 	int init;
+	Obj **obj;
+	int nobj;
+	int *thresh;
+	int nthresh;
 };
 extern Resource resources[Nresource];
 

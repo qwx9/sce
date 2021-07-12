@@ -303,16 +303,6 @@ drawmap(Rectangle r)
 	}
 }
 
-static int
-stateframe(Mobj *mo)
-{
-	/* FIXME: will be replaced */
-	if(mo->o->f & Fresource){
-		return OSrich;
-	}
-	return mo->state;
-}
-
 static Pic *
 frm(Mobj *mo, int type)
 {
@@ -324,7 +314,7 @@ frm(Mobj *mo, int type)
 	Pics *pp;
 	Pic *p;
 
-	n = stateframe(mo);
+	n = mo->state;
 	if(n < 0 || n > OSend){
 		dprint("frm: %s invalid animation frame %d\n", mo->o->name, n);
 		return nil;

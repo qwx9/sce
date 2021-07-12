@@ -170,13 +170,25 @@ spawnunit(int x, int y, Obj *o, int team)
 int
 spawnresource(int x, int y, Obj *o, int amount)
 {
+	int *t, *te;
 	Mobj *mo;
+	Resource *r;
 
 	if((mo = mapspawn(x, y, o)) == nil)
 		return -1;
-	mo->state = -1;
 	mo->team = 0;
 	mo->amount = amount;
+	mo->state = OSrich;
+	r = o->res;
+	for(t=r->thresh, te=t+r->nthresh; t<te; t++){
+		if(amount >= *t)
+			break;
+		mo->state++;
+	}
+	if(mo->state >= OSend){
+		dprint("spawnresource %s %d,%d: invalid state %d\n", o->name, x, y, mo->state);
+		mo->state = OSpoor;
+	}
 	refmobj(mo);
 	return 0;
 }
