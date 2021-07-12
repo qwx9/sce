@@ -174,6 +174,10 @@ spawnresource(int x, int y, Obj *o, int amount)
 	Mobj *mo;
 	Resource *r;
 
+	if(amount <= 0){
+		werrstr("spawnresource: invalid amount");
+		return -1;
+	}
 	if((mo = mapspawn(x, y, o)) == nil)
 		return -1;
 	mo->team = 0;
