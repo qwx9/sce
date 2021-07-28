@@ -12,6 +12,7 @@ OFILES=\
 	pheap.$O\
 	sce.$O\
 	sim.$O\
+	sim.move.$O\
 	snd.$O\
 	sv.$O\
 	util.$O\
