@@ -12,7 +12,7 @@ linktomap(Mobj *mo)
 	Map *m;
 
 	m = map + mo->y / Node2Tile * mapwidth + mo->x / Node2Tile;
-	mo->mobjl = linkmobj(mo->o->f & Fair ? m->ml.lp : &m->ml, mo, mo->mobjl);
+	mo->mapp = linkmobj(mo->o->f & Fair ? m->ml.lp : &m->ml, mo, mo->mapp);
 }
 
 static void
@@ -58,9 +58,19 @@ facemobj(Point p, Mobj *mo)
 static void
 freemove(Mobj *mo)
 {
+	Pics *old, *new;
+
 	unlinkmobj(mo->movingp);
 	mo->pathp = nil;
-	mo->freezefrm = tc % mo->o->pics[mo->state][PTbase].nf;
+	old = mo->o->pics[mo->state];
+	new = mo->o->pics[OSidle];
+	if(new->freeze && old->shared){
+		mo->freezefrm = tc % old[PTbase].nf;
+		if(mo->freezefrm > new[PTbase].nf)
+			sysfatal("freemove obj %s: invalid frame number %d > %d",
+				mo->o->name, mo->freezefrm, new[PTbase].nf);
+	}else
+		mo->freezefrm = 0;
 	mo->state = OSidle;
 	resetcoords(mo);
 }
@@ -219,7 +229,7 @@ domove(Mobj *mo)
 	int r;
 
 	updatespeed(mo);
-	unlinkmobj(mo->mobjl);
+	unlinkmobj(mo->mapp);
 	r = trymove(mo);
 	linktomap(mo);
 	return r;

@@ -322,7 +322,7 @@ frm(Mobj *mo, int type)
 	pp = &mo->o->pics[n][type];
 	if(pp->pic == nil)
 		return nil;
-	frm = pp->iscopy ? mo->freezefrm : tc % pp->nf;
+	frm = pp->freeze ? mo->freezefrm : tc % pp->nf;
 	θ = mo->θ * 32.0 / 256;
 	switch(pp->nr){
 	case 17: θ = rot17[θ]; break;

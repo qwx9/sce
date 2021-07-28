@@ -32,6 +32,7 @@ struct Picl{
 	int type;
 	int teamcol;
 	char *name;
+	char *suff;
 	char iname[64];
 	int nr;
 	Pic *p;
@@ -98,7 +99,7 @@ loadpic(char *name, Pic *pic, int alpha)
 }
 
 static void
-loadobjpic(Pic *pic, Picl *pl, char *suff)
+loadobjpic(Pic *pic, Picl *pl)
 {
 	int n, i, j;
 	char path[128];
@@ -107,7 +108,7 @@ loadobjpic(Pic *pic, Picl *pl, char *suff)
 
 	for(i=0; i<pl->nr; i++){
 		snprint(path, sizeof path, "%s.%02d.%02d%s.bit",
-			pl->name, pl->frm, rot17idx[i], suff);
+			pl->name, pl->frm, rot17idx[i], pl->suff);
 		loadpic(path, &pic0, pl->type & PFalpha);
 		if(!pl->teamcol){		
 			memcpy(pic++, &pic0, sizeof *pic);
@@ -163,12 +164,8 @@ initimg(void)
 		p = pl->p;
 		if(pl->type & PFtile)
 			loadtilepic(p, pl);
-		else if(pl->type & PFshadow)
-			loadobjpic(p, pl, ".s");
-		else if(pl->type & PFglow)
-			loadobjpic(p, pl, ".g");
 		else
-			loadobjpic(p, pl, "");
+			loadobjpic(p, pl);
 		pic->l = pl->l;
 		free(pl);
 	}
@@ -176,22 +173,33 @@ initimg(void)
 }
 
 static Pic *
-pushpic(char *name, int frm, int type, int nr, int hasteam)
+pushpic(char *name, int frm, int type, int nr, int hasteam, Pics *ps)
 {
 	int n;
-	char iname[64];
+	char iname[64], *suff;
 	Picl *pl;
 
-	snprint(iname, sizeof iname, "%s%02d%02ux", name, frm, type);
+	if(type & PFshadow)
+		suff = ".s";
+	else if(type & PFglow)
+		suff = ".g";
+	else
+		suff = "";
+	snprint(iname, sizeof iname, "%s.%02d%s", name, frm, suff);
 	for(pl=pic->l; pl!=pic; pl=pl->l)
-		if(strcmp(iname, pl->iname) == 0)
+		if(strcmp(iname, pl->iname) == 0){
+			if(ps == nil)
+				sysfatal("pushpic: tile pic cannot be shared");
+			ps->shared = 1;
 			break;
+		}
 	if(pl == pic){
 		pl = emalloc(sizeof *pl);
 		memcpy(pl->iname, iname, nelem(pl->iname));
 		pl->frm = frm;
 		pl->type = type;
 		pl->name = name;
+		pl->suff = suff;
 		pl->nr = nr;
 		pl->teamcol = hasteam;
 		if(nr != 17 && nr != 1)
@@ -220,7 +228,7 @@ pushtile(int id)
 		tl = emalloc(sizeof *tl);
 		tl->id = id;
 		tl->t = emalloc(sizeof *tl->t);
-		tl->t->p = pushpic("/tile/", id - 1, PFtile, 1, 0);
+		tl->t->p = pushpic("/tile/", id - 1, PFtile, 1, 0, nil);
 		tl->l = tilel->l;
 		tilel->l = tl;
 	}
@@ -482,6 +490,7 @@ readspr(char **fld, int n, Table *)
 		sysfatal("readspr %s: pic type %#ux already allocated", o->name, type);
 	if(ps->nf != 0 && ps->nf != n || ps->nr != 0 && ps->nr != nr)
 		sysfatal("readspr %s: spriteset phase error", o->name);
+	ps->freeze = (type & PFfreezepic) != 0;
 	ps->teamcol = (type & PFimmutable) == 0;
 	ps->nf = n;
 	ps->nr = nr;
@@ -489,7 +498,7 @@ readspr(char **fld, int n, Table *)
 	*ppp = p;
 	for(pe=p+n; p<pe; p++){
 		unpack(fld++, "d", &frm);
-		*p = pushpic(o->name, frm, type, nr, ps->teamcol);
+		*p = pushpic(o->name, frm, type, nr, ps->teamcol, ps);
 	}
 }
 
@@ -626,30 +635,13 @@ cleanup(void)
 }
 
 static void
-fixobjspr(void)
+checkobj(void)
 {
 	Obj *o;
-	Pics *idle, *move;
 
-	for(o=obj; o<obj+nobj; o++){
-		if(o->f & (Fbuild|Fimmutable))
-			continue;
-		idle = o->pics[OSidle];
-		move = o->pics[OSmove];
-		if(idle[PTbase].pic == nil && move[PTbase].pic == nil)
+	for(o=obj; o<obj+nobj; o++)
+		if(o->pics[OSidle][PTbase].pic == nil)
 			sysfatal("obj %s: no base sprites loaded", o->name);
-		if(idle[PTbase].pic == nil){
-			memcpy(idle+PTbase, move+PTbase, sizeof *idle);
-			memcpy(idle+PTshadow, move+PTshadow, sizeof *idle);
-			idle[PTbase].iscopy = 1;
-			idle[PTshadow].iscopy = 1;
-		}else if(move[PTbase].pic == nil){
-			memcpy(move+PTbase, idle+PTbase, sizeof *move);
-			memcpy(move+PTshadow, idle+PTshadow, sizeof *move);
-			move[PTbase].iscopy = 1;
-			move[PTshadow].iscopy = 1;
-		}
-	}
 }
 
 static void
@@ -670,10 +662,10 @@ static void
 initdb(void)
 {
 	checkdb();
+	checkobj();
 	initmap();
 	initmapobj();
 	cleanup();
-	fixobjspr();
 }
 
 void

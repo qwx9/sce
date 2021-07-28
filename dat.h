@@ -78,7 +78,8 @@ struct Pics{
 	int teamcol;
 	int nf;
 	int nr;
-	int iscopy;
+	int shared;
+	int freeze;
 };
 
 struct Attack{
@@ -127,6 +128,7 @@ enum{
 	PFpoor = OSpoor,
 	PFstatemask = (1 << 5) - 1,
 
+	PFfreezepic = 1<<11,
 	PFimmutable = 1<<12,
 	PFglow = 1<<13,
 	PFalpha = 1<<14,
@@ -180,7 +182,7 @@ struct Munit{
 	double v;
 	double speed;
 	Mobjl *movingp;
-	Mobjl *mobjl;
+	Mobjl *mapp;
 };
 struct Mobj{
 	Obj *o;
