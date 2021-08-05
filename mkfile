@@ -12,7 +12,10 @@ OFILES=\
 	pheap.$O\
 	sce.$O\
 	sim.$O\
+	sim.idle.$O\
 	sim.move.$O\
+	sim.resource.$O\
+	sim.spawn.$O\
 	snd.$O\
 	sv.$O\
 	util.$O\

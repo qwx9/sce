@@ -5,6 +5,8 @@ typedef struct Pic Pic;
 typedef struct Pics Pics;
 typedef struct Obj Obj;
 typedef struct Path Path;
+typedef struct Action Action;
+typedef struct Command Command;
 typedef struct Munit Munit;
 typedef struct Mresource Mresource;
 typedef struct Mobj Mobj;
@@ -108,6 +110,7 @@ enum{
 	OState2,
 	OState3,
  	OSend,
+ 	OSskymaybe = 666,
 
 	/* unit */
 	OSidle = OState0,
@@ -134,6 +137,8 @@ enum{
 	PFalpha = 1<<14,
 	PFshadow = 1<<15,
 	PFtile = 1<<16,
+
+	Ncmd = 32,
 };
 struct Obj{
 	char *name;
@@ -169,7 +174,6 @@ struct Mresource{
 	int amount;
 };
 struct Munit{
-	int state;
 	int team;
 	int hp;
 	int xp;
@@ -181,13 +185,30 @@ struct Munit{
 	double u;
 	double v;
 	double speed;
-	Mobjl *movingp;
-	Mobjl *mapp;
+	Mobjl *mobjl;
+	Mobjl *mapl;
+};
+struct Command{
+	int os;
+	char *name;
+	int (*initfn)(Mobj*);
+	Point goal;
+	vlong arg[4];
+};
+struct Action{
+	int os;
+	char *name;
+	void (*stepfn)(Mobj*);
+	void (*cleanupfn)(Mobj*);
 };
 struct Mobj{
 	Obj *o;
 	int idx;
 	long uuid;
+	int state;
+	Action *actp;
+	Command cmds[Ncmd];
+	int ctail;
 	Point;
 	int px;
 	int py;

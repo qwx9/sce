@@ -4,15 +4,13 @@
 #include "dat.h"
 #include "fns.h"
 
-static Mobjl moving0 = {.l = &moving0, .lp = &moving0}, *moving = &moving0;
-
 void
 linktomap(Mobj *mo)
 {
 	Map *m;
 
 	m = map + mo->y / Node2Tile * mapwidth + mo->x / Node2Tile;
-	mo->mapp = linkmobj(mo->o->f & Fair ? m->ml.lp : &m->ml, mo, mo->mapp);
+	mo->mapl = linkmobj(mo->o->f & Fair ? m->ml.lp : &m->ml, mo, mo->mapl);
 }
 
 static void
@@ -25,7 +23,7 @@ resetcoords(Mobj *mo)
 }
 
 static double
-facemobj(Point p, Mobj *mo)
+facegoal(Point p, Mobj *mo)
 {
 	int dx, dy;
 	double vx, vy, d, θ, θ256, Δθ;
@@ -56,83 +54,60 @@ facemobj(Point p, Mobj *mo)
 }
 
 static void
-freemove(Mobj *mo)
+nextpathnode(Mobj *mo)
 {
-	Pics *old, *new;
+	resetcoords(mo);
+	facegoal(*mo->pathp, mo);
+}
 
-	unlinkmobj(mo->movingp);
+static void
+clearpath(Mobj *mo)
+{
+	mo->speed = 0.0;
 	mo->pathp = nil;
-	old = mo->o->pics[mo->state];
-	new = mo->o->pics[OSidle];
-	if(new->freeze && old->shared){
-		mo->freezefrm = tc % old[PTbase].nf;
-		if(mo->freezefrm > new[PTbase].nf)
-			sysfatal("freemove obj %s: invalid frame number %d > %d",
-				mo->o->name, mo->freezefrm, new[PTbase].nf);
-	}else
-		mo->freezefrm = 0;
-	mo->state = OSidle;
 	resetcoords(mo);
 }
 
 static void
-nextmove(Mobj *mo)
+cleanup(Mobj *mo)
 {
-	resetcoords(mo);
-	facemobj(*mo->pathp, mo);
+	clearpath(mo);
+	mo->target = (Point){0,0};
+	mo->goalblocked = 0;
+	mo->pathlen = 0.0;
+	mo->npatherr = 0;
+}
+
+static void
+movedone(Mobj *mo)
+{
+	dprint("mobj %s %#p successfully reached goal\n", mo->o->name, mo);
+	nextaction(mo);
+}
+
+static void
+abortmove(Mobj *mo)
+{
+	werrstr("move aborted");
+	abortcommands(mo);
 }
 
 static int
 repath(Point p, Mobj *mo)
 {
-	freemove(mo);
+	clearpath(mo);
 	mo->target = p;
 	if(findpath(p, mo) < 0){
-		mo->θ = facemobj(p, mo);
+		mo->θ = facegoal(p, mo);
 		return -1;
 	}
-	mo->movingp = linkmobj(moving, mo, mo->movingp);
 	mo->pathp = mo->paths;
-	mo->state = OSmove;
-	nextmove(mo);
+	nextpathnode(mo);
 	return 0;
-}
-
-int
-moveone(Point p, Mobj *mo, Mobj *block)
-{
-	setgoal(&p, mo, block);
-	if(repath(p, mo) < 0){
-		mo->speed = 0.0;
-		dprint("move to %d,%d: %r\n", p.x, p.y);
-		return -1;
-	}
-	return 0;
-}
-
-static int
-tryturn(Mobj *mo)
-{
-	int r;
-	double Δθ;
-
-	r = 1;
-	if(mo->Δθ <= mo->o->turn){
-		r = 0;
-		Δθ = mo->Δθ;
-	}else
-		Δθ = mo->o->turn;
-	mo->θ += mo->Δθs * Δθ;
-	if(mo->θ < 0)
-		mo->θ += 256;
-	else if(mo->θ >= 256)
-		mo->θ -= 256;
-	mo->Δθ -= Δθ;
-	return r;
 }
 
 static void
-updatespeed(Mobj *mo)
+accelerate(Mobj *mo)
 {
 	if(1 + mo->pathlen < (mo->speed / 8) * (mo->speed / 8) / 2 / (mo->o->accel / 8)){
 		mo->speed -= mo->o->accel;
@@ -224,78 +199,143 @@ end:
 }
 
 static int
-domove(Mobj *mo)
+continuemove(Mobj *mo)
 {
 	int r;
 
-	updatespeed(mo);
-	unlinkmobj(mo->mapp);
+	accelerate(mo);
+	unlinkmobj(mo->mapl);
 	r = trymove(mo);
 	linktomap(mo);
 	return r;
 }
 
-static void
-stepmove(Mobj *mo)
+static int
+tryturn(Mobj *mo)
 {
-	int n;
+	int r;
+	double Δθ;
 
-	n = 0;
+	r = 1;
+	if(mo->Δθ <= mo->o->turn){
+		r = 0;
+		Δθ = mo->Δθ;
+	}else
+		Δθ = mo->o->turn;
+	mo->θ += mo->Δθs * Δθ;
+	if(mo->θ < 0)
+		mo->θ += 256;
+	else if(mo->θ >= 256)
+		mo->θ -= 256;
+	mo->Δθ -= Δθ;
+	return r;
+}
+
+static int
+nodereached(Mobj *mo)
+{
+	return mo->px == mo->pathp->x && mo->py == mo->pathp->y;
+}
+
+static void
+step(Mobj *mo)
+{
+	int nerr;
+
+	nerr = 0;
 restart:
-	n++;
 	if(tryturn(mo))
 		return;
-	if(domove(mo) < 0){
-		if(n > 1){
-			fprint(2, "stepmove: %s %#p bug inducing infinite loop!\n",
-				mo->o->name, mo);
+	if(continuemove(mo) < 0){
+		if(nerr > 1){
+			fprint(2, "stepmove: %s %#p bug: infinite loop!\n", mo->o->name, mo);
 			return;
 		}
-		dprint("stepmove: failed to move: %r\n");
+		dprint("stepmove: %s %#p failed moving to %d,%d from %d,%d: %r\n",
+			mo->o->name, mo, mo->pathp->x, mo->pathp->y, mo->px, mo->py);
 		if(repath(mo->target, mo) < 0){
-			dprint("stepmove: %s %#p moving towards target: %r\n",
-				mo->o->name, mo);
-			mo->speed = 0.0;
+			dprint("stepmove: %s %#p moving towards target: %r\n", mo->o->name, mo);
+			abortcommands(mo);
 			return;
 		}
+		nerr++;
 		goto restart;
 	}
-	if(mo->px == mo->pathp->x && mo->py == mo->pathp->y){
-		mo->pathp++;
-		if(mo->pathp < mo->pathe){
-			nextmove(mo);
-			return;
-		}else if(mo->x == mo->target.x && mo->y == mo->target.y){
-			mo->npatherr = 0;
-			mo->speed = 0.0;
-			freemove(mo);
-			return;
-		}
-		dprint("stepmove: %s %#p reached final node, but not target\n",
+	if(!nodereached(mo))
+		return;
+	mo->pathp++;
+	if(mo->pathp < mo->pathe){
+		nextpathnode(mo);
+		return;
+	}else if(mo->x == mo->target.x && mo->y == mo->target.y){
+		movedone(mo);
+		return;
+	}
+	dprint("stepmove: %s %#p reached final node, but not target\n",
+		mo->o->name, mo);
+	if(mo->goalblocked && isblocked(mo->target.x, mo->target.y, mo->o)){
+		dprint("stepmove: %s %#p goal still blocked, stopping\n", mo->o->name, mo);
+		abortmove(mo);
+		return;
+	}
+	dprint("stepmove: %s %#p trying again\n", mo->o->name, mo);
+	if(mo->npatherr++ > 1 || repath(mo->target, mo) < 0){
+		dprint("stepmove: %s %#p still can't reach target: %r\n",
 			mo->o->name, mo);
-		if(mo->goalblocked && isblocked(mo->target.x, mo->target.y, mo->o)){
-			dprint("stepmove: %s %#p goal still blocked, stopping\n",
-				mo->o->name, mo);
-			mo->speed = 0.0;
-			freemove(mo);
-			return;
-		}
-		if(mo->npatherr++ > 1
-		|| repath(mo->target, mo) < 0){
-			dprint("stepmove: %s %#p trying to find target: %r\n",
-				mo->o->name, mo);
-			mo->npatherr = 0;
-			mo->speed = 0.0;
-			freemove(mo);
-		}
+		abortmove(mo);
+		return;
 	}
 }
 
-void
-updatemoves(void)
-{
-	Mobjl *ml, *oml;
+static Action acts[] = {
+	{
+		.os = OSmove,
+		.name = "moving",
+		.stepfn = step,
+		.cleanupfn = cleanup,
+	},
+	{
+		.os = OSskymaybe,
+	}
+};
 
-	for(oml=moving->l, ml=oml->l; oml!=moving; oml=ml, ml=ml->l)
-		stepmove(oml->mo);
+int
+newmove(Mobj *mo)
+{
+	Point goal;
+	Mobj *block;
+	Command *c;
+
+	c = mo->cmds;
+	goal = c->goal;
+	block = nil;
+	if(c->arg[0] >= 0 && (block = derefmobj(c->arg[0], c->arg[1])) == nil)
+		return -1;
+	setgoal(&goal, mo, block);
+	if(repath(goal, mo) < 0)
+		return -1;
+	if(pushactions(mo, acts) < 0)
+		return -1;
+	return 0;
+}
+
+int
+pushmovecommand(Point goal, Mobj *mo, Mobj *block)
+{
+	Command *c;
+
+	if((c = pushcommand(mo)) == nil){
+		fprint(2, "pushmovecommand: %r\n");
+		return -1;
+	}
+	c->os = OSmove;
+	c->name = "move";
+	c->initfn = newmove;
+	c->goal = goal;
+	if(block != nil){
+		c->arg[0] = block->idx;
+		c->arg[1] = block->uuid;
+	}else
+		c->arg[0] = -1;
+	return 0;
 }

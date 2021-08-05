@@ -8,6 +8,8 @@ Team teams[Nteam], *curteam;
 int nteam;
 int initres[Nresource], foodcap;
 
+static Mobjl mobjl0 = {.l = &mobjl0, .lp = &mobjl0}, *mobjl = &mobjl0;
+
 Mobjl *
 linkmobj(Mobjl *l, Mobj *mo, Mobjl *p)
 {
@@ -31,12 +33,13 @@ unlinkmobj(Mobjl *ml)
 	ml->lp = ml->l = nil;
 }
 
-static void
+void
 refmobj(Mobj *mo)
 {
 	int n, i;
 	Team *t;
 
+	mo->mobjl = linkmobj(mobjl, mo, nil);
 	t = teams + mo->team;
 	if(mo->o->f & (Fbuild|Fimmutable))
 		t->nbuild++;
@@ -55,55 +58,104 @@ refmobj(Mobj *mo)
 	t->firstempty = i;
 }
 
-int
-spawnunit(int x, int y, Obj *o, int team)
+void
+nextaction(Mobj *mo)
 {
-	Mobj *mo;
-
-	if((mo = mapspawn(x, y, o)) == nil)
-		return -1;
-	mo->team = team;
-	mo->θ = frand() * 256;
-	mo->hp = o->hp;
-	mo->state = OSidle;
-	refmobj(mo);
-	return 0;
+	assert(mo->actp != nil);
+	if(mo->actp->cleanupfn != nil)
+		mo->actp->cleanupfn(mo);
+	mo->actp++;
+	if((mo->state = mo->actp->os) == OSskymaybe){
+		dprint("A nextaction %s %#p: done\n", mo->o->name, mo);
+		mo->actp = nil;
+		popcommand(mo);
+		return;
+	}
+	dprint("A nextaction %s %#p: %s\n", mo->o->name, mo, mo->actp->name);
 }
 
 int
-spawnresource(int x, int y, Obj *o, int amount)
+pushactions(Mobj *mo, Action *a)
 {
-	int *t, *te;
-	Mobj *mo;
-	Resource *r;
-
-	if(amount <= 0){
-		werrstr("spawnresource: invalid amount");
-		return -1;
-	}
-	if((mo = mapspawn(x, y, o)) == nil)
-		return -1;
-	mo->team = 0;
-	mo->amount = amount;
-	mo->state = OSrich;
-	r = o->res;
-	for(t=r->thresh, te=t+r->nthresh; t<te; t++){
-		if(amount >= *t)
-			break;
-		mo->state++;
-	}
-	if(mo->state >= OSend){
-		dprint("spawnresource %s %d,%d: invalid state %d\n", o->name, x, y, mo->state);
-		mo->state = OSpoor;
-	}
-	refmobj(mo);
+	mo->actp = a;
+	mo->state = a->os;
+	dprint("A pushaction %s %#p: %s\n", mo->o->name, mo, a->name);
 	return 0;
+}
+
+void
+clearcommands(Mobj *mo)
+{
+	dprint("C clearcommand %s %#p: %s\n", mo->o->name, mo, mo->cmds[0].name);
+	if(mo->actp != nil && mo->actp->cleanupfn != nil)
+		mo->actp->cleanupfn(mo);
+	mo->actp = nil;
+	memset(mo->cmds, 0, sizeof mo->cmds);
+	mo->ctail = 0;
+	idlestate(mo);
+}
+
+void
+abortcommands(Mobj *mo)
+{
+	dprint("C abortcommand %s %#p: %s\n", mo->o->name, mo, mo->cmds[0].name);
+	clearcommands(mo);
+}
+
+void
+popcommand(Mobj *mo)
+{
+	dprint("C popcommand %s %#p: %s\n", mo->o->name, mo, mo->cmds[0].name);
+	if(--mo->ctail > 0){
+		memmove(mo->cmds, mo->cmds+1, mo->ctail * sizeof *mo->cmds);
+		mo->state = OSskymaybe;
+	}else
+		clearcommands(mo);
+}
+
+Command *
+pushcommand(Mobj *mo)
+{
+	Command *c;
+
+	fprint(2, "pushcommand %s %#p\n", mo->o->name, mo);
+	if(mo->ctail >= nelem(mo->cmds)){
+		werrstr("command buffer overflow");
+		return nil;
+	}
+	c = mo->cmds + mo->ctail++;
+	if(mo->state == OSidle)
+		mo->state = OSskymaybe;
+	return c;
+}
+
+static void
+updatemobj(void)
+{
+	Mobjl *ml, *next;
+	Mobj *mo;
+
+	for(ml=mobjl->l, next=ml->l; ml!=mobjl; ml=next, next=next->l){
+		mo = ml->mo;
+		if(mo->state == OSidle)
+			continue;
+		if(mo->actp == nil
+		&& (mo->cmds[0].initfn(mo) < 0 || mo->actp == nil || mo->state == OSskymaybe)){
+			/* FIXME: always skymaybe */
+			abortcommands(mo);
+			continue;
+		}
+		if(mo->state == OSskymaybe)
+			sysfatal("updatemobj: %s cmd %s impossible/stale state %d",
+				mo->o->name, mo->cmds[0].name, mo->state);
+		mo->actp->stepfn(mo);
+	}
 }
 
 void
 stepsim(void)
 {
-	updatemoves();
+	updatemobj();
 }
 
 void

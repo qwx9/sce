@@ -59,28 +59,15 @@ unpack(uchar *p, uchar *e, char *fmt, ...)
 }
 
 static Mobj *
-getmobj(Mobj *r)
+mobjfromreq(Mobj *r)
 {
-	int n;
 	Mobj *mo;
-	Team *t;
 
-	n = r->idx >> Teamshift & Nteam - 1;
-	if(n < 0 || n > nteam){
-		werrstr("invalid team number %d", n);
+	if((mo = derefmobj(r->idx, r->uuid)) == nil)
 		return nil;
-	}
-	t = teams + n;
-	n = r->idx & Teamidxmask;
-	if(n > t->sz || (mo = t->mo[n]) == nil){
-		werrstr("obj index %d out of bounds", n);
-		return nil;
-	}
-	if(mo->idx != r->idx || mo->uuid != r->uuid
-	|| mo->x != r->x || mo->y != r->y){
-		werrstr("phase error: %s at %d,%d has %#ux,%ld, req has %d,%d %#ux,%ld",
-			mo->o->name, mo->x, mo->y, mo->idx, mo->uuid,
-			r->x, r->y, r->idx, r->uuid);
+	if(mo->x != r->x || mo->y != r->y){
+		werrstr("phase error: req mobj at %d,%d, found %s at %d,%d",
+			r->x, r->y, mo->o->name, mo->x, mo->y);
 		return nil;
 	}
 	return mo;
@@ -98,19 +85,21 @@ reqmovenear(uchar *p, uchar *e)
 	&click.x, &click.y,
 	&reqt.idx, &reqt.uuid, &reqt.x, &reqt.y)) < 0)
 		return -1;
-	if((mo = getmobj(&reqm)) == nil)
+	if((mo = mobjfromreq(&reqm)) == nil)
 		return -1;
 	if((mo->o->f & Fimmutable) || mo->o->speed == 0.0){
 		werrstr("reqmovenear: object %s can't move", mo->o->name);
 		return -1;
 	}
-	if((tgt = getmobj(&reqt)) == nil)
+	if((tgt = mobjfromreq(&reqt)) == nil)
 		return -1;
 	if(click.x >= nodemapwidth || click.y >= nodemapheight){
 		werrstr("reqmovenear: invalid location %d,%d", click.x, click.y);
 		return -1;
 	}
-	moveone(click, mo, tgt);
+	clearcommands(mo);
+	if(pushmovecommand(click, mo, tgt) < 0)
+		return -1;
 	return n;
 }
 
@@ -125,7 +114,7 @@ reqmove(uchar *p, uchar *e)
 	&reqm.idx, &reqm.uuid, &reqm.x, &reqm.y,
 	&tgt.x, &tgt.y)) < 0)
 		return -1;
-	if((mo = getmobj(&reqm)) == nil)
+	if((mo = mobjfromreq(&reqm)) == nil)
 		return -1;
 	if((mo->o->f & Fimmutable) || mo->o->speed == 0.0){
 		werrstr("reqmove: object %s can't move", mo->o->name);
@@ -135,7 +124,9 @@ reqmove(uchar *p, uchar *e)
 		werrstr("reqmove: invalid target %d,%d", tgt.x, tgt.y);
 		return -1;
 	}
-	moveone(tgt, mo, nil);
+	clearcommands(mo);
+	if(pushmovecommand(tgt, mo, nil) < 0)
+		return -1;
 	return n;
 }
 
