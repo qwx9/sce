@@ -118,7 +118,7 @@ pushcommand(Mobj *mo)
 {
 	Command *c;
 
-	fprint(2, "pushcommand %s %#p\n", mo->o->name, mo);
+	dprint("C pushcommand %s %#p\n", mo->o->name, mo);
 	if(mo->ctail >= nelem(mo->cmds)){
 		werrstr("command buffer overflow");
 		return nil;
@@ -141,7 +141,6 @@ updatemobj(void)
 			continue;
 		if(mo->actp == nil
 		&& (mo->cmds[0].initfn(mo) < 0 || mo->actp == nil || mo->state == OSskymaybe)){
-			/* FIXME: always skymaybe */
 			abortcommands(mo);
 			continue;
 		}
