@@ -23,8 +23,8 @@ derefmobj(int idx, long uuid)
 		return nil;
 	}
 	if(mo->idx != idx || mo->uuid != uuid){
-		werrstr("phase error: %#ux,%ld → %s %#ux,%ld",
-			idx, uuid, mo->o->name, mo->idx, mo->uuid);
+		werrstr("phase error: %#ux,%ld ≠ %M %#ux,%ld",
+			idx, uuid, mo, mo->idx, mo->uuid);
 		return nil;
 	}
 	return mo;

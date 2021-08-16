@@ -66,8 +66,8 @@ mobjfromreq(Mobj *r)
 	if((mo = derefmobj(r->idx, r->uuid)) == nil)
 		return nil;
 	if(mo->x != r->x || mo->y != r->y){
-		werrstr("phase error: req mobj at %d,%d, found %s at %d,%d",
-			r->x, r->y, mo->o->name, mo->x, mo->y);
+		werrstr("phase error: req mobj at %d,%d, found %M",
+			r->x, r->y, mo);
 		return nil;
 	}
 	return mo;
@@ -88,7 +88,7 @@ reqmovenear(uchar *p, uchar *e)
 	if((mo = mobjfromreq(&reqm)) == nil)
 		return -1;
 	if((mo->o->f & Fimmutable) || mo->o->speed == 0.0){
-		werrstr("reqmovenear: object %s can't move", mo->o->name);
+		werrstr("reqmovenear: object %M can't move", mo);
 		return -1;
 	}
 	if((tgt = mobjfromreq(&reqt)) == nil)
@@ -117,7 +117,7 @@ reqmove(uchar *p, uchar *e)
 	if((mo = mobjfromreq(&reqm)) == nil)
 		return -1;
 	if((mo->o->f & Fimmutable) || mo->o->speed == 0.0){
-		werrstr("reqmove: object %s can't move", mo->o->name);
+		werrstr("reqmove: object %M can't move", mo);
 		return -1;
 	}
 	if(tgt.x >= nodemapwidth || tgt.y >= nodemapheight){
@@ -171,12 +171,12 @@ parsemsg(Msg *m)
 		case Tmovenear: fn = reqmovenear; break;
 		case Teom:
 			if(p < e)
-				dprint("parsemsg: trailing data\n");
+				fprint(2, "parsemsg: trailing data\n");
 			return 0;
-		default: dprint("parsemsg: invalid message type %ux\n", type); return -1;
+		default: fprint(2, "parsemsg: invalid message type %ux\n", type); return -1;
 		}
 		if((n = fn(p, e)) < 0)
-			dprint("parsemsg: %r\n");
+			fprint(2, "parsemsg: %r\n");
 		else
 			p += n;
 	}
