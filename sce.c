@@ -191,6 +191,7 @@ threadmain(int argc, char **argv)
 	if(prefix == nil)
 		prefix = smprint("/sys/games/lib/%s", progname);
 	srand(time(nil));
+	fmtinstall('M', mobjfmt);
 	initfs();
 	initsv(tv, *argv);
 	initcl();

@@ -492,7 +492,7 @@ setgoal(Point *p, Mobj *mo, Mobj *block)
 		return;
 	}
 	mo->goalblocked = 1;
-	dprint("setgoal: moving goal %d,%d in block %#p ", p->x, p->y, block);
+	dprint("%M setgoal: moving goal %d,%d in block %#p ", mo, p->x, p->y, block);
 	pm = nodemap + p->y * nodemapwidth + p->x;
 	pm->x = p->x;
 	pm->y = p->y;
@@ -549,7 +549,7 @@ findpath(Point p, Mobj *mo)
 {
 	Node *a, *b, *n;
 
-	dprint("findpath %d,%d → %d,%d\n", mo->x, mo->y, p.x, p.y);
+	dprint("%M findpath to %d,%d\n", mo, p.x, p.y);
 	clearpath();
 	a = nodemap + mo->y * nodemapwidth + mo->x;
 	a->x = mo->x;
@@ -564,13 +564,13 @@ findpath(Point p, Mobj *mo)
 	markmobj(mo, 0);
 	n = a∗(a, b, mo);
 	if(n != b){
-		dprint("findpath: goal unreachable\n");
+		dprint("%M findpath: goal unreachable\n", mo);
 		if((n = nearest) == a || n == nil || a->h < n->h){
 			werrstr("a∗: can't move");
 			markmobj(mo, 1);
 			return -1;
 		}
-		dprint("nearest: %#p %d,%d dist %f\n", n, n->x, n->y, n->h);
+		dprint("%M nearest: %#p %d,%d dist %f\n", mo, n, n->x, n->y, n->h);
 		b = nearestnonjump(n, b, mo);
 		if(b == a){
 			werrstr("a∗: really can't move");

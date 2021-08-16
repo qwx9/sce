@@ -66,12 +66,12 @@ nextaction(Mobj *mo)
 		mo->actp->cleanupfn(mo);
 	mo->actp++;
 	if((mo->state = mo->actp->os) == OSskymaybe){
-		dprint("A nextaction %s %#p: done\n", mo->o->name, mo);
+		dprint("%M nextaction: done\n", mo);
 		mo->actp = nil;
 		popcommand(mo);
 		return;
 	}
-	dprint("A nextaction %s %#p: %s\n", mo->o->name, mo, mo->actp->name);
+	dprint("%M nextaction: %s\n", mo, mo->actp->name);
 }
 
 int
@@ -79,14 +79,13 @@ pushactions(Mobj *mo, Action *a)
 {
 	mo->actp = a;
 	mo->state = a->os;
-	dprint("A pushaction %s %#p: %s\n", mo->o->name, mo, a->name);
+	dprint("%M pushaction: %s\n", mo, a->name);
 	return 0;
 }
 
 void
 clearcommands(Mobj *mo)
 {
-	dprint("C clearcommand %s %#p: %s\n", mo->o->name, mo, mo->cmds[0].name);
 	if(mo->actp != nil && mo->actp->cleanupfn != nil)
 		mo->actp->cleanupfn(mo);
 	mo->actp = nil;
@@ -98,14 +97,14 @@ clearcommands(Mobj *mo)
 void
 abortcommands(Mobj *mo)
 {
-	dprint("C abortcommand %s %#p: %s\n", mo->o->name, mo, mo->cmds[0].name);
+	dprint("%M abortcommand: %s\n", mo, mo->cmds[0].name);
 	clearcommands(mo);
 }
 
 void
 popcommand(Mobj *mo)
 {
-	dprint("C popcommand %s %#p: %s\n", mo->o->name, mo, mo->cmds[0].name);
+	dprint("%M popcommand: %s\n", mo, mo->cmds[0].name);
 	if(--mo->ctail > 0){
 		memmove(mo->cmds, mo->cmds+1, mo->ctail * sizeof *mo->cmds);
 		mo->state = OSskymaybe;
@@ -118,7 +117,7 @@ pushcommand(Mobj *mo)
 {
 	Command *c;
 
-	dprint("C pushcommand %s %#p\n", mo->o->name, mo);
+	dprint("%M pushcommand\n", mo);
 	if(mo->ctail >= nelem(mo->cmds)){
 		werrstr("command buffer overflow");
 		return nil;

@@ -81,14 +81,14 @@ move(Point p)
 	i = fbvis[vp.y * fbw + vp.x];
 	mo = i == -1 ? nil : visbuf[i];
 	if(mo == it){
-		dprint("select: %#p not moving to itself\n", it);
+		dprint("select: %M not moving to itself\n", it);
 		return;
 	}
 	p = divpt(addpt(subpt(p, selr.min), pan), scale);
 	p.x /= Nodewidth;
 	p.y /= Nodeheight;
 	if(nodemapwidth - p.x < it->o->w || nodemapheight - p.y < it->o->h){
-		dprint("select: %#p not moving beyond map edge\n", it);
+		dprint("select: %M not moving beyond map edge\n", it);
 		return;
 	}
 	if(mo != nil)
@@ -316,7 +316,7 @@ frm(Mobj *mo, int type)
 
 	n = mo->state;
 	if(n < 0 || n > OSend){
-		dprint("frm: %s invalid animation frame %d\n", mo->o->name, n);
+		dprint("frm: %M invalid animation frame %d\n", mo, n);
 		return nil;
 	}
 	pp = &mo->o->pics[n][type];

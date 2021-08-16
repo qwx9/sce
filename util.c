@@ -18,6 +18,17 @@ min(int a, int b)
 	return a < b ? a : b;
 }
 
+int
+mobjfmt(Fmt *fmt)
+{
+	Mobj *mo;
+
+	mo = va_arg(fmt->args, Mobj*);
+	if(mo == nil)
+		return fmtstrcpy(fmt, "[]");
+	return fmtprint(fmt, "[%s:%#p:%d,%d]", mo->o->name, mo, mo->x, mo->y);
+}
+
 void
 dprint(char *fmt, ...)
 {

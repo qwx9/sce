@@ -81,7 +81,7 @@ cleanup(Mobj *mo)
 static void
 movedone(Mobj *mo)
 {
-	dprint("mobj %s %#p successfully reached goal\n", mo->o->name, mo);
+	dprint("%M successfully reached goal\n", mo);
 	nextaction(mo);
 }
 
@@ -167,8 +167,8 @@ trymove(Mobj *mo)
 		/* disallow corner coasting */
 		if(x != mo->x && y != mo->y
 		&& (isblocked(x, mo->y, mo->o) || isblocked(mo->x, y, mo->o))){
-			dprint("detected corner coasting %d,%d vs %d,%d\n",
-				x, y, mo->x, mo->y);
+			dprint("%M detected corner coasting at %d,%d\n",
+				mo, x, y);
 			goto end;
 		}
 		mo->subpx = sx;
@@ -248,13 +248,13 @@ restart:
 		return;
 	if(continuemove(mo) < 0){
 		if(nerr > 1){
-			fprint(2, "stepmove: %s %#p bug: infinite loop!\n", mo->o->name, mo);
+			fprint(2, "%M stepmove: bug: infinite loop!\n", mo);
 			return;
 		}
-		dprint("stepmove: %s %#p failed moving to %d,%d from %d,%d: %r\n",
-			mo->o->name, mo, mo->pathp->x, mo->pathp->y, mo->px, mo->py);
+		dprint("%M stepmove: failed moving from %d,%d to %d,%d: %r\n",
+			mo, mo->px, mo->py, mo->pathp->x, mo->pathp->y);
 		if(repath(mo->target, mo) < 0){
-			dprint("stepmove: %s %#p moving towards target: %r\n", mo->o->name, mo);
+			dprint("%M stepmove: failed moving towards target: %r\n", mo);
 			abortcommands(mo);
 			return;
 		}
@@ -271,17 +271,15 @@ restart:
 		movedone(mo);
 		return;
 	}
-	dprint("stepmove: %s %#p reached final node, but not target\n",
-		mo->o->name, mo);
+	dprint("%M stepmove: reached final node, but not target\n", mo);
 	if(mo->goalblocked && isblocked(mo->target.x, mo->target.y, mo->o)){
-		dprint("stepmove: %s %#p goal still blocked, stopping\n", mo->o->name, mo);
+		dprint("%M stepmove: goal still blocked, stopping\n", mo);
 		abortmove(mo);
 		return;
 	}
-	dprint("stepmove: %s %#p trying again\n", mo->o->name, mo);
+	dprint("%M stepmove: trying again\n", mo);
 	if(mo->npatherr++ > 1 || repath(mo->target, mo) < 0){
-		dprint("stepmove: %s %#p still can't reach target: %r\n",
-			mo->o->name, mo);
+		dprint("%M stepmove: still can't reach target: %r\n", mo);
 		abortmove(mo);
 		return;
 	}

@@ -59,6 +59,7 @@ u64int*	rbaddr(int, int);
 u64int*	bload(int, int, int, int, int, int, int, int);
 void	bset(int, int, int, int, int);
 void	initbmap(void);
+int	mobjfmt(Fmt*);
 void	dprint(char *, ...);
 int	max(int, int);
 int	min(int, int);
@@ -68,3 +69,4 @@ void*	emalloc(ulong);
 vlong	flen(int);
 
 #pragma	varargck	argpos	dprint	1
+#pragma	varargck	type	"M"	Mobj*
