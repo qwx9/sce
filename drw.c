@@ -112,6 +112,10 @@ drawhud(void)
 	else
 		snprint(s, sizeof s, "%s %d/%d", mo->o->name, mo->hp, mo->o->hp);
 	string(screen, p0, display->white, ZP, font, s);
+	if((mo->o->f & Fresource) == 0){
+		snprint(s, sizeof s, "%s", mo->actp!=nil ? mo->actp->name : "idle");
+		string(screen, addpt(p0, Pt(0,font->height)), display->white, ZP, font, s);
+	}
 }
 
 static int
