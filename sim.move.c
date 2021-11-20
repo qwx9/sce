@@ -82,7 +82,7 @@ static void
 movedone(Mobj *mo)
 {
 	dprint("%M successfully reached goal\n", mo);
-	nextaction(mo);
+	nextstate(mo);
 }
 
 static void
@@ -285,40 +285,25 @@ restart:
 	}
 }
 
-static Action acts[] = {
-	{
-		.os = OSmove,
-		.name = "moving",
-		.stepfn = step,
-		.cleanupfn = cleanup,
-	},
-	{
-		.os = OSskymaybe,
-	}
-};
-
 int
 newmove(Mobj *mo)
 {
 	Point goal;
-	Mobj *block;
 	Command *c;
 
 	c = mo->cmds;
+	c->cleanupfn = cleanup;
 	goal = c->goal;
-	block = nil;
-	if(c->arg[0] >= 0 && (block = derefmobj(c->arg[0], c->arg[1])) == nil)
-		return -1;
-	setgoal(&goal, mo, block);
+	setgoal(&goal, mo, c->target1);	/* FIXME: target[12] might be a problem for returns */
 	if(repath(goal, mo) < 0)
 		return -1;
-	if(pushactions(mo, acts) < 0)
-		return -1;
+	c->stepfn = step;
+	mo->state = OSmove;
 	return 0;
 }
 
 int
-pushmovecommand(Point goal, Mobj *mo, Mobj *block)
+pushmovecommand(Point goal, Mobj *mo, Mobj *target)
 {
 	Command *c;
 
@@ -326,14 +311,10 @@ pushmovecommand(Point goal, Mobj *mo, Mobj *block)
 		fprint(2, "pushmovecommand: %r\n");
 		return -1;
 	}
-	c->os = OSmove;
 	c->name = "move";
 	c->initfn = newmove;
 	c->goal = goal;
-	if(block != nil){
-		c->arg[0] = block->idx;
-		c->arg[1] = block->uuid;
-	}else
-		c->arg[0] = -1;
+	c->target1 = target;
+	c->nextfn = nil;
 	return 0;
 }

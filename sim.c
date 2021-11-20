@@ -8,6 +8,11 @@ Team teams[Nteam], *curteam;
 int nteam;
 int initres[Nresource], foodcap;
 
+char *statename[OSend] = {
+	[OSidle] "idle",
+	[OSmove] "moving",
+};
+
 static Mobjl mobjl0 = {.l = &mobjl0, .lp = &mobjl0}, *mobjl = &mobjl0;
 
 Mobjl *
@@ -59,36 +64,27 @@ refmobj(Mobj *mo)
 }
 
 void
-nextaction(Mobj *mo)
+nextstate(Mobj *mo)
 {
-	assert(mo->actp != nil);
-	if(mo->actp->cleanupfn != nil)
-		mo->actp->cleanupfn(mo);
-	mo->actp++;
-	if((mo->state = mo->actp->os) == OSskymaybe){
-		dprint("%M nextaction: done\n", mo);
-		mo->actp = nil;
-		popcommand(mo);
-		return;
-	}
-	dprint("%M nextaction: %s\n", mo, mo->actp->name);
-}
+	Command *c;
 
-int
-pushactions(Mobj *mo, Action *a)
-{
-	mo->actp = a;
-	mo->state = a->os;
-	dprint("%M pushaction: %s\n", mo, a->name);
-	return 0;
+	c = mo->cmds;
+	if(c->cleanupfn != nil)
+		c->cleanupfn(mo);
+	if(c->nextfn != nil)
+		c->nextfn(mo);
+	else
+		popcommand(mo);
 }
 
 void
 clearcommands(Mobj *mo)
 {
-	if(mo->actp != nil && mo->actp->cleanupfn != nil)
-		mo->actp->cleanupfn(mo);
-	mo->actp = nil;
+	Command *c;
+
+	c = mo->cmds;
+	if(c->cleanupfn != nil)
+		c->cleanupfn(mo);
 	memset(mo->cmds, 0, sizeof mo->cmds);
 	mo->ctail = 0;
 	idlestate(mo);
@@ -125,6 +121,7 @@ pushcommand(Mobj *mo)
 	c = mo->cmds + mo->ctail++;
 	if(mo->state == OSidle)
 		mo->state = OSskymaybe;
+	memset(c, 0, sizeof *c);
 	return c;
 }
 
@@ -133,20 +130,21 @@ updatemobj(void)
 {
 	Mobjl *ml, *next;
 	Mobj *mo;
+	Command *c;
 
 	for(ml=mobjl->l, next=ml->l; ml!=mobjl; ml=next, next=next->l){
 		mo = ml->mo;
 		if(mo->state == OSidle)
 			continue;
-		if(mo->actp == nil
-		&& (mo->cmds[0].initfn(mo) < 0 || mo->actp == nil || mo->state == OSskymaybe)){
+		c = mo->cmds;
+		if(mo->state == OSskymaybe && c->initfn(mo) < 0){
 			abortcommands(mo);
 			continue;
 		}
 		if(mo->state == OSskymaybe)
 			sysfatal("updatemobj: %s cmd %s impossible/stale state %d",
 				mo->o->name, mo->cmds[0].name, mo->state);
-		mo->actp->stepfn(mo);
+		c->stepfn(mo);
 	}
 }
 

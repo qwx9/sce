@@ -5,7 +5,6 @@ typedef struct Pic Pic;
 typedef struct Pics Pics;
 typedef struct Obj Obj;
 typedef struct Path Path;
-typedef struct Action Action;
 typedef struct Command Command;
 typedef struct Munit Munit;
 typedef struct Mresource Mresource;
@@ -189,24 +188,20 @@ struct Munit{
 	Mobjl *mapl;
 };
 struct Command{
-	int os;
 	char *name;
-	int (*initfn)(Mobj*);
 	Point goal;
-	vlong arg[4];
-};
-struct Action{
-	int os;
-	char *name;
+	Mobj *target1;
+	Mobj *target2;
+	int (*initfn)(Mobj*);
 	void (*stepfn)(Mobj*);
 	void (*cleanupfn)(Mobj*);
+	void (*nextfn)(Mobj*);
 };
 struct Mobj{
 	Obj *o;
 	int idx;
 	long uuid;
 	int state;
-	Action *actp;
 	Command cmds[Ncmd];
 	int ctail;
 	Point;
@@ -222,6 +217,7 @@ struct Mobjl{
 	Mobjl *l;
 	Mobjl *lp;
 };
+extern char *statename[OSend];
 
 struct Tile{
 	Pic *p;
