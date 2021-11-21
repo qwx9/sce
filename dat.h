@@ -95,6 +95,7 @@ enum{
 	Fmech = 1<<1,
 	Fair = 1<<2,
 	Fbuild = 1<<3,
+	Fgather = 1<<4,
 	Fresource = 1<<14,
 	Fimmutable = 1<<15,
 };
@@ -114,6 +115,7 @@ enum{
 	/* unit */
 	OSidle = OState0,
 	OSmove = OState1,
+	OSgather = OState2,
 
 	/* resource */
 	OSrich = OState0,
@@ -192,10 +194,11 @@ struct Command{
 	Point goal;
 	Mobj *target1;
 	Mobj *target2;
+	vlong tc;
 	int (*initfn)(Mobj*);
 	void (*stepfn)(Mobj*);
 	void (*cleanupfn)(Mobj*);
-	void (*nextfn)(Mobj*);
+	int (*nextfn)(Mobj*);
 };
 struct Mobj{
 	Obj *o;
@@ -256,11 +259,12 @@ extern char *netmtpt;
 extern int scale;
 
 enum{
-	Tquit = 0x1f,
-	Tpause,
-	Tmove,
-	Tmovenear,
-	Teom,
+	CTquit = 0x1f,
+	CTpause,
+	CTmove,
+	CTmovenear,
+	CTgather,
+	CTeom,
 
 	Nbuf = 4096,
 };

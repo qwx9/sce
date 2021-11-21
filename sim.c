@@ -11,6 +11,7 @@ int initres[Nresource], foodcap;
 char *statename[OSend] = {
 	[OSidle] "idle",
 	[OSmove] "moving",
+	[OSgather] "gathering",
 };
 
 static Mobjl mobjl0 = {.l = &mobjl0, .lp = &mobjl0}, *mobjl = &mobjl0;
@@ -71,9 +72,10 @@ nextstate(Mobj *mo)
 	c = mo->cmds;
 	if(c->cleanupfn != nil)
 		c->cleanupfn(mo);
-	if(c->nextfn != nil)
-		c->nextfn(mo);
-	else
+	if(c->nextfn != nil){
+		c->initfn = c->nextfn;
+		mo->state = OSskymaybe;
+	}else
 		popcommand(mo);
 }
 

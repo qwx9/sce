@@ -286,7 +286,7 @@ restart:
 }
 
 int
-newmove(Mobj *mo)
+pushmove(Mobj *mo)
 {
 	Point goal;
 	Command *c;
@@ -312,7 +312,7 @@ pushmovecommand(Point goal, Mobj *mo, Mobj *target)
 		return -1;
 	}
 	c->name = "move";
-	c->initfn = newmove;
+	c->initfn = pushmove;
 	c->goal = goal;
 	c->target1 = target;
 	c->nextfn = nil;

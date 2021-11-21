@@ -56,7 +56,7 @@ dopan(Point p)
 }
 
 void
-select(Point p)
+doselect(Point p)
 {
 	int i;
 
@@ -68,7 +68,7 @@ select(Point p)
 }
 
 void
-move(Point p)
+domove(Point p)
 {
 	int i;
 	Point vp;

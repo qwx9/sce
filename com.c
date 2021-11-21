@@ -74,6 +74,40 @@ mobjfromreq(Mobj *r)
 }
 
 static int
+reqgather(uchar *p, uchar *e)
+{
+	int n;
+	Point click;
+	Mobj reqm, reqt, *mo, *tgt;
+
+	if((n = unpack(p, e, "dldd dd dldd",
+	&reqm.idx, &reqm.uuid, &reqm.x, &reqm.y,
+	&click.x, &click.y,
+	&reqt.idx, &reqt.uuid, &reqt.x, &reqt.y)) < 0)
+		return -1;
+	if((mo = mobjfromreq(&reqm)) == nil)
+		return -1;
+	if((mo->o->f & Fgather) == 0){
+		werrstr("reqgather: object %M not a gatherer", mo);
+		return -1;
+	}
+	if((mo->o->f & Fimmutable) || mo->o->speed == 0.0){
+		werrstr("reqgather: object %M can't move", mo);
+		return -1;
+	}
+	if((tgt = mobjfromreq(&reqt)) == nil)
+		return -1;
+	if(click.x >= nodemapwidth || click.y >= nodemapheight){
+		werrstr("reqgather: invalid location %d,%d", click.x, click.y);
+		return -1;
+	}
+	clearcommands(mo);
+	if(pushgathercommand(click, mo, tgt) < 0)
+		return -1;
+	return n;
+}
+
+static int
 reqmovenear(uchar *p, uchar *e)
 {
 	int n;
@@ -166,10 +200,11 @@ parsemsg(Msg *m)
 	while(p < e){
 		type = *p++;
 		switch(type){
-		case Tpause: fn = reqpause; break;
-		case Tmove: fn = reqmove; break;
-		case Tmovenear: fn = reqmovenear; break;
-		case Teom:
+		case CTpause: fn = reqpause; break;
+		case CTmove: fn = reqmove; break;
+		case CTmovenear: fn = reqmovenear; break;
+		case CTgather: fn = reqgather; break;
+		case CTeom:
 			if(p < e)
 				fprint(2, "parsemsg: trailing data\n");
 			return 0;
@@ -247,8 +282,24 @@ packmsg(Msg *m, char *fmt, ...)
 void
 endmsg(Msg *m)
 {
-	packmsg(m, "h", Teom);
+	packmsg(m, "h", CTeom);
 	pack(m->buf, m->buf + Hdrsz, "s", m->sz - Hdrsz);
+}
+
+int
+sendgather(Mobj *mo, Point click, Mobj *tgt)
+{
+	Msg *m;
+
+	m = getclbuf();
+	if(packmsg(m, "h dldd dd dldd", CTgather,
+	mo->idx, mo->uuid, mo->x, mo->y,
+	click.x, click.y,
+	tgt->idx, tgt->uuid, tgt->x, tgt->y) < 0){
+		fprint(2, "sendgather: %r\n");
+		return -1;
+	}
+	return 0;
 }
 
 int
@@ -257,7 +308,7 @@ sendmovenear(Mobj *mo, Point click, Mobj *tgt)
 	Msg *m;
 
 	m = getclbuf();
-	if(packmsg(m, "h dldd dd dldd", Tmovenear,
+	if(packmsg(m, "h dldd dd dldd", CTmovenear,
 	mo->idx, mo->uuid, mo->x, mo->y,
 	click.x, click.y,
 	tgt->idx, tgt->uuid, tgt->x, tgt->y) < 0){
@@ -273,7 +324,7 @@ sendmove(Mobj *mo, Point tgt)
 	Msg *m;
 
 	m = getclbuf();
-	if(packmsg(m, "h dldd dd", Tmove,
+	if(packmsg(m, "h dldd dd", CTmove,
 	mo->idx, mo->uuid, mo->x, mo->y,
 	tgt.x, tgt.y) < 0){
 		fprint(2, "sendmove: %r\n");
@@ -288,7 +339,7 @@ sendpause(void)
 	Msg *m;
 
 	m = getclbuf();
-	if(packmsg(m, "h", Tpause) < 0){
+	if(packmsg(m, "h", CTpause) < 0){
 		fprint(2, "sendpause: %r\n");
 		return -1;
 	}

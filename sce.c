@@ -219,11 +219,11 @@ threadmain(int argc, char **argv)
 		case Amouse:
 			qlock(&drawlock);	/* just for security */
 			if(me.b & 1)
-				select(me);
+				doselect(me);
 			if(me.b & 2)
 				dopan(me.Δ);
 			if(me.b & 4)
-				move(me);
+				domove(me);
 			qunlock(&drawlock);
 			flushcl();
 			break;

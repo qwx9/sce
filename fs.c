@@ -503,26 +503,26 @@ readspr(char **fld, int n, Table *)
 }
 
 enum{
-	Tmapobj,
-	Tobj,
-	Tattack,
-	Tresource,
-	Tspawn,
-	Ttileset,
-	Tmap,
-	Tspr,
-	Tgather,
+	TBmapobj,
+	TBobj,
+	TBattack,
+	TBresource,
+	TBspawn,
+	TBtileset,
+	TBmap,
+	TBspr,
+	TBgather,
 };
 Table table[] = {
-	[Tmapobj] {"mapobj", readmapobj, 4, &nobjp},
-	[Tobj] {"obj", readobj, 17, &nobj},
-	[Tattack] {"attack", readattack, 4, &nattack},
-	[Tresource] {"resource", readresource, -1, &nresource},
-	[Tspawn] {"spawn", readspawn, -1, nil},
-	[Ttileset] {"tileset", readtileset, 1, nil},
-	[Tmap] {"map", readmap, -1, &mapheight},
-	[Tspr] {"spr", readspr, -1, nil},
-	[Tgather] {"gather", readgather, -1, nil},
+	[TBmapobj] {"mapobj", readmapobj, 4, &nobjp},
+	[TBobj] {"obj", readobj, 17, &nobj},
+	[TBattack] {"attack", readattack, 4, &nattack},
+	[TBresource] {"resource", readresource, -1, &nresource},
+	[TBspawn] {"spawn", readspawn, -1, nil},
+	[TBtileset] {"tileset", readtileset, 1, nil},
+	[TBmap] {"map", readmap, -1, &mapheight},
+	[TBspr] {"spr", readspr, -1, nil},
+	[TBgather] {"gather", readgather, -1, nil},
 };
 
 static int
