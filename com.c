@@ -97,6 +97,10 @@ reqgather(uchar *p, uchar *e)
 	}
 	if((tgt = mobjfromreq(&reqt)) == nil)
 		return -1;
+	if((tgt->o->f & Fresource) == 0){
+		werrstr("reqgather: target %M not a resource", tgt);
+		return -1;
+	}
 	if(click.x >= nodemapwidth || click.y >= nodemapheight){
 		werrstr("reqgather: invalid location %d,%d", click.x, click.y);
 		return -1;

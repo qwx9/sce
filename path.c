@@ -444,6 +444,18 @@ backtrack(Node *n, Node *a, Mobj *mo)
 	assert(p == mo->paths - 1);
 }
 
+int
+isnextto(Mobj *, Mobj *tgt)
+{
+	if(tgt == nil)
+		return 0;
+	/*
+	FIXME: ??
+		get nearest tgt node, distance = 0? other functions would use that too
+	*/
+	return 0;
+}
+
 static Node *
 nearestnonjump(Node *n, Node *b, Mobj *mo)
 {

@@ -68,7 +68,7 @@ doselect(Point p)
 }
 
 void
-domove(Point p)
+doaction(Point p)
 {
 	int i;
 	Point vp;
@@ -81,19 +81,22 @@ domove(Point p)
 	i = fbvis[vp.y * fbw + vp.x];
 	mo = i == -1 ? nil : visbuf[i];
 	if(mo == it){
-		dprint("select: %M not moving to itself\n", it);
+		dprint("doaction: %M targeting itself\n", it);
 		return;
 	}
 	p = divpt(addpt(subpt(p, selr.min), pan), scale);
 	p.x /= Nodewidth;
 	p.y /= Nodeheight;
 	if(nodemapwidth - p.x < it->o->w || nodemapheight - p.y < it->o->h){
-		dprint("select: %M not moving beyond map edge\n", it);
+		dprint("doaction: %M destination beyond map edge\n", it);
 		return;
 	}
-	if(mo != nil)
-		sendmovenear(it, p, mo);
-	else
+	if(mo != nil){
+		if((mo->o->f & Fresource) && (it->o->f & Fgather))
+			sendgather(it, p, mo);
+		else
+			sendmovenear(it, p, mo);
+	}else
 		sendmove(it, p);
 }
 

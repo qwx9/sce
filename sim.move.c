@@ -271,6 +271,11 @@ restart:
 		movedone(mo);
 		return;
 	}
+	if(isnextto(mo, mo->cmds[0].target1)){
+		dprint("%M stepmove: next to target, stopping\n", mo);
+		movedone(mo);
+		return;
+	}
 	dprint("%M stepmove: reached final node, but not target\n", mo);
 	if(mo->goalblocked && isblocked(mo->target.x, mo->target.y, mo->o)){
 		dprint("%M stepmove: goal still blocked, stopping\n", mo);

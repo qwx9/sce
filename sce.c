@@ -223,7 +223,7 @@ threadmain(int argc, char **argv)
 			if(me.b & 2)
 				dopan(me.Δ);
 			if(me.b & 4)
-				domove(me);
+				doaction(me);
 			qunlock(&drawlock);
 			flushcl();
 			break;
