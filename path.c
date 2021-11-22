@@ -445,15 +445,17 @@ backtrack(Node *n, Node *a, Mobj *mo)
 }
 
 int
-isnextto(Mobj *, Mobj *tgt)
+isnextto(Mobj *mo, Mobj *tgt)
 {
+	Rectangle r1, r2;
+
 	if(tgt == nil)
 		return 0;
-	/*
-	FIXME: ??
-		get nearest tgt node, distance = 0? other functions would use that too
-	*/
-	return 0;
+	r1.min = mo->Point;
+	r1.max = addpt(r1.min, Pt(mo->o->w, mo->o->h));
+	r2.min = tgt->Point;
+	r2.max = addpt(r2.min, Pt(tgt->o->w, tgt->o->h));
+	return rectXrect(insetrect(r1, -1), r2);
 }
 
 static Node *

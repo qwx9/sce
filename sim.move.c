@@ -271,6 +271,7 @@ restart:
 		movedone(mo);
 		return;
 	}
+	/* FIXME: this is a shitty hack, see notes */
 	if(isnextto(mo, mo->cmds[0].target1)){
 		dprint("%M stepmove: next to target, stopping\n", mo);
 		movedone(mo);
