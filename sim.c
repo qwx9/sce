@@ -144,10 +144,12 @@ updatemobj(void)
 			abortcommands(mo);
 			continue;
 		}
-		if(mo->state == OSskymaybe)
-			sysfatal("updatemobj: %s cmd %s impossible/stale state %d",
-				mo->o->name, mo->cmds[0].name, mo->state);
-		c->stepfn(mo);
+		if(mo->state == OSskymaybe){
+			dprint("%M updatemobj: %s cmd %s init bailed early\n",
+				mo, mo->o->name, mo->cmds[0].name);
+			nextstate(mo);
+		}else
+			c->stepfn(mo);
 	}
 }
 

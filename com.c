@@ -105,7 +105,6 @@ reqgather(uchar *p, uchar *e)
 		werrstr("reqgather: invalid location %d,%d", click.x, click.y);
 		return -1;
 	}
-	clearcommands(mo);
 	if(pushgathercommand(click, mo, tgt) < 0)
 		return -1;
 	return n;
@@ -135,7 +134,6 @@ reqmovenear(uchar *p, uchar *e)
 		werrstr("reqmovenear: invalid location %d,%d", click.x, click.y);
 		return -1;
 	}
-	clearcommands(mo);
 	if(pushmovecommand(click, mo, tgt) < 0)
 		return -1;
 	return n;
@@ -162,9 +160,23 @@ reqmove(uchar *p, uchar *e)
 		werrstr("reqmove: invalid target %d,%d", tgt.x, tgt.y);
 		return -1;
 	}
-	clearcommands(mo);
 	if(pushmovecommand(tgt, mo, nil) < 0)
 		return -1;
+	return n;
+}
+
+static int
+reqstop(uchar *p, uchar *e)
+{
+	int n;
+	Mobj reqm, *mo;
+
+	if((n = unpack(p, e, "dldd",
+	&reqm.idx, &reqm.uuid, &reqm.x, &reqm.y)) < 0)
+		return -1;
+	if((mo = mobjfromreq(&reqm)) == nil)
+		return -1;
+	clearcommands(mo);
 	return n;
 }
 
@@ -205,6 +217,7 @@ parsemsg(Msg *m)
 		type = *p++;
 		switch(type){
 		case CTpause: fn = reqpause; break;
+		case CTstop: fn = reqstop; break;
 		case CTmove: fn = reqmove; break;
 		case CTmovenear: fn = reqmovenear; break;
 		case CTgather: fn = reqgather; break;
@@ -332,6 +345,20 @@ sendmove(Mobj *mo, Point tgt)
 	mo->idx, mo->uuid, mo->x, mo->y,
 	tgt.x, tgt.y) < 0){
 		fprint(2, "sendmove: %r\n");
+		return -1;
+	}
+	return 0;
+}
+
+int
+sendstop(Mobj *mo)
+{
+	Msg *m;
+
+	m = getclbuf();
+	if(packmsg(m, "h dldd", CTstop,
+	mo->idx, mo->uuid, mo->x, mo->y) < 0){
+		fprint(2, "sendstop: %r\n");
 		return -1;
 	}
 	return 0;

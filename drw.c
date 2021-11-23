@@ -68,7 +68,7 @@ doselect(Point p)
 }
 
 void
-doaction(Point p)
+doaction(Point p, int clearcmds)
 {
 	int i;
 	Point vp;
@@ -91,6 +91,8 @@ doaction(Point p)
 		dprint("doaction: %M destination beyond map edge\n", it);
 		return;
 	}
+	if(clearcmds)
+		sendstop(it);
 	if(mo != nil){
 		if((mo->o->f & Fresource) && (it->o->f & Fgather))
 			sendgather(it, p, mo);

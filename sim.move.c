@@ -300,6 +300,11 @@ pushmove(Mobj *mo)
 	c = mo->cmds;
 	c->cleanupfn = cleanup;
 	goal = c->goal;
+	/* FIXME: shitty */
+	if(eqpt(goal, mo->Point)){
+		mo->state = OSskymaybe;
+		return 0;
+	}
 	setgoal(&goal, mo, c->target1);	/* FIXME: target[12] might be a problem for returns */
 	if(repath(goal, mo) < 0)
 		return -1;

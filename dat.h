@@ -262,6 +262,7 @@ extern int scale;
 enum{
 	CTquit = 0x1f,
 	CTpause,
+	CTstop,
 	CTmove,
 	CTmovenear,
 	CTgather,

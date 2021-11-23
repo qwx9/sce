@@ -158,7 +158,7 @@ usage(void)
 void
 threadmain(int argc, char **argv)
 {
-	int tv;
+	int tv, shiftdown;
 	Kev ke;
 	Mev me;
 
@@ -195,6 +195,7 @@ threadmain(int argc, char **argv)
 	initfs();
 	initsv(tv, *argv);
 	initcl();
+	shiftdown = 0;
 	enum{
 		Aresize,
 		Amouse,
@@ -220,16 +221,21 @@ threadmain(int argc, char **argv)
 			qlock(&drawlock);	/* just for security */
 			if(me.b & 1)
 				doselect(me);
-			if(me.b & 2)
-				dopan(me.Δ);
-			if(me.b & 4)
-				doaction(me);
+			/* FIXME */
+			if(me.b & 2){
+				if(!shiftdown) dopan(me.Δ); else doaction(me, 0);
+			}
+			if(me.b & 4){
+				if(!shiftdown) doaction(me, 1); else dopan(me.Δ);
+			}
 			qunlock(&drawlock);
 			flushcl();
 			break;
 		case Akbd:
-			if(ke.r == Kdel)
-				threadexitsall(nil);
+			switch(ke.r){
+			case Kdel: threadexitsall(nil);
+			case Kshift: shiftdown = ke.down; break;
+			}
 			if(!ke.down)
 				continue;
 			switch(ke.r){
