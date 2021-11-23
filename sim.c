@@ -74,7 +74,8 @@ nextstate(Mobj *mo)
 		c->cleanupfn(mo);
 	if(c->nextfn != nil){
 		c->initfn = c->nextfn;
-		mo->state = OSskymaybe;
+		freezefrm(mo, mo->state);
+		mo->state = OSskymaybe;	/* FIXME: kind of overloading this just for drw.c */
 	}else
 		popcommand(mo);
 }

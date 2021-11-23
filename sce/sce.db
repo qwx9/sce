@@ -28,12 +28,16 @@ spr,scv,0xc000,17,0
 spr,scv,0x0001,17,0
 spr,scv,0xc001,17,0
 spr,scv,0x6001,17,0,1,2,3
+spr,scv,0x0002,17,0
+spr,scv,0xc002,17,0
 spr,control,0x0000,1,0
 spr,control,0xc000,1,0
 spr,drone,0x0800,17,0,1,2,3,4
 spr,drone,0xc800,17,0,1,2,3,4
 spr,drone,0x0001,17,0,1,2,3,4
 spr,drone,0xc001,17,0,1,2,3,4
+spr,drone,0x0802,17,0,1,2,3,4
+spr,drone,0xc802,17,0,1,2,3,4
 spr,hatchery,0x0000,1,0,1,2,3,3,2,1,0
 spr,hatchery,0xc000,1,0,0,0,0,0,0,0,0
 spr,mutalisk,0x0000,17,0,1,2,3,4

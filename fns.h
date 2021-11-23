@@ -14,6 +14,7 @@ int	pushgathercommand(Point, Mobj*, Mobj*);
 int	pushmove(Mobj*);
 int	pushmovecommand(Point, Mobj*, Mobj*);
 void	resourcestate(Mobj*);
+void	freezefrm(Mobj*, int);
 void	idlestate(Mobj*);
 Mobj*	derefmobj(int, long);
 void	nextstate(Mobj*);

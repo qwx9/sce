@@ -126,6 +126,7 @@ enum{
 enum{
 	PFidle = OSidle,
 	PFmove = OSmove,
+	PFgather = OSgather,
 	PFrich = OSrich,
 	PFmed = OSmed,
 	PFlow = OSlow,

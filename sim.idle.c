@@ -4,7 +4,7 @@
 #include "dat.h"
 #include "fns.h"
 
-static void
+void
 freezefrm(Mobj *mo, int oldstate)
 {
 	Pics *old, *new;
