@@ -116,6 +116,7 @@ enum{
 	OSidle = OState0,
 	OSmove = OState1,
 	OSgather = OState2,
+	OSwait = OState3,	/* FIXME: ← better solution */
 
 	/* resource */
 	OSrich = OState0,

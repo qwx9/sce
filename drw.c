@@ -335,7 +335,7 @@ frm(Mobj *mo, int type)
 	Pic *p;
 
 	n = mo->state;
-	if(n == OSskymaybe)
+	if(n == OSskymaybe || n == OSwait)
 		n = OSidle;
 	if(n < 0 || n > OSend){
 		dprint("frm: %M invalid animation frame %d\n", mo, n);

@@ -8,6 +8,7 @@
 /* FIXME: additional bullshit logic */
 
 enum{
+	Twait = 8,
 	Tgather = 75,	/* FIXME: 37 for gas, define in db? */
 	Namount = 8,
 };
@@ -18,16 +19,40 @@ cleanup(Mobj *)
 }
 
 static void
+returncargo(Mobj *mo)
+{
+	Resource *r;
+	Command *c;
+
+	c = mo->cmds;
+	r = c->target1->o->res;
+	assert(r != nil);
+	teams[mo->team].r[r-resources] += Namount;
+}
+
+static void
+waitstep(Mobj *mo)
+{
+	Command *c;
+
+	c = mo->cmds;
+	if(--c->tc > 0)
+		return;
+	nextstate(mo);
+}
+
+static void
 step(Mobj *mo)
 {
 	Command *c;
 
 	c = mo->cmds;
-	if(++c->tc >= Tgather){
-		nextstate(mo);
+	if(++c->tc < Tgather)
 		return;
-	}
-	// FIXME: butts
+	returncargo(mo);
+	mo->state = OSwait;
+	c->stepfn = waitstep;
+	c->tc = nrand(Twait+1);
 }
 
 static int
@@ -39,7 +64,7 @@ pushgather(Mobj *mo)
 	/* FIXME: check if resource still exists? (and amount >0) (needs despawning/death) */
 	c->cleanupfn = cleanup;
 	c->stepfn = step;
-	c->nextfn = nil;
+	c->nextfn = pushgather;
 	c->tc = 0;
 	mo->state = OSgather;
 	return 0;
