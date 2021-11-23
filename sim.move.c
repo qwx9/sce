@@ -53,6 +53,16 @@ facegoal(Point p, Mobj *mo)
 	return θ256;
 }
 
+static double
+facemobj(Mobj *mo, Mobj *tgt)
+{
+	Point p;
+
+	p.x = tgt->px + tgt->o->w * Nodewidth / 2;
+	p.y = tgt->py + tgt->o->h * Nodeheight / 2;
+	return facegoal(p, mo);
+}
+
 static void
 nextpathnode(Mobj *mo)
 {
@@ -79,10 +89,27 @@ cleanup(Mobj *mo)
 }
 
 static void
+movereallyreallyreallydone(Mobj *mo)
+{
+	dprint("%M really really really successfully reached goal\n", mo);
+	nextstate(mo);
+}
+
+static void	turnstep(Mobj*);
+
+static void
 movedone(Mobj *mo)
 {
+	Command *c;
+
 	dprint("%M successfully reached goal\n", mo);
-	nextstate(mo);
+	c = mo->cmds;
+	if(c->target1 == nil){
+		nextstate(mo);
+		return;
+	}
+	facemobj(mo, c->target1);
+	c->stepfn = turnstep;
 }
 
 static void
@@ -92,6 +119,8 @@ abortmove(Mobj *mo)
 	abortcommands(mo);
 }
 
+/* FIXME: kind of weird to mix up argument order,
+ * mo should be first like elsewhere */
 static int
 repath(Point p, Mobj *mo)
 {
@@ -229,6 +258,13 @@ tryturn(Mobj *mo)
 		mo->θ -= 256;
 	mo->Δθ -= Δθ;
 	return r;
+}
+
+static void
+turnstep(Mobj *mo)
+{
+	if(!tryturn(mo))
+		movereallyreallyreallydone(mo);
 }
 
 static int
