@@ -4,9 +4,8 @@
 #include "dat.h"
 #include "fns.h"
 
-Team teams[Nteam], *curteam;
+Team teams[Nteam];
 int nteam;
-int initres[Nresource], foodcap;
 
 char *statename[OSend] = {
 	[OSidle] "idle",
@@ -162,10 +161,12 @@ stepsim(void)
 void
 initsim(void)
 {
+	int i;
 	Team *t;
 
 	if(nteam < 2)
 		sysfatal("initgame: the only winning move is not to play");
 	for(t=teams; t<=teams+nteam; t++)
-		memcpy(t->r, initres, sizeof initres);
+		for(i=0; i<nelem(t->r); i++)
+			t->r[i] = resources[i].init;
 }

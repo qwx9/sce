@@ -105,10 +105,14 @@ doaction(Point p, int clearcmds)
 static void
 drawhud(void)
 {
-	char s[256];
+	int i;
+	char s[256], *s´;
+	Point p;
 	Mobj *mo;
+	Team *t;
 
-	draw(screen, Rpt(p0, screen->r.max), display->black, nil, ZP);
+	p = p0;
+	draw(screen, Rpt(p, screen->r.max), display->black, nil, ZP);
 	mo = selected[0];
 	if(mo == nil)
 		return;
@@ -116,11 +120,18 @@ drawhud(void)
 		snprint(s, sizeof s, "%s %d", mo->o->name, mo->amount);
 	else
 		snprint(s, sizeof s, "%s %d/%d", mo->o->name, mo->hp, mo->o->hp);
-	string(screen, p0, display->white, ZP, font, s);
+	string(screen, p, display->white, ZP, font, s);
+	p.y += font->height;
 	if((mo->o->f & Fresource) == 0){
 		snprint(s, sizeof s, "%s", mo->state < OSend ? statename[mo->state] : "");
-		string(screen, addpt(p0, Pt(0,font->height)), display->white, ZP, font, s);
+		string(screen, p, display->white, ZP, font, s);
 	}
+	p.y += font->height;
+	t = teams + mo->team;
+	s´ = seprint(s, s+sizeof s, "team %d: ", mo->team);
+	for(i=0; i<nelem(t->r); i++)
+		s´ = seprint(s´, s+sizeof s, "[%s] %d ", resources[i].name, t->r[i]);
+	string(screen, p, display->white, ZP, font, s);
 }
 
 static int

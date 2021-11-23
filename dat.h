@@ -251,7 +251,7 @@ struct Team{
 	int sz;
 	int firstempty;
 };
-extern Team teams[Nteam], *curteam;
+extern Team teams[Nteam];
 extern int nteam;
 
 extern int lport;
