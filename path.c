@@ -130,7 +130,7 @@ eucdist(Node *a, Node *b)
 	return sqrt(dx * dx + dy * dy);
 }
 
-static double
+double
 octdist(Node *a, Node *b)
 {
 	int dx, dy;

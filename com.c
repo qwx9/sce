@@ -77,12 +77,10 @@ static int
 reqgather(uchar *p, uchar *e)
 {
 	int n;
-	Point click;
 	Mobj reqm, reqt, *mo, *tgt;
 
-	if((n = unpack(p, e, "dldd dd dldd",
+	if((n = unpack(p, e, "dldd dldd",
 	&reqm.idx, &reqm.uuid, &reqm.x, &reqm.y,
-	&click.x, &click.y,
 	&reqt.idx, &reqt.uuid, &reqt.x, &reqt.y)) < 0)
 		return -1;
 	if((mo = mobjfromreq(&reqm)) == nil)
@@ -101,11 +99,7 @@ reqgather(uchar *p, uchar *e)
 		werrstr("reqgather: target %M not a resource", tgt);
 		return -1;
 	}
-	if(click.x >= nodemapwidth || click.y >= nodemapheight){
-		werrstr("reqgather: invalid location %d,%d", click.x, click.y);
-		return -1;
-	}
-	if(pushgathercommand(click, mo, tgt) < 0)
+	if(pushgathercommand(mo, tgt) < 0)
 		return -1;
 	return n;
 }
@@ -304,14 +298,13 @@ endmsg(Msg *m)
 }
 
 int
-sendgather(Mobj *mo, Point click, Mobj *tgt)
+sendgather(Mobj *mo, Mobj *tgt)
 {
 	Msg *m;
 
 	m = getclbuf();
-	if(packmsg(m, "h dldd dd dldd", CTgather,
+	if(packmsg(m, "h dldd dldd", CTgather,
 	mo->idx, mo->uuid, mo->x, mo->y,
-	click.x, click.y,
 	tgt->idx, tgt->uuid, tgt->x, tgt->y) < 0){
 		fprint(2, "sendgather: %r\n");
 		return -1;

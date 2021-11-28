@@ -62,22 +62,14 @@ refmobj(Mobj *mo)
 		if(t->mo[i] == nil)
 			break;
 	t->firstempty = i;
-}
-
-void
-nextstate(Mobj *mo)
-{
-	Command *c;
-
-	c = mo->cmds;
-	if(c->cleanupfn != nil)
-		c->cleanupfn(mo);
-	if(c->nextfn != nil){
-		c->initfn = c->nextfn;
-		freezefrm(mo, mo->state);
-		mo->state = OSskymaybe;	/* FIXME: kind of overloading this just for drw.c */
-	}else
-		popcommand(mo);
+	if(mo->o->nspawn > 0){
+		assert(mo->o->spawn != nil);
+		if(t->ndrop == t->dropsz){
+			t->drop = erealloc(t->drop, (t->dropsz + 32) * sizeof *t->drop, t->dropsz * sizeof *t->drop);
+			t->dropsz += 32;
+		}
+		t->drop[t->ndrop++] = mo;
+	}
 }
 
 void
@@ -96,11 +88,11 @@ clearcommands(Mobj *mo)
 void
 abortcommands(Mobj *mo)
 {
-	dprint("%M abortcommand: %s\n", mo, mo->cmds[0].name);
+	dprint("%M abortcommand: %s: %r\n", mo, mo->cmds[0].name);
 	clearcommands(mo);
 }
 
-void
+static void
 popcommand(Mobj *mo)
 {
 	dprint("%M popcommand: %s\n", mo, mo->cmds[0].name);
@@ -128,6 +120,22 @@ pushcommand(Mobj *mo)
 	return c;
 }
 
+void
+nextstate(Mobj *mo)
+{
+	Command *c;
+
+	c = mo->cmds;
+	if(c->cleanupfn != nil)
+		c->cleanupfn(mo);
+	if(c->nextfn != nil){
+		c->initfn = c->nextfn;
+		freezefrm(mo, mo->state);
+		mo->state = OSskymaybe;	/* FIXME: kind of overloading this just for drw.c */
+	}else
+		popcommand(mo);
+}
+
 static void
 updatemobj(void)
 {
@@ -137,7 +145,7 @@ updatemobj(void)
 
 	for(ml=mobjl->l, next=ml->l; ml!=mobjl; ml=next, next=next->l){
 		mo = ml->mo;
-		if(mo->state == OSidle)
+		if(mo->state == OSidle || mo->o->f & Fimmutable)
 			continue;
 		c = mo->cmds;
 		if(mo->state == OSskymaybe && c->initfn(mo) < 0){

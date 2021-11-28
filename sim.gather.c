@@ -10,24 +10,11 @@
 enum{
 	Twait = 8,
 	Tgather = 75,	/* FIXME: 37 for gas, define in db? */
-	Namount = 8,
 };
 
 static void
 cleanup(Mobj *)
 {
-}
-
-static void
-returncargo(Mobj *mo)
-{
-	Resource *r;
-	Command *c;
-
-	c = mo->cmds;
-	r = c->target1->o->res;
-	assert(r != nil);
-	teams[mo->team].r[r-resources] += Namount;
 }
 
 static void
@@ -38,18 +25,19 @@ waitstep(Mobj *mo)
 	c = mo->cmds;
 	if(--c->tc > 0)
 		return;
+	depleteresource(c->target1, Ngatheramount);
+	pushreturncommand(mo, c->target1);
 	nextstate(mo);
 }
 
 static void
-step(Mobj *mo)
+gatherstep(Mobj *mo)
 {
 	Command *c;
 
 	c = mo->cmds;
 	if(++c->tc < Tgather)
 		return;
-	returncargo(mo);
 	mo->state = OSwait;
 	c->stepfn = waitstep;
 	c->tc = nrand(Twait+1);
@@ -63,26 +51,31 @@ pushgather(Mobj *mo)
 	c = mo->cmds;
 	/* FIXME: check if resource still exists? (and amount >0) (needs despawning/death) */
 	c->cleanupfn = cleanup;
-	c->stepfn = step;
-	c->nextfn = pushgather;
+	c->stepfn = gatherstep;
+	c->nextfn = nil;
+	c->goal = c->target1->Point;
 	c->tc = 0;
 	mo->state = OSgather;
 	return 0;
 }
 
 int
-pushgathercommand(Point goal, Mobj *mo, Mobj *target)
+pushgathercommand(Mobj *mo, Mobj *tgt)
 {
 	Command *c;
 
+	if(tgt == nil){
+		dprint("pushgathercommand: no target\n");
+		return -1;
+	}
 	if((c = pushcommand(mo)) == nil){
 		fprint(2, "pushmovecommand: %r\n");
 		return -1;
 	}
 	c->name = "gather";
 	c->initfn = pushmove;
-	c->goal = goal;
-	c->target1 = target;
+	c->target1 = tgt;
+	c->goal = tgt->Point;
 	c->nextfn = pushgather;
 	return 0;
 }

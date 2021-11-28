@@ -16,3 +16,11 @@ resourcestate(Mobj *mo)
 			break;
 	mo->state = os;
 }
+
+void
+depleteresource(Mobj *mo, int n)
+{
+	/* FIXME: despawn when getting to 0 */
+	mo->amount -= n;
+	resourcestate(mo);
+}

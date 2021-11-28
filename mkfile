@@ -16,6 +16,7 @@ OFILES=\
 	sim.idle.$O\
 	sim.move.$O\
 	sim.resource.$O\
+	sim.return.$O\
 	sim.spawn.$O\
 	snd.$O\
 	sv.$O\

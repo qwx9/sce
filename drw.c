@@ -95,7 +95,7 @@ doaction(Point p, int clearcmds)
 		sendstop(it);
 	if(mo != nil){
 		if((mo->o->f & Fresource) && (it->o->f & Fgather))
-			sendgather(it, p, mo);
+			sendgather(it, mo);
 		else
 			sendmovenear(it, p, mo);
 	}else

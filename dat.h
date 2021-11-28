@@ -234,6 +234,9 @@ struct Map{
 extern Map *map;
 extern int mapwidth, mapheight;
 
+enum{
+	Ngatheramount = 8,
+};
 struct Resource{
 	char *name;
 	int init;
@@ -251,6 +254,9 @@ struct Team{
 	Mobj **mo;
 	int sz;
 	int firstempty;
+	Mobj **drop;
+	int dropsz;
+	int ndrop;
 };
 extern Team teams[Nteam];
 extern int nteam;
