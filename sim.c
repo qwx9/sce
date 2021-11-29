@@ -62,8 +62,7 @@ refmobj(Mobj *mo)
 		if(t->mo[i] == nil)
 			break;
 	t->firstempty = i;
-	if(mo->o->nspawn > 0){
-		assert(mo->o->spawn != nil);
+	if(mo->o->f & Fdropoff){
 		if(t->ndrop == t->dropsz){
 			t->drop = erealloc(t->drop, (t->dropsz + 32) * sizeof *t->drop, t->dropsz * sizeof *t->drop);
 			t->dropsz += 32;

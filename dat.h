@@ -96,6 +96,7 @@ enum{
 	Fair = 1<<2,
 	Fbuild = 1<<3,
 	Fgather = 1<<4,
+	Fdropoff = 1<<13,
 	Fresource = 1<<14,
 	Fimmutable = 1<<15,
 };
