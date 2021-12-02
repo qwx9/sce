@@ -31,6 +31,8 @@ facegoal(Point p, Mobj *mo)
 	dx = p.x - mo->px;
 	dy = p.y - mo->py;
 	d = sqrt(dx * dx + dy * dy);
+	if(d == 0.0)
+		sysfatal("facegoal: %M → %P: moving in place, shouldn't happen", mo, p);
 	vx = dx / d;
 	vy = dy / d;
 	/* angle in radians [0;2π[ with 0 facing north */
@@ -336,14 +338,13 @@ pushmove(Mobj *mo)
 	c = mo->cmds;
 	c->cleanupfn = cleanup;
 	goal = c->goal;
-	/* FIXME: shitty */
+	setgoal(&goal, mo, c->target1);
+	if(repath(goal, mo) < 0)
+		return -1;
 	if(eqpt(goal, mo->Point)){
 		mo->state = OSskymaybe;
 		return 0;
 	}
-	setgoal(&goal, mo, c->target1);	/* FIXME: target[12] might be a problem for returns */
-	if(repath(goal, mo) < 0)
-		return -1;
 	c->stepfn = step;
 	mo->state = OSmove;
 	return 0;

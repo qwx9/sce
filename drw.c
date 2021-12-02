@@ -80,15 +80,15 @@ doaction(Point p, int clearcmds)
 	vp = divpt(subpt(p, selr.min), scale);
 	i = fbvis[vp.y * fbw + vp.x];
 	mo = i == -1 ? nil : visbuf[i];
-	if(mo == it){
-		dprint("doaction: %M targeting itself\n", it);
-		return;
-	}
 	p = divpt(addpt(subpt(p, selr.min), pan), scale);
 	p.x /= Nodewidth;
 	p.y /= Nodeheight;
 	if(nodemapwidth - p.x < it->o->w || nodemapheight - p.y < it->o->h){
 		dprint("doaction: %M destination beyond map edge\n", it);
+		return;
+	}
+	if(mo == it || eqpt(it->Point, p)){
+		dprint("doaction: %M targeting itself\n", it);
 		return;
 	}
 	if(clearcmds)

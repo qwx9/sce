@@ -555,7 +555,11 @@ findpath(Point p, Mobj *mo)
 {
 	Node *a, *b, *n;
 
-	dprint("%M findpath to %d,%d\n", mo, p.x, p.y);
+	dprint("%M findpath to %P\n", mo, p);
+	if(eqpt(p, mo->Point)){
+		werrstr("not moving to itself");
+		return -1;
+	}
 	clearpath();
 	a = nodemap + mo->y * nodemapwidth + mo->x;
 	a->x = mo->x;
@@ -576,7 +580,7 @@ findpath(Point p, Mobj *mo)
 			markmobj(mo, 1);
 			return -1;
 		}
-		dprint("%M nearest: %#p %d,%d dist %f\n", mo, n, n->x, n->y, n->h);
+		dprint("%M nearest: %#p %P dist %f\n", mo, n, n->Point, n->h);
 		b = nearestnonjump(n, b, mo);
 		if(b == a){
 			werrstr("a∗: really can't move");

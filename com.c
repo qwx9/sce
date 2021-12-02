@@ -115,6 +115,10 @@ reqmovenear(uchar *p, uchar *e)
 	&click.x, &click.y,
 	&reqt.idx, &reqt.uuid, &reqt.x, &reqt.y)) < 0)
 		return -1;
+	if(eqpt(reqm.Point, reqt.Point) || eqpt(reqm.Point, click)){
+		dprint("reqmovenear: %P [%#ux,%ld] → %P [%#ux,%ld] (%P), not moving to itself\n", reqm.Point, reqm.idx, reqm.uuid, reqt.Point, reqt.idx, reqt.uuid, click);
+		return n;
+	}
 	if((mo = mobjfromreq(&reqm)) == nil)
 		return -1;
 	if((mo->o->f & Fimmutable) || mo->o->speed == 0.0){
@@ -143,6 +147,10 @@ reqmove(uchar *p, uchar *e)
 	&reqm.idx, &reqm.uuid, &reqm.x, &reqm.y,
 	&tgt.x, &tgt.y)) < 0)
 		return -1;
+	if(eqpt(reqm.Point, tgt)){
+		dprint("reqmove: %P [%#ux,%ld] → %P, not moving to itself\n", reqm.Point, reqm.idx, reqm.uuid, tgt);
+		return n;
+	}
 	if((mo = mobjfromreq(&reqm)) == nil)
 		return -1;
 	if((mo->o->f & Fimmutable) || mo->o->speed == 0.0){
