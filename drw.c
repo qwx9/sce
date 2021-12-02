@@ -128,6 +128,8 @@ drawhud(void)
 	}
 	p.y += font->height;
 	t = teams + mo->team;
+	if(t == teams)
+		return;
 	s´ = seprint(s, s+sizeof s, "team %d: ", mo->team);
 	for(i=0; i<nelem(t->r); i++)
 		s´ = seprint(s´, s+sizeof s, "[%s] %d ", resources[i].name, t->r[i]);

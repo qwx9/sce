@@ -162,7 +162,7 @@ initsim(void)
 
 	if(nteam < 2)
 		sysfatal("initgame: the only winning move is not to play");
-	for(t=teams; t<=teams+nteam; t++)
+	for(t=teams+1; t<=teams+nteam; t++)
 		for(i=0; i<nelem(t->r); i++)
 			t->r[i] = resources[i].init;
 }
