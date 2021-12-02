@@ -16,6 +16,7 @@ typedef struct Resource Resource;
 typedef struct Team Team;
 typedef struct Cbuf Cbuf;
 typedef struct Msg Msg;
+typedef struct Vector Vector;
 
 enum{
 	Nresource = 3,
@@ -36,9 +37,11 @@ enum{
 	Subpxmask = (1 << Subpxshift) - 1,
 };
 
-enum{
-	Bshift = 6,
-	Bmask = (1 << Bshift) - 1,
+struct Vector{
+	void *p;
+	ulong n;
+	ulong bufsz;
+	int firstempty;
 };
 
 struct Pairheap{
@@ -49,9 +52,12 @@ struct Pairheap{
 	Pairheap *right;
 };
 
+enum{
+	Bshift = 6,
+	Bmask = (1 << Bshift) - 1,
+};
 struct Node{
-	int x;
-	int y;
+	Point;
 	int closed;
 	int open;
 	double g;
@@ -166,13 +172,11 @@ struct Obj{
 };
 struct Path{
 	Point target;
-	int goalblocked;
-	int npatherr;
-	int npathbuf;
-	double pathlen;
-	Point *paths;
-	Point *pathp;
-	Point *pathe;
+	int blocked;
+	double dist;
+	Vector moves;
+	Point *step;
+	int nerr;
 };
 struct Mresource{
 	int amount;
@@ -185,7 +189,7 @@ struct Munit{
 	double θ;
 	double Δθ;
 	int Δθs;
-	Path;
+	Path path;
 	double u;
 	double v;
 	double speed;
@@ -252,12 +256,8 @@ struct Team{
 	int r[Nresource];
 	int nunit;
 	int nbuild;
-	Mobj **mo;
-	int sz;
-	int firstempty;
-	Mobj **drop;
-	int dropsz;
-	int ndrop;
+	Vector mobj;
+	Vector drops;
 };
 extern Team teams[Nteam];
 extern int nteam;

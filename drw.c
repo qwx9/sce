@@ -292,9 +292,10 @@ drawmap(Rectangle r)
 {
 	int x, y;
 	u64int *row, v, m;
+	Point *p;
+	Path *pp;
 	Node *n;
 	Mobj *mo;
-	Point *p;
 
 	r = Rpt(mulpt(r.min, Node2Tile), mulpt(r.max, Node2Tile));
 	for(y=r.min.y, n=nodemap+y*nodemapwidth+r.min.x; y<r.max.y; y++){
@@ -310,16 +311,19 @@ drawmap(Rectangle r)
 			if(v & m)
 				compose(x, y, 0xff0000);
 			if(n->closed)
-				compose(x, y, 0x0000ff);
+				compose(x, y, 0x000077);
 			else if(n->open)
-				compose(x, y, 0xffff00);
+				compose(x, y, 0x007777);
 		}
 		n += nodemapwidth - (r.max.x - r.min.x);
 	}
-	if((mo = selected[0]) != nil && mo->pathp != nil){
-		for(p=mo->paths; p<mo->pathe; p++)
+	if((mo = selected[0]) != nil){
+		pp = &mo->path;
+		if(pp->step == nil)
+			return;
+		for(p=pp->step; p>=pp->moves.p; p--)
 			compose(p->x / Nodewidth, p->y / Nodeheight, 0x00ff00);
-		compose(mo->target.x, mo->target.y, 0x00ffff);
+		compose(pp->target.x, pp->target.y, 0x00ff77);
 	}
 }
 

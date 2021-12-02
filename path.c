@@ -67,13 +67,13 @@ clearpath(void)
 }
 
 int
-isblocked(int x, int y, Obj *o)
+isblocked(Point p, Obj *o)
 {
 	u64int *row;
 
 	if(o->f & Fair)
 		return 0;
-	row = bload(x, y, o->w, o->h, 0, 0, 0, 0);
+	row = bload(p.x, p.y, o->w, o->h, 0, 0, 0, 0);
 	return (*row & 1ULL << 63) != 0;
 }
 
@@ -406,42 +406,34 @@ a∗(Node *a, Node *b, Mobj *mo)
 }
 
 static void
-resizepathbuf(Mobj *mo, int nstep)
-{
-	if(mo->npathbuf >= nstep)
-		return;
-	nstep = nstep + 16;
-	mo->paths = erealloc(mo->paths, nstep * sizeof mo->paths, mo->npathbuf * sizeof mo->paths);
-	mo->npathbuf = nstep;
-}
-
-static void
 directpath(Node *a, Node *g, Mobj *mo)
 {
-	resizepathbuf(mo, 1);
-	mo->pathlen = eucdist(a, g);
-	mo->pathe = mo->paths + 1;
-	mo->paths->x = g->x * Nodewidth;
-	mo->paths->y = g->y * Nodewidth;
+	Point p;
+	Path *pp;
+
+	pp = &mo->path;
+	pp->dist = eucdist(a, g);
+	clearvec(&pp->moves, sizeof p);
+	p = Pt(g->x * Nodewidth, g->y * Nodeheight);
+	pushvec(&pp->moves, &p, sizeof p);
+	pp->step = (Point *)pp->moves.p + pp->moves.n - 1;
 }
 
 static void
 backtrack(Node *n, Node *a, Mobj *mo)
 {
-	int x, y;
-	Point *p;
+	Point p;
+	Path *pp;
 
+	pp = &mo->path;
 	assert(n != a && n->step > 0);
-	resizepathbuf(mo, n->step);
-	mo->pathlen = n->len;
-	p = mo->paths + n->step;
-	mo->pathe = p--;
+	pp->dist = n->len;
+	clearvec(&pp->moves, sizeof p);
 	for(; n!=a; n=n->from){
-		x = n->x * Nodewidth;
-		y = n->y * Nodeheight;
-		*p-- = (Point){x, y};
+		p = Pt(n->x * Nodewidth, n->y * Nodeheight);
+		pushvec(&pp->moves, &p, sizeof p);
 	}
-	assert(p == mo->paths - 1);
+	pp->step = (Point *)pp->moves.p + pp->moves.n - 1;
 }
 
 int
@@ -474,7 +466,7 @@ nearestnonjump(Node *n, Node *b, Mobj *mo)
 	for(i=0; i<nelem(dirtab); i++){
 		x = n->x + dirtab[i].x;
 		y = n->y + dirtab[i].y;
-		while(!isblocked(x, y, mo->o)){
+		while(!isblocked(Pt(x, y), mo->o)){
 			m = nodemap + y * nodemapwidth + x;
 			m->x = x;
 			m->y = y;
@@ -502,10 +494,10 @@ setgoal(Point *p, Mobj *mo, Mobj *block)
 	Node *n1, *n2, *pm;
 
 	if(mo->o->f & Fair || block == nil){
-		mo->goalblocked = 0;
+		mo->path.blocked = 0;
 		return;
 	}
-	mo->goalblocked = 1;
+	mo->path.blocked = 1;
 	dprint("%M setgoal: moving goal %d,%d in block %#p ", mo, p->x, p->y, block);
 	pm = nodemap + p->y * nodemapwidth + p->x;
 	pm->x = p->x;

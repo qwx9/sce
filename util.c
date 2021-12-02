@@ -6,6 +6,10 @@
 
 int debug;
 
+enum{
+	Nvecinc = 32,
+};
+
 int
 max(int a, int b)
 {
@@ -26,7 +30,7 @@ mobjfmt(Fmt *fmt)
 	mo = va_arg(fmt->args, Mobj*);
 	if(mo == nil)
 		return fmtstrcpy(fmt, "[]");
-	return fmtprint(fmt, "[%s:%#p:%d,%d]", mo->o->name, mo, mo->x, mo->y);
+	return fmtprint(fmt, "[%s:%#p:%P]", mo->o->name, mo, mo->Point);
 }
 
 void
@@ -41,6 +45,53 @@ dprint(char *fmt, ...)
 	vseprint(s, s+sizeof s, fmt, arg);
 	va_end(arg);
 	fprint(2, "%s", s);
+}
+
+void
+clearvec(Vector *v, int sz)
+{
+	if(v->p == nil)
+		return;
+	memset(v->p, 0, v->bufsz * sz);
+	v->firstempty = 0;
+	v->n = 0;
+}
+
+void *
+pushsparsevec(Vector *v, void *e)
+{
+	int i;
+	uchar *p, *q;
+
+	i = v->firstempty;
+	if(i == v->bufsz){
+		v->p = erealloc(v->p, (v->bufsz + Nvecinc) * sizeof e,
+			v->bufsz * sizeof e);
+		v->bufsz += Nvecinc;
+	}
+	p = (uchar *)v->p + i * sizeof e;
+	memcpy(p, e, sizeof e);
+	for(i++, q=p+1; i<v->n; q++, i++)
+		if(memcmp(p, nil, sizeof p) == 0)
+			break;
+	v->firstempty = i;
+	v->n++;
+	return p;
+}
+
+void *
+pushvec(Vector *v, void *e, int sz)
+{
+	void *p;
+
+	if(v->n == v->bufsz){
+		v->p = erealloc(v->p, (v->bufsz + Nvecinc) * sz, v->bufsz * sz);
+		v->bufsz += Nvecinc;
+	}
+	p = (uchar *)v->p + v->n * sz;
+	memcpy(p, e, sz);
+	v->n++;
+	return p;
 }
 
 char *

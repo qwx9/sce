@@ -15,8 +15,7 @@ typedef struct Tilel Tilel;
 struct Objp{
 	Obj *o;
 	int resource;
-	int x;
-	int y;
+	Point;
 	int team;
 	int amount;
 };
@@ -605,20 +604,19 @@ loaddb(char *path)
 static void
 initmapobj(void)
 {
-	int x, y;
 	Objp *op;
 	Map *m;
+	Point p;
 
 	for(m=map; m<map+mapwidth*mapheight; m++)
 		m->ml.l = m->ml.lp = &m->ml;
 	for(op=objp; op<objp+nobjp; op++){
-		x = op->x * Node2Tile;
-		y = op->y * Node2Tile;
+		p = mulpt(op->Point, Node2Tile);
 		if(op->resource){
-			if(spawnresource(x, y, op->o, op->amount) < 0)
-				sysfatal("initmapobj: %s at %d,%d: %r", op->o->name, op->x, op->y);
-		}else if(spawnunit(x, y, op->o, op->team) < 0)
-			sysfatal("initmapobj: %s team %d at %d,%d: %r", op->o->name, op->team, op->x, op->y);
+			if(spawnresource(p, op->o, op->amount) < 0)
+				sysfatal("initmapobj: %s at %P: %r", op->o->name, op->Point);
+		}else if(spawnunit(p, op->o, op->team) < 0)
+			sysfatal("initmapobj: %s team %d at %P: %r", op->o->name, op->team, op->Point);
 	}
 	free(objp);
 }

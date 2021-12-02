@@ -48,20 +48,19 @@ finddrop(Mobj *mo)
 {
 	double d, d´;
 	Team *t;
-	Mobj *wo, *w, **wp;
+	Mobj *wo, *w, **wp, **we;
 	Node *a, *b;
 
 	t = teams + mo->team;
-	if(t->ndrop <= 0){
+	if(t->drops.n < 1){
 		werrstr("no drops");
 		return nil;
 	}
-	assert(t->drop != nil);
 	a = nodemap + mo->y * nodemapwidth + mo->x;
 	a->x = mo->x;
 	a->y = mo->y;
 	d = nodemapwidth * nodemapheight;
-	for(wp=t->drop, wo=nil; wp<t->drop+t->ndrop; t++){
+	for(wp=t->drops.p, we=wp+t->drops.n, wo=nil; wp<we; wp++){
 		w = *wp;
 		b = nodemap + w->y * nodemapwidth + w->x;
 		b->x = w->x;

@@ -42,8 +42,9 @@ unlinkmobj(Mobjl *ml)
 void
 refmobj(Mobj *mo)
 {
-	int n, i;
+	int n;
 	Team *t;
+	Mobj **p;
 
 	mo->mobjl = linkmobj(mobjl, mo, nil);
 	t = teams + mo->team;
@@ -51,24 +52,11 @@ refmobj(Mobj *mo)
 		t->nbuild++;
 	else
 		t->nunit++;
-	n = t->firstempty;
-	if(n == t->sz){
-		t->mo = erealloc(t->mo, (t->sz + 32) * sizeof *t->mo, t->sz * sizeof *t->mo);
-		t->sz += 32;
-	}
-	t->mo[n] = mo;
+	p = pushsparsevec(&t->mobj, &mo);
+	n = p - (Mobj **)t->mobj.p;
 	mo->idx = mo->team << Teamshift | n;
-	for(i=t->firstempty+1; i<t->sz; i++)
-		if(t->mo[i] == nil)
-			break;
-	t->firstempty = i;
-	if(mo->o->f & Fdropoff){
-		if(t->ndrop == t->dropsz){
-			t->drop = erealloc(t->drop, (t->dropsz + 32) * sizeof *t->drop, t->dropsz * sizeof *t->drop);
-			t->dropsz += 32;
-		}
-		t->drop[t->ndrop++] = mo;
-	}
+	if(mo->o->f & Fdropoff)
+		pushvec(&t->drops, &mo, sizeof mo);
 }
 
 void

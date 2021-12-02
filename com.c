@@ -65,9 +65,8 @@ mobjfromreq(Mobj *r)
 
 	if((mo = derefmobj(r->idx, r->uuid)) == nil)
 		return nil;
-	if(mo->x != r->x || mo->y != r->y){
-		werrstr("phase error: req mobj at %d,%d, found %M",
-			r->x, r->y, mo);
+	if(!eqpt(mo->Point, r->Point)){
+		werrstr("phase error: req mobj at %P, found %M", r->Point, mo);
 		return nil;
 	}
 	return mo;
@@ -221,9 +220,10 @@ parsemsg(Msg *m)
 			return 0;
 		default: fprint(2, "parsemsg: invalid message type %ux\n", type); return -1;
 		}
-		if((n = fn(p, e)) < 0)
+		if((n = fn(p, e)) < 0){
 			fprint(2, "parsemsg: %r\n");
-		else
+			return -1;
+		}else
 			p += n;
 	}
 	return 0;
