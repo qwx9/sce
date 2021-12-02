@@ -65,10 +65,6 @@ mobjfromreq(Mobj *r)
 
 	if((mo = derefmobj(r->idx, r->uuid)) == nil)
 		return nil;
-	if(!eqpt(mo->Point, r->Point)){
-		werrstr("phase error: req mobj at %P, found %M", r->Point, mo);
-		return nil;
-	}
 	return mo;
 }
 
