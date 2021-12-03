@@ -289,46 +289,6 @@ compose(int x, int y, u32int c)
 	}
 }
 
-static void
-drawmap(Rectangle r)
-{
-	int x, y;
-	u64int *row, v, m;
-	Point *p;
-	Path *pp;
-	Node *n;
-	Mobj *mo;
-
-	r = Rpt(mulpt(r.min, Node2Tile), mulpt(r.max, Node2Tile));
-	for(y=r.min.y, n=nodemap+y*nodemapwidth+r.min.x; y<r.max.y; y++){
-		x = r.min.x;
-		row = baddr(x, y);
-		v = *row++;
-		m = 1ULL << 63 - (x & Bmask);
-		for(; x<r.max.x; x++, n++, m>>=1){
-			if(m == 0){
-				v = *row++;
-				m = 1ULL << 63;
-			}
-			if(v & m)
-				compose(x, y, 0xff0000);
-			if(n->closed)
-				compose(x, y, 0x000077);
-			else if(n->open)
-				compose(x, y, 0x007777);
-		}
-		n += nodemapwidth - (r.max.x - r.min.x);
-	}
-	if((mo = selected[0]) != nil){
-		pp = &mo->path;
-		if(pp->step == nil)
-			return;
-		for(p=pp->step; p>=pp->moves.p; p--)
-			compose(p->x / Nodewidth, p->y / Nodeheight, 0x00ff00);
-		compose(pp->target.x, pp->target.y, 0x00ff77);
-	}
-}
-
 static Pic *
 frm(Mobj *mo, int type)
 {
@@ -467,7 +427,7 @@ redraw(void)
 	}
 	drawmobjs();
 	if(debugmap)
-		drawmap(r);
+		drawnodemap(r, selected[0]);
 	drawhud();
 }
 

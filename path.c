@@ -58,6 +58,45 @@ enum{
 static Pairheap *queue;
 static Node *nearest;
 
+void
+drawnodemap(Rectangle r, Mobj *sel)
+{
+	int x, y;
+	u64int *row, v, m;
+	Point *p;
+	Path *pp;
+	Node *n;
+
+	r = Rpt(mulpt(r.min, Node2Tile), mulpt(r.max, Node2Tile));
+	for(y=r.min.y, n=nodemap+y*nodemapwidth+r.min.x; y<r.max.y; y++){
+		x = r.min.x;
+		row = baddr(x, y);
+		v = *row++;
+		m = 1ULL << 63 - (x & Bmask);
+		for(; x<r.max.x; x++, n++, m>>=1){
+			if(m == 0){
+				v = *row++;
+				m = 1ULL << 63;
+			}
+			if(v & m)
+				compose(x, y, 0xff0000);
+			if(n->closed)
+				compose(x, y, 0x000077);
+			else if(n->open)
+				compose(x, y, 0x007777);
+		}
+		n += nodemapwidth - (r.max.x - r.min.x);
+	}
+	if(sel != nil){
+		pp = &sel->path;
+		if(pp->step == nil)
+			return;
+		for(p=pp->step; p>=pp->moves.p; p--)
+			compose(p->x / Nodewidth, p->y / Nodeheight, 0x00ff00);
+		compose(pp->target.x, pp->target.y, 0x00ff77);
+	}
+}
+
 static void
 clearpath(void)
 {
@@ -131,13 +170,13 @@ eucdist(Node *a, Node *b)
 }
 
 double
-octdist(Node *a, Node *b)
+octdist(Point a, Point b)
 {
 	int dx, dy;
 
-	dx = abs(a->x - b->x);
-	dy = abs(a->y - b->y);
-	return 1 * (dx + dy) + (SQRT2 - 2 * 1) * min(dx, dy);
+	dx = abs(a.x - b.x);
+	dy = abs(a.y - b.y);
+	return 1 * (dx + dy) + min(dx, dy) * (SQRT2 - 2 * 1);
 }
 
 /* FIXME: horrendous. use fucking tables you moron */
@@ -369,7 +408,7 @@ a∗(Node *a, Node *b, Mobj *mo)
 		return nil;
 	}
 	x = a;
-	a->h = octdist(a, b);
+	a->h = octdist(a->Point, b->Point);
 	pushqueue(a, &queue);
 	while((pn = popqueue(&queue)) != nil){
 		x = pn->n;
@@ -386,7 +425,7 @@ a∗(Node *a, Node *b, Mobj *mo)
 			if(!n->open){
 				n->from = x;
 				n->g = g;
-				n->h = octdist(n, b);
+				n->h = octdist(n->Point, b->Point);
 				n->len = x->len + n->Δlen;
 				n->open = 1;
 				n->step = x->step + 1;
@@ -470,7 +509,7 @@ nearestnonjump(Node *n, Node *b, Mobj *mo)
 			m = nodemap + y * nodemapwidth + x;
 			m->x = x;
 			m->y = y;
-			m->h = octdist(m, b);
+			m->h = octdist(m->Point, b->Point);
 			if(min->h < m->h)
 				break;
 			min = m;
@@ -510,7 +549,7 @@ setgoal(Point *p, Mobj *mo, Mobj *block)
 	for(e=x+block->o->w; x<e; x++, n1++, n2++){
 		n1->x = x;
 		n1->y = y;
-		Δ´ = octdist(pm, n1);
+		Δ´ = octdist(pm->Point, n1->Point);
 		if(Δ´ < Δ){
 			Δ = Δ´;
 			p->x = x;
@@ -518,7 +557,7 @@ setgoal(Point *p, Mobj *mo, Mobj *block)
 		}
 		n2->x = x;
 		n2->y = y + block->o->h - 1;
-		Δ´ = octdist(pm, n2);
+		Δ´ = octdist(pm->Point, n2->Point);
 		if(Δ´ < Δ){
 			Δ = Δ´;
 			p->x = x;
@@ -532,7 +571,7 @@ setgoal(Point *p, Mobj *mo, Mobj *block)
 	for(e=y+block->o->h-2; y<e; y++, n1+=nodemapwidth, n2+=nodemapwidth){
 		n1->x = x;
 		n1->y = y;
-		Δ´ = octdist(pm, n1);
+		Δ´ = octdist(pm->Point, n1->Point);
 		if(Δ´ < Δ){
 			Δ = Δ´;
 			p->x = x;
@@ -540,7 +579,7 @@ setgoal(Point *p, Mobj *mo, Mobj *block)
 		}
 		n2->x = x + block->o->w - 1;
 		n2->y = y;
-		Δ´ = octdist(pm, n2);
+		Δ´ = octdist(pm->Point, n2->Point);
 		if(Δ´ < Δ){
 			Δ = Δ´;
 			p->x = x + block->o->w - 1;
