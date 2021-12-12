@@ -73,7 +73,7 @@ pushreturncommand(Mobj *mo, Mobj *ro)
 	Command *c;
 
 	if((c = pushcommand(mo)) == nil){
-		fprint(2, "pushmovecommand: %r\n");
+		fprint(2, "pushreturncommand: %r\n");
 		return -1;
 	}
 	if((c->target1 = finddrop(mo)) == nil)

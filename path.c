@@ -489,6 +489,7 @@ isnextto(Mobj *mo, Mobj *tgt)
 	return rectXrect(insetrect(r1, -1), r2);
 }
 
+/* FIXME: completely broken */
 static Node *
 nearestnonjump(Node *n, Node *b, Mobj *mo)
 {
@@ -525,6 +526,7 @@ nearestnonjump(Node *n, Node *b, Mobj *mo)
 	return min;
 }
 
+/* FIXME: completely broken */
 void
 setgoal(Point *p, Mobj *mo, Mobj *block)
 {
@@ -631,8 +633,10 @@ findpath(Point p, Mobj *mo)
 		a->y = mo->y;
 		b->x = (b - nodemap) % nodemapwidth;
 		b->y = (b - nodemap) / nodemapwidth;
-		if((n = a∗(a, b, mo)) == nil)
-			sysfatal("findpath: phase error");
+		if((n = a∗(a, b, mo)) != b){
+			werrstr("bug: failed to find path to nearest non-jump point");
+			return -1;
+		}
 	}
 	markmobj(mo, 1);
 	backtrack(n, a, mo);
