@@ -402,7 +402,7 @@ successors(Node *n, Size, Node *)
 	static Node *dir[8+1];
 	static dtab[2*(nelem(dir)-1)]={
 		-1,-1, 0,-1, 1,-1,
-		-1,0, 0,1,
+		-1,0, 1,0,
 		-1,1, 0,1, 1,1,
 	};
 	int i;
@@ -463,6 +463,7 @@ a∗(Mobj *mo, Node *a, Node *b)
 				n->len = x->len + n->Δlen;
 				n->g -= Δg;
 				decreasekey(n->p, Δg, &queue);
+				assert(n->g >= 0);
 			}
 			if(nearest == nil || n->h < nearest->h)
 				nearest = n;
