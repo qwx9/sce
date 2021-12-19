@@ -4,32 +4,14 @@
 #include "dat.h"
 #include "fns.h"
 
-void
-linktomap(Mobj *mo)
-{
-	Map *m;
-
-	m = map + mo->y / Node2Tile * mapwidth + mo->x / Node2Tile;
-	mo->mapl = linkmobj(mo->o->f & Fair ? m->ml.lp : &m->ml, mo, mo->mapl);
-}
-
-static void
-resetcoords(Mobj *mo)
-{
-	markmobj(mo, 0);
-	mo->subpx = mo->px << Subpxshift;
-	mo->subpy = mo->py << Subpxshift;
-	markmobj(mo, 1);
-}
-
 static double
-facegoal(Point p, Mobj *mo)
+facegoal(Mobj *mo, Point p)
 {
 	int dx, dy;
 	double vx, vy, d, θ, θ256, Δθ;
 
-	dx = p.x - mo->px;
-	dy = p.y - mo->py;
+	dx = p.x - mo->x;
+	dy = p.y - mo->y;
 	d = sqrt(dx * dx + dy * dy);
 	if(d == 0.0)
 		sysfatal("facegoal: %M → %P: moving in place, shouldn't happen", mo, p);
@@ -60,22 +42,21 @@ facemobj(Mobj *mo, Mobj *tgt)
 {
 	Point p;
 
-	p.x = tgt->px + tgt->o->w * Nodewidth / 2;
-	p.y = tgt->py + tgt->o->h * Nodeheight / 2;
-	return facegoal(p, mo);
+	p = addpt(tgt->Point, Pt(tgt->o->w / 2, tgt->o->h / 2));
+	return facegoal(mo, p);
 }
 
 static void
 nextpathnode(Mobj *mo)
 {
-	resetcoords(mo);
-	facegoal(*mo->path.step, mo);
+	snaptomapgrid(mo);
+	facegoal(mo, *mo->path.step);
 }
 
 static void
 clearpath(Mobj *mo)
 {
-	resetcoords(mo);
+	snaptomapgrid(mo);
 	mo->speed = 0.0;
 	mo->path.step = nil;
 	clearvec(&mo->path.moves, sizeof *mo->path.step);
@@ -85,7 +66,7 @@ static void
 cleanup(Mobj *mo)
 {
 	clearpath(mo);
-	mo->path.target = (Point){0,0};
+	mo->path.target = ZP;
 	mo->path.blocked = 0;
 	mo->path.dist = 0.0;
 	mo->path.nerr = 0;
@@ -122,15 +103,13 @@ abortmove(Mobj *mo)
 	abortcommands(mo);
 }
 
-/* FIXME: kind of weird to mix up argument order,
- * mo should be first like elsewhere */
 static int
-repath(Point p, Mobj *mo)
+repath(Mobj *mo, Point p)
 {
 	clearpath(mo);
 	mo->path.target = p;
-	if(findpath(p, mo) < 0){
-		mo->θ = facegoal(p, mo);
+	if(findpath(mo, p) < 0){
+		mo->θ = facegoal(mo, p);
 		return -1;
 	}
 	nextpathnode(mo);
@@ -149,28 +128,26 @@ accelerate(Mobj *mo)
 		if(mo->speed > mo->o->speed)
 			mo->speed = mo->o->speed;
 	}
+	mo->speed /= 8;
 }
 
 static int
 trymove(Mobj *mo)
 {
-	int px, py, sx, sy, Δx, Δy, Δu, Δv, Δrx, Δry, Δpx, Δpy;
-	double dx, dy;
-	Point p;
+	int Δx, Δy, Δu, Δv, Δrx, Δry, Δpx, Δpy;
+	Point p, from, sub;
 
 	markmobj(mo, 0);
-	px = mo->px;
-	py = mo->py;
-	sx = mo->subpx;
-	sy = mo->subpy;
-	Δu = mo->u * (1 << Subpxshift);
-	Δv = mo->v * (1 << Subpxshift);
+	from = mo->Point;
+	sub = mo->sub;
+	Δu = mo->u * (1 << Subshift);
+	Δv = mo->v * (1 << Subshift);
 	Δx = abs(Δu);
 	Δy = abs(Δv);
-	Δrx = fabs(mo->u * mo->speed) * (1 << Subpxshift);
-	Δry = fabs(mo->v * mo->speed) * (1 << Subpxshift);
-	Δpx = abs((mo->path.step->x << Subpxshift) - sx);
-	Δpy = abs((mo->path.step->y << Subpxshift) - sy);
+	Δrx = fabs(mo->u * mo->speed) * (1 << Subshift);
+	Δry = fabs(mo->v * mo->speed) * (1 << Subshift);
+	Δpx = abs((mo->path.step->x << Subshift) - sub.x);
+	Δpy = abs((mo->path.step->y << Subshift) - sub.y);
 	if(Δpx < Δrx)
 		Δrx = Δpx;
 	if(Δpy < Δry)
@@ -178,20 +155,18 @@ trymove(Mobj *mo)
 	while(Δrx > 0 || Δry > 0){
 		p = mo->Point;
 		if(Δrx > 0){
-			sx += Δu;
+			sub.x += Δu;
 			Δrx -= Δx;
 			if(Δrx < 0)
-				sx += mo->u < 0 ? -Δrx : Δrx;
-			p.x = (sx >> Subpxshift) + ((sx & Subpxmask) != 0);
-			p.x /= Nodewidth;
+				sub.x += mo->u < 0 ? -Δrx : Δrx;
+			p.x = (sub.x >> Subshift) + ((sub.x & Submask) != 0);
 		}
 		if(Δry > 0){
-			sy += Δv;
+			sub.y += Δv;
 			Δry -= Δy;
 			if(Δry < 0)
-				sy += mo->v < 0 ? -Δry : Δry;
-			p.y = (sy >> Subpxshift) + ((sy & Subpxmask) != 0);
-			p.y /= Nodewidth;
+				sub.y += mo->v < 0 ? -Δry : Δry;
+			p.y = (sub.y >> Subshift) + ((sub.y & Submask) != 0);
 		}
 		if(isblocked(p, mo->o))
 			goto end;
@@ -202,30 +177,16 @@ trymove(Mobj *mo)
 			dprint("%M detected corner coasting at %P\n", mo, p);
 			goto end;
 		}
-		mo->subpx = sx;
-		mo->subpy = sy;
-		mo->px = sx >> Subpxshift;
-		mo->py = sy >> Subpxshift;
-		mo->x = mo->px / Nodewidth;
-		mo->y = mo->py / Nodeheight;
+		setsubpos(mo, sub);
 	}
 	markmobj(mo, 1);
-	dx = mo->px - px;
-	dx *= dx;
-	dy = mo->py - py;
-	dy *= dy;
-	mo->path.dist -= sqrt(dx + dy) / Nodewidth;
+	mo->path.dist -= eucdist(mo->Point, from);
 	return 0;
 end:
 	werrstr("trymove: can't move to %P", p);
-	mo->subpx = mo->px << Subpxshift;
-	mo->subpy = mo->py << Subpxshift;
+	setpos(mo, mo->Point);
 	markmobj(mo, 1);
-	dx = mo->px - px;
-	dx *= dx;
-	dy = mo->py - py;
-	dy *= dy;
-	mo->path.dist -= sqrt(dx + dy) / Nodewidth;
+	mo->path.dist -= eucdist(mo->Point, from);
 	return -1;
 }
 
@@ -272,7 +233,7 @@ turnstep(Mobj *mo)
 static int
 nodereached(Mobj *mo)
 {
-	return mo->px == mo->path.step->x && mo->py == mo->path.step->y;
+	return eqpt(mo->Point, *mo->path.step);
 }
 
 static void
@@ -289,9 +250,9 @@ restart:
 			fprint(2, "%M stepmove: bug: infinite loop!\n", mo);
 			return;
 		}
-		dprint("%M stepmove: failed moving from %d,%d to %P: %r\n",
-			mo, mo->px, mo->py, *mo->path.step);
-		if(repath(mo->path.target, mo) < 0){
+		dprint("%M stepmove: failed moving from %P to %P: %r\n",
+			mo, mo->Point, *mo->path.step);
+		if(repath(mo, mo->path.target) < 0){
 			dprint("%M stepmove: failed moving towards target: %r\n", mo);
 			abortcommands(mo);
 			return;
@@ -322,7 +283,7 @@ restart:
 		return;
 	}
 	dprint("%M stepmove: trying again\n", mo);
-	if(mo->path.nerr++ > 1 || repath(mo->path.target, mo) < 0){
+	if(mo->path.nerr++ > 1 || repath(mo, mo->path.target) < 0){
 		dprint("%M stepmove: still can't reach target: %r\n", mo);
 		abortmove(mo);
 		return;
@@ -338,10 +299,10 @@ pushmove(Mobj *mo)
 	c = mo->cmds;
 	c->cleanupfn = cleanup;
 	goal = c->goal;
-	setgoal(&goal, mo, c->target1);
-	if(repath(goal, mo) < 0)
+	setgoal(mo, &goal, c->target1);
+	if(repath(mo, goal) < 0)
 		return -1;
-	if(eqpt(goal, mo->Point)){
+	if(eqpt(mo->Point, goal)){
 		mo->state = OSskymaybe;
 		return 0;
 	}
@@ -351,7 +312,7 @@ pushmove(Mobj *mo)
 }
 
 int
-pushmovecommand(Point goal, Mobj *mo, Mobj *target)
+pushmovecommand(Mobj *mo, Point goal, Mobj *target)
 {
 	Command *c;
 

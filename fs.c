@@ -39,7 +39,7 @@ struct Picl{
 };
 struct Tilel{
 	int id;
-	Tile *t;
+	Tilepic *t;
 	Tilel *l;
 };
 static Tilel tilel0 = {.l = &tilel0}, *tilel = &tilel0;
@@ -80,8 +80,8 @@ loadpic(char *name, Pic *pic, int alpha)
 	pic->p = p;
 	pic->w = dx;
 	pic->h = dy;
-	pic->dx = i->r.min.x;
-	pic->dy = i->r.min.y;
+	pic->Δ.x = i->r.min.x;
+	pic->Δ.y = i->r.min.y;
 	m = i->depth / 8;
 	freeimage(i);
 	s = b;
@@ -215,7 +215,7 @@ pushpic(char *name, int frm, int type, int nr, int hasteam, Pics *ps)
 	return pl->p;
 }
 
-static Tile *
+static Tilepic *
 pushtile(int id)
 {
 	Tilel *tl;
@@ -248,6 +248,7 @@ vunpack(char **fld, char *fmt, va_list a)
 		switch(*fmt++){
 		default: sysfatal("unknown format %c", fmt[-1]);
 		case 0: return;
+		case ' ': break;
 		case 'd':
 			if((n = strtol(*fld++, nil, 0)) < 0)
 				sysfatal("vunpack: illegal positive integer %d", n);
@@ -301,7 +302,7 @@ vunpack(char **fld, char *fmt, va_list a)
 				sysfatal("vunpack: empty tile");
 			if((n = strtol(s, nil, 0)) <= 0)
 				sysfatal("vunpack: illegal tile index %d", n);
-			*va_arg(a, Tile**) = pushtile(n);
+			*va_arg(a, Tilepic**) = pushtile(n);
 			break;
 		}
 	}
@@ -323,7 +324,7 @@ readgather(char **fld, int n, Table *)
 	Obj *o, **os;
 	Resource *r;
 
-	unpack(fld, "ro", &r, &o);
+	unpack(fld, "r o", &r, &o);
 	if(o->res != nil && o->res != r)
 		sysfatal("readgather %s: obj %s already assigned to %s",
 			r->name, o->name, o->res->name);
@@ -362,16 +363,16 @@ static void
 readmap(char **fld, int n, Table *tab)
 {
 	int x;
-	Map *m;
+	Tile *t;
 
 	if(tab->row == 0){
 		tab->ncol = n;
-		mapwidth = n;
-		map = emalloc(mapheight * n * sizeof *map);
+		tilemapwidth = n;
+		tilemap = emalloc(tilemapheight * n * sizeof *tilemap);
 	}
-	m = map + tab->row * mapwidth;
-	for(x=0; x<n; x++, m++)
-		unpack(fld++, "t", &m->t);
+	t = tilemap + tab->row * tilemapwidth;
+	for(x=0; x<n; x++, t++)
+		unpack(fld++, "t", &t->t);
 }
 
 static void
@@ -383,7 +384,8 @@ readmapobj(char **fld, int, Table *tab)
 	if(objp == nil)
 		objp = emalloc(nobjp * sizeof *objp);
 	op = objp + tab->row;
-	unpack(fld, "oddd", &op->o, &op->x, &op->y, &arg);
+	unpack(fld, "o dd d", &op->o, &op->x, &op->y, &arg);
+	op->Point = mulpt(op->Point, Node2Tile);
 	if(op->o->f & Fresource){
 		op->team = 0;
 		op->resource = 1;
@@ -443,19 +445,20 @@ readobj(char **fld, int, Table *tab)
 		obj = emalloc(nobj * sizeof *obj);
 	o = obj + tab->row;
 	o->name = estrdup(*fld++);
-	unpack(fld, "ddddddddddaaffff", &o->f, &o->w, &o->h,
+	unpack(fld, "d dd ddd dddd aa ffff", &o->f, &o->w, &o->h,
 		&o->hp, &o->def, &o->vis,
 		o->cost, o->cost+1, o->cost+2, &o->time,
-		o->atk, o->atk+1, &o->speed, &o->accel, &o->halt, &o->turn);
+		o->atk, o->atk+1,
+		&o->speed, &o->accel, &o->halt, &o->turn);
 	if(o->f & Fresource)
 		o->f |= Fimmutable;
 	else{
 		o->accel /= 256.0;
 		o->halt /= 256.0;
 		/* halting distance in path node units */
-		o->halt /= Nodewidth;
+		o->halt /= Nodesz;
 	}
-	if(o->w < 1 || o->h < 1)
+	if(o->w < 1 || o->h < 1 || o->w > 4 * Node2Tile || o->h > 4 * Node2Tile)
 		sysfatal("readobj: %s invalid dimensions %d,%d", o->name, o->w, o->h);
 }
 
@@ -469,7 +472,7 @@ readspr(char **fld, int n, Table *)
 
 	if(n < 4)
 		sysfatal("readspr %s: %d fields < 4 mandatory columns", o->name, n);
-	unpack(fld, "odd", &o, &type, &nr);
+	unpack(fld, "o dd", &o, &type, &nr);
 	fld += 3;
 	n -= 3;
 	state = type & PFstatemask;
@@ -519,7 +522,7 @@ Table table[] = {
 	[TBresource] {"resource", readresource, -1, &nresource},
 	[TBspawn] {"spawn", readspawn, -1, nil},
 	[TBtileset] {"tileset", readtileset, 1, nil},
-	[TBmap] {"map", readmap, -1, &mapheight},
+	[TBmap] {"map", readmap, -1, &tilemapheight},
 	[TBspr] {"spr", readspr, -1, nil},
 	[TBgather] {"gather", readgather, -1, nil},
 };
@@ -605,17 +608,15 @@ static void
 initmapobj(void)
 {
 	Objp *op;
-	Map *m;
-	Point p;
+	Tile *t;
 
-	for(m=map; m<map+mapwidth*mapheight; m++)
-		m->ml.l = m->ml.lp = &m->ml;
+	for(t=tilemap; t<tilemap+tilemapwidth*tilemapheight; t++)
+		t->ml.l = t->ml.lp = &t->ml;
 	for(op=objp; op<objp+nobjp; op++){
-		p = mulpt(op->Point, Node2Tile);
 		if(op->resource){
-			if(spawnresource(p, op->o, op->amount) < 0)
+			if(spawnresource(op->o, op->Point, op->amount) < 0)
 				sysfatal("initmapobj: %s at %P: %r", op->o->name, op->Point);
-		}else if(spawnunit(p, op->o, op->team) < 0)
+		}else if(spawnunit(op->o, op->Point, op->team) < 0)
 			sysfatal("initmapobj: %s team %d at %P: %r", op->o->name, op->team, op->Point);
 	}
 	free(objp);
@@ -649,9 +650,10 @@ checkdb(void)
 		sysfatal("checkdb: no tileset defined");
 	if(nresource != Nresource)
 		sysfatal("checkdb: incomplete resource specification");
-	if(mapwidth % 16 != 0 || mapheight % 16 != 0 || mapwidth * mapheight == 0)
+	if(tilemapwidth % 16 != 0 || tilemapheight % 16 != 0
+	|| tilemapwidth * tilemapheight <= 0)
 		sysfatal("checkdb: map size %d,%d not in multiples of 16",
-			mapwidth, mapheight);
+			tilemapwidth, tilemapheight);
 	if(nteam < 2)
 		sysfatal("checkdb: not enough teams");
 }

@@ -58,6 +58,7 @@ popqueue(Pairheap **queue)
 	if(p == nil)
 		return nil;
 	*queue = mergepairs(p->left);
+	dprint("pop %#p %P g %f sum %f\n", p->n, p->n->Point, p->n->g, p->sum);
 	return p;
 }
 
@@ -66,6 +67,7 @@ decreasekey(Pairheap *p, double Δ, Pairheap **queue)
 {
 	p->sum -= Δ;
 	p->n->g -= Δ;
+	dprint("decrease %#p %P g %f sum %f\n", p->n, p->n->Point, p->n->g, p->sum);
 	if(p->parent != nil && p->sum < p->parent->sum){
 		p->parent->left = nil;
 		p->parent = nil;
@@ -82,5 +84,6 @@ pushqueue(Node *n, Pairheap **queue)
 	p->n = n;
 	p->sum = n->h + n->g;
 	n->p = p;
+	dprint("push %#p %P g %f sum %f\n", p->n, p->n->Point, p->n->g, p->sum);
 	*queue = mergequeue(p, *queue);
 }

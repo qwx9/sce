@@ -55,7 +55,7 @@ finddrop(Mobj *mo)
 		werrstr("no drops");
 		return nil;
 	}
-	d = nodemapwidth * nodemapheight;
+	d = mapwidth * mapheight;
 	for(wp=t->drops.p, we=wp+t->drops.n, wo=nil; wp<we; wp++){
 		w = *wp;
 		d´ = octdist(mo->Point, w->Point);

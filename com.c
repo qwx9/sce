@@ -13,6 +13,11 @@ struct Header{
 	ushort size;
 };
 
+#define	MGATHER		"dl dl"
+#define	MMOVENEAR	"dl dl"
+#define MMOVE		"dl dd"
+#define MSTOP		"dl"
+
 static int
 vunpack(uchar *p, uchar *e, char *fmt, va_list a)
 {
@@ -74,9 +79,7 @@ reqgather(uchar *p, uchar *e)
 	int n;
 	Mobj reqm, reqt, *mo, *tgt;
 
-	if((n = unpack(p, e, "dldd dldd",
-	&reqm.idx, &reqm.uuid, &reqm.x, &reqm.y,
-	&reqt.idx, &reqt.uuid, &reqt.x, &reqt.y)) < 0)
+	if((n = unpack(p, e, MGATHER, &reqm.idx, &reqm.uuid, &reqt.idx, &reqt.uuid)) < 0)
 		return -1;
 	if((mo = mobjfromreq(&reqm)) == nil)
 		return -1;
@@ -90,6 +93,10 @@ reqgather(uchar *p, uchar *e)
 	}
 	if((tgt = mobjfromreq(&reqt)) == nil)
 		return -1;
+	if(mo == tgt){
+		werrstr("reqgather: object %M targeting itself", mo);
+		return -1;
+	}
 	if((tgt->o->f & Fresource) == 0){
 		werrstr("reqgather: target %M not a resource", tgt);
 		return -1;
@@ -103,18 +110,10 @@ static int
 reqmovenear(uchar *p, uchar *e)
 {
 	int n;
-	Point click;
 	Mobj reqm, reqt, *mo, *tgt;
 
-	if((n = unpack(p, e, "dldd dd dldd",
-	&reqm.idx, &reqm.uuid, &reqm.x, &reqm.y,
-	&click.x, &click.y,
-	&reqt.idx, &reqt.uuid, &reqt.x, &reqt.y)) < 0)
+	if((n = unpack(p, e, MMOVENEAR, &reqm.idx, &reqm.uuid, &reqt.idx, &reqt.uuid)) < 0)
 		return -1;
-	if(eqpt(reqm.Point, reqt.Point) || eqpt(reqm.Point, click)){
-		dprint("reqmovenear: %P [%#ux,%ld] → %P [%#ux,%ld] (%P), not moving to itself\n", reqm.Point, reqm.idx, reqm.uuid, reqt.Point, reqt.idx, reqt.uuid, click);
-		return n;
-	}
 	if((mo = mobjfromreq(&reqm)) == nil)
 		return -1;
 	if((mo->o->f & Fimmutable) || mo->o->speed == 0.0){
@@ -123,11 +122,11 @@ reqmovenear(uchar *p, uchar *e)
 	}
 	if((tgt = mobjfromreq(&reqt)) == nil)
 		return -1;
-	if(click.x >= nodemapwidth || click.y >= nodemapheight){
-		werrstr("reqmovenear: invalid location %d,%d", click.x, click.y);
+	if(mo == tgt){
+		werrstr("reqmovenear: object %M targeting itself", mo);
 		return -1;
 	}
-	if(pushmovecommand(click, mo, tgt) < 0)
+	if(pushmovecommand(mo, tgt->Point, tgt) < 0)
 		return -1;
 	return n;
 }
@@ -139,25 +138,23 @@ reqmove(uchar *p, uchar *e)
 	Point tgt;
 	Mobj reqm, *mo;
 
-	if((n = unpack(p, e, "dldd dd",
-	&reqm.idx, &reqm.uuid, &reqm.x, &reqm.y,
-	&tgt.x, &tgt.y)) < 0)
+	if((n = unpack(p, e, MMOVE, &reqm.idx, &reqm.uuid, &tgt.x, &tgt.y)) < 0)
 		return -1;
-	if(eqpt(reqm.Point, tgt)){
-		dprint("reqmove: %P [%#ux,%ld] → %P, not moving to itself\n", reqm.Point, reqm.idx, reqm.uuid, tgt);
-		return n;
+	if(!ptinrect(tgt, Rect(0,0,mapwidth,mapheight))){
+		werrstr("reqmove: invalid target %P", tgt);
+		return -1;
 	}
 	if((mo = mobjfromreq(&reqm)) == nil)
 		return -1;
+	if(eqpt(mo->Point, tgt)){
+		werrstr("reqmove: object %M targeting itself", mo);
+		return -1;
+	}
 	if((mo->o->f & Fimmutable) || mo->o->speed == 0.0){
 		werrstr("reqmove: object %M can't move", mo);
 		return -1;
 	}
-	if(tgt.x >= nodemapwidth || tgt.y >= nodemapheight){
-		werrstr("reqmove: invalid target %d,%d", tgt.x, tgt.y);
-		return -1;
-	}
-	if(pushmovecommand(tgt, mo, nil) < 0)
+	if(pushmovecommand(mo, tgt, nil) < 0)
 		return -1;
 	return n;
 }
@@ -168,8 +165,7 @@ reqstop(uchar *p, uchar *e)
 	int n;
 	Mobj reqm, *mo;
 
-	if((n = unpack(p, e, "dldd",
-	&reqm.idx, &reqm.uuid, &reqm.x, &reqm.y)) < 0)
+	if((n = unpack(p, e, MSTOP, &reqm.idx, &reqm.uuid)) < 0)
 		return -1;
 	if((mo = mobjfromreq(&reqm)) == nil)
 		return -1;
@@ -307,9 +303,7 @@ sendgather(Mobj *mo, Mobj *tgt)
 	Msg *m;
 
 	m = getclbuf();
-	if(packmsg(m, "h dldd dldd", CTgather,
-	mo->idx, mo->uuid, mo->x, mo->y,
-	tgt->idx, tgt->uuid, tgt->x, tgt->y) < 0){
+	if(packmsg(m, "h" MGATHER, CTgather, mo->idx, mo->uuid, tgt->idx, tgt->uuid) < 0){
 		fprint(2, "sendgather: %r\n");
 		return -1;
 	}
@@ -317,15 +311,12 @@ sendgather(Mobj *mo, Mobj *tgt)
 }
 
 int
-sendmovenear(Mobj *mo, Point click, Mobj *tgt)
+sendmovenear(Mobj *mo, Mobj *tgt)
 {
 	Msg *m;
 
 	m = getclbuf();
-	if(packmsg(m, "h dldd dd dldd", CTmovenear,
-	mo->idx, mo->uuid, mo->x, mo->y,
-	click.x, click.y,
-	tgt->idx, tgt->uuid, tgt->x, tgt->y) < 0){
+	if(packmsg(m, "h" MMOVENEAR, CTmovenear, mo->idx, mo->uuid, tgt->idx, tgt->uuid) < 0){
 		fprint(2, "sendmovenear: %r\n");
 		return -1;
 	}
@@ -338,9 +329,7 @@ sendmove(Mobj *mo, Point tgt)
 	Msg *m;
 
 	m = getclbuf();
-	if(packmsg(m, "h dldd dd", CTmove,
-	mo->idx, mo->uuid, mo->x, mo->y,
-	tgt.x, tgt.y) < 0){
+	if(packmsg(m, "h" MMOVE, CTmove, mo->idx, mo->uuid, tgt.x, tgt.y) < 0){
 		fprint(2, "sendmove: %r\n");
 		return -1;
 	}
@@ -353,8 +342,7 @@ sendstop(Mobj *mo)
 	Msg *m;
 
 	m = getclbuf();
-	if(packmsg(m, "h dldd", CTstop,
-	mo->idx, mo->uuid, mo->x, mo->y) < 0){
+	if(packmsg(m, "h" MSTOP, CTstop, mo->idx, mo->uuid) < 0){
 		fprint(2, "sendstop: %r\n");
 		return -1;
 	}

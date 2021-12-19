@@ -61,39 +61,38 @@ static Node *nearest;
 void
 drawnodemap(Rectangle r, Mobj *sel)
 {
-	int x, y;
 	u64int *row, v, m;
-	Point *p;
-	Path *pp;
+	Point p, *pp;
+	Path *path;
 	Node *n;
 
 	r = Rpt(mulpt(r.min, Node2Tile), mulpt(r.max, Node2Tile));
-	for(y=r.min.y, n=nodemap+y*nodemapwidth+r.min.x; y<r.max.y; y++){
-		x = r.min.x;
-		row = baddr(x, y);
+	for(p.y=r.min.y, n=map+p.y*mapwidth+r.min.x; p.y<r.max.y; p.y++){
+		p.x = r.min.x;
+		row = baddr(p);
 		v = *row++;
-		m = 1ULL << 63 - (x & Bmask);
-		for(; x<r.max.x; x++, n++, m>>=1){
+		m = 1ULL << 63 - (p.x & Bmask);
+		for(; p.x<r.max.x; p.x++, n++, m>>=1){
 			if(m == 0){
 				v = *row++;
 				m = 1ULL << 63;
 			}
 			if(v & m)
-				compose(x, y, 0xff0000);
+				compose(mulpt(p, Nodesz), 0xff0000);
 			if(n->closed)
-				compose(x, y, 0x000077);
+				compose(mulpt(p, Nodesz), 0x000077);
 			else if(n->open)
-				compose(x, y, 0x007777);
+				compose(mulpt(p, Nodesz), 0x007777);
 		}
-		n += nodemapwidth - (r.max.x - r.min.x);
+		n += mapwidth - (r.max.x - r.min.x);
 	}
 	if(sel != nil){
-		pp = &sel->path;
-		if(pp->step == nil)
+		path = &sel->path;
+		if(path->step == nil)
 			return;
-		for(p=pp->step; p>=pp->moves.p; p--)
-			compose(p->x / Nodewidth, p->y / Nodeheight, 0x00ff00);
-		compose(pp->target.x, pp->target.y, 0x00ff77);
+		for(pp=path->step; pp>=path->moves.p; pp--)
+			compose(mulpt(*pp, Nodesz), 0x00ff00);
+		compose(mulpt(path->target, Nodesz), 0x00ff77);
 	}
 }
 
@@ -101,7 +100,7 @@ static void
 clearpath(void)
 {
 	nukequeue(&queue);
-	memset(nodemap, 0, nodemapwidth * nodemapheight * sizeof *nodemap);
+	memset(map, 0, mapwidth * mapheight * sizeof *map);
 	nearest = nil;
 }
 
@@ -112,60 +111,61 @@ isblocked(Point p, Obj *o)
 
 	if(o->f & Fair)
 		return 0;
-	row = bload(p.x, p.y, o->w, o->h, 0, 0, 0, 0);
+	row = bload(p, Pt(o->w, o->h), ZP, 0, 0);
 	return (*row & 1ULL << 63) != 0;
 }
 
 Mobj *
-unitat(int px, int py)
+unitat(Point p)
 {
-	int x, y;
+	Point mp;
 	Rectangle r, mr;
-	Map *m;
+	Tile *t;
 	Mobjl *ml;
 	Mobj *mo;
 
-	x = px / Node2Tile;
-	y = py / Node2Tile;
-	r = Rect(x-4, y-4, x, y);
-	for(; y>=r.min.y; y--)
-		for(x=r.max.x, m=map+y*mapwidth+x; x>=r.min.x; x--)
-			for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
+	mp = divpt(p, Node2Tile);
+	r = Rpt(subpt(mp, Pt(4, 4)), mp);
+	for(; mp.y>=r.min.y; mp.y--){
+		mp.x = r.max.x;
+		t = tilemap + mp.y * tilemapwidth + mp.x;
+		for(; mp.x>=r.min.x; mp.x--, t--)
+			for(ml=t->ml.l; ml!=&t->ml; ml=ml->l){
 				mo = ml->mo;
-				mr.min.x = mo->x;
-				mr.min.y = mo->y;
-				mr.max.x = mr.min.x + mo->o->w;
-				mr.max.y = mr.min.y + mo->o->h;
-				if(px >= mo->x && px <= mo->x + mo->o->w
-				&& py >= mo->y && py <= mo->y + mo->o->h)
+				mr = Rect(mo->x, mo->y, mo->x+mo->o->w, mo->y+mo->o->h);
+				if(ptinrect(p, mr))
 					return mo;
 			}
+	}
 	return nil;
 }
 
 void
 markmobj(Mobj *mo, int set)
 {
-	int w, h;
+	Point sz;
 
 	if(mo->o->f & Fair)
 		return;
-	w = mo->o->w;
-	if((mo->subpx & Subpxmask) != 0 && mo->x != (mo->px + 1) / Nodewidth)
-		w++;
-	h = mo->o->h;
-	if((mo->subpy & Subpxmask) != 0 && mo->y != (mo->py + 1) / Nodewidth)
-		h++;
-	bset(mo->x, mo->y, w, h, set);
+	sz = Pt(mo->o->w, mo->o->h);
+/*
+	if((mo->sub.x & Submask) != 0 && mo->x != ((mo->sub.x>>Pixelshift) + 1) / Nodesz)
+		sz.x++;
+	if((mo->sub.y & Submask) != 0 && mo->y != ((mo->sub.y>>Pixelshift) + 1) / Nodesz)
+		sz.y++;
+*/
+	sz.x += (mo->sub.x & Submask) != 0 && mo->x != mo->sub.x + (1<<Pixelshift) >> Subshift;
+	sz.y += (mo->sub.y & Submask) != 0 && mo->y != mo->sub.y + (1<<Pixelshift) >> Subshift;
+	bset(mo->Point, sz, set);
 }
 
-static double
-eucdist(Node *a, Node *b)
+double
+eucdist(Point a, Point b)
 {
-	double dx, dy;
+	int dx, dy;
 
-	dx = a->x - b->x;
-	dy = a->y - b->y;
+	dx = a.x - b.x;
+	dy = a.y - b.y;
 	return sqrt(dx * dx + dy * dy);
 }
 
@@ -203,7 +203,7 @@ jumpeast(int x, int y, int w, int h, Node *b, int *ofs, int left, int rot)
 	ss = left ? -1 : 1;
 	(*v)--;
 	for(;;){
-		row = bload(x, y, w, h, 0, 2, left, rot);
+		row = bload(Pt(x, y), Pt(w, h), Pt(0, 2), left, rot);
 		bs = row[1];
 		if(left){
 			bs |= row[0] << 1 & ~row[0];
@@ -240,8 +240,8 @@ jumpeast(int x, int y, int w, int h, Node *b, int *ofs, int left, int rot)
 	}
 	if(end)
 		return nil;
-	assert(x < nodemapwidth && y < nodemapheight);
-	n = nodemap + y * nodemapwidth + x;
+	assert(x < mapwidth && y < mapheight);
+	n = map + y * mapwidth + x;
 	n->x = x;
 	n->y = y;
 	n->Δg = steps;
@@ -267,7 +267,7 @@ jumpdiag(int x, int y, int w, int h, Node *b, int dir)
 		steps++;
 		x += Δx;
 		y += Δy;
-		if(*bload(x, y, w, h, 0, 0, 0, 0) & 1ULL << 63)
+		if(*bload(Pt(x, y), Pt(w, h), ZP, 0, 0) & 1ULL << 63)
 			return nil;
 		if(jumpeast(x, y, w, h, b, &ofs1, left1, 1) != nil
 		|| jumpeast(x, y, w, h, b, &ofs2, left2, 0) != nil)
@@ -275,8 +275,8 @@ jumpdiag(int x, int y, int w, int h, Node *b, int dir)
 		if(ofs1 == 0 || ofs2 == 0)
 			return nil;
 	}
-	assert(x < nodemapwidth && y < nodemapheight);
-	n = nodemap + y * nodemapwidth + x;
+	assert(x < mapwidth && y < mapheight);
+	n = map + y * mapwidth + x;
 	n->x = x;
 	n->y = y;
 	n->Δg = steps;
@@ -367,12 +367,12 @@ neighbors(int x, int y, int w, int h)
 {
 	u64int *row;
 
-	row = bload(x-1, y-1, w, h, 2, 2, 1, 0);
+	row = bload(Pt(x-1,y-1), Pt(w,h), Pt(2,2), 1, 0);
 	return (row[2] & 7) << 6 | (row[1] & 7) << 3 | row[0] & 7;
 }
 
 static Node **
-successors(Node *n, int w, int h, Node *b)
+jpssuccessors(Node *n, Size sz, Node *b)
 {
 	static Node *dir[8+1];
 	static dtab[2*(nelem(dir)-1)]={
@@ -382,13 +382,13 @@ successors(Node *n, int w, int h, Node *b)
 	int i, ns;
 	Node *s, **p;
 
-	ns = neighbors(n->x, n->y, w, h);
+	ns = neighbors(n->x, n->y, sz.w, sz.h);
 	ns = prune(ns, n->dir);
 	memset(dir, 0, sizeof dir);
 	for(i=0, p=dir; i<nelem(dtab); i+=2){
 		if(ns & dtab[i])
 			continue;
-		if((s = jump(n->x, n->y, w, h, b, dtab[i+1])) != nil){
+		if((s = jump(n->x, n->y, sz.w, sz.h, b, dtab[i+1])) != nil){
 			s->dir = dtab[i+1];
 			*p++ = s;
 		}
@@ -396,8 +396,33 @@ successors(Node *n, int w, int h, Node *b)
 	return dir;
 }
 
+static Node **
+successors(Node *n, Size, Node *)
+{
+	static Node *dir[8+1];
+	static dtab[2*(nelem(dir)-1)]={
+		-1,-1, 0,-1, 1,-1,
+		-1,0, 0,1,
+		-1,1, 0,1, 1,1,
+	};
+	int i;
+	Node *s, **p;
+
+	memset(dir, 0, sizeof dir);
+	for(i=0, p=dir; i<nelem(dtab); i+=2){
+		s = n + dtab[i+1] * mapwidth + dtab[i];
+		if(s >= map && s < map + mapwidth * mapheight){
+			s->Point = addpt(n->Point, Pt(dtab[i], dtab[i+1]));
+			s->Δg = 1;
+			s->Δlen = dtab[i] != 0 && dtab[i+1] != 0 ? SQRT2 : 1;
+			*p++ = s;
+		}
+	}
+	return dir;
+}
+
 static Node *
-a∗(Node *a, Node *b, Mobj *mo)
+a∗(Mobj *mo, Node *a, Node *b)
 {
 	double g, Δg;
 	Node *x, *n, **dp;
@@ -416,9 +441,11 @@ a∗(Node *a, Node *b, Mobj *mo)
 		if(x == b)
 			break;
 		x->closed = 1;
-		dp = successors(x, mo->o->w, mo->o->h, b);
+		dp = successors(x, mo->o->Size, b);
 		for(n=*dp++; n!=nil; n=*dp++){
 			if(n->closed)
+				continue;
+			if(isblocked(n->Point, mo->o))
 				continue;
 			g = x->g + n->Δg;
 			Δg = n->g - g;
@@ -445,33 +472,28 @@ a∗(Node *a, Node *b, Mobj *mo)
 }
 
 static void
-directpath(Node *a, Node *g, Mobj *mo)
+directpath(Mobj *mo, Node *a, Node *g)
 {
-	Point p;
 	Path *pp;
 
 	pp = &mo->path;
-	pp->dist = eucdist(a, g);
-	clearvec(&pp->moves, sizeof p);
-	p = Pt(g->x * Nodewidth, g->y * Nodeheight);
-	pushvec(&pp->moves, &p, sizeof p);
+	pp->dist = eucdist(a->Point, g->Point);
+	clearvec(&pp->moves, sizeof g->Point);
+	pushvec(&pp->moves, &g->Point, sizeof g->Point);
 	pp->step = (Point *)pp->moves.p + pp->moves.n - 1;
 }
 
 static void
-backtrack(Node *n, Node *a, Mobj *mo)
+backtrack(Mobj *mo, Node *n, Node *a)
 {
-	Point p;
 	Path *pp;
 
 	pp = &mo->path;
 	assert(n != a && n->step > 0);
 	pp->dist = n->len;
-	clearvec(&pp->moves, sizeof p);
-	for(; n!=a; n=n->from){
-		p = Pt(n->x * Nodewidth, n->y * Nodeheight);
-		pushvec(&pp->moves, &p, sizeof p);
-	}
+	clearvec(&pp->moves, sizeof n->Point);
+	for(; n!=a; n=n->from)
+		pushvec(&pp->moves, &n->Point, sizeof n->Point);
 	pp->step = (Point *)pp->moves.p + pp->moves.n - 1;
 }
 
@@ -491,7 +513,7 @@ isnextto(Mobj *mo, Mobj *tgt)
 
 /* FIXME: completely broken */
 static Node *
-nearestnonjump(Node *n, Node *b, Mobj *mo)
+nearestnonjump(Mobj *mo, Node *n, Node *b)
 {
 	static Point dirtab[] = {
 		{0,-1},
@@ -499,23 +521,21 @@ nearestnonjump(Node *n, Node *b, Mobj *mo)
 		{0,1},
 		{-1,0},
 	};
-	int i, x, y;
+	int i;
+	Point p;
 	Node *m, *min;
 
 	min = n;
 	for(i=0; i<nelem(dirtab); i++){
-		x = n->x + dirtab[i].x;
-		y = n->y + dirtab[i].y;
-		while(!isblocked(Pt(x, y), mo->o)){
-			m = nodemap + y * nodemapwidth + x;
-			m->x = x;
-			m->y = y;
+		p = addpt(n->Point, dirtab[i]);
+		while(!isblocked(p, mo->o)){
+			m = map + p.y * mapwidth + p.x;
+			m->Point = p;
 			m->h = octdist(m->Point, b->Point);
 			if(min->h < m->h)
 				break;
 			min = m;
-			x += dirtab[i].x;
-			y += dirtab[i].y;
+			p = addpt(p, dirtab[i]);
 		}
 	}
 	if(min != n){
@@ -528,92 +548,82 @@ nearestnonjump(Node *n, Node *b, Mobj *mo)
 
 /* FIXME: completely broken */
 void
-setgoal(Point *p, Mobj *mo, Mobj *block)
+setgoal(Mobj *mo, Point *gp, Mobj *block)
 {
-	int x, y, e;
+	int e;
 	double Δ, Δ´;
-	Node *n1, *n2, *pm;
+	Point p, g;
+	Node *n1, *n2, *gn;
 
 	if(mo->o->f & Fair || block == nil){
 		mo->path.blocked = 0;
 		return;
 	}
+	g = *gp;
 	mo->path.blocked = 1;
-	dprint("%M setgoal: moving goal %d,%d in block %#p ", mo, p->x, p->y, block);
-	pm = nodemap + p->y * nodemapwidth + p->x;
-	pm->x = p->x;
-	pm->y = p->y;
+	dprint("%M setgoal: moving goal %P in block %#p ", mo, g, block);
+	gn = map + g.y * mapwidth + g.x;
+	gn->Point = g;
 	Δ = 0x7ffffff;
-	x = block->x;
-	y = block->y;
-	n1 = nodemap + y * nodemapwidth + x;
-	n2 = n1 + (block->o->h - 1) * nodemapwidth;
-	for(e=x+block->o->w; x<e; x++, n1++, n2++){
-		n1->x = x;
-		n1->y = y;
-		Δ´ = octdist(pm->Point, n1->Point);
+	p = block->Point;
+	n1 = map + p.y * mapwidth + p.x;
+	n2 = n1 + (block->o->h - 1) * mapwidth;
+	for(e=p.x+block->o->w; p.x<e; p.x++, n1++, n2++){
+		n1->Point = p;
+		Δ´ = octdist(gn->Point, n1->Point);
 		if(Δ´ < Δ){
 			Δ = Δ´;
-			p->x = x;
-			p->y = y;
+			g = p;
 		}
-		n2->x = x;
-		n2->y = y + block->o->h - 1;
-		Δ´ = octdist(pm->Point, n2->Point);
+		n2->Point = addpt(p, Pt(0, block->o->h-1));
+		Δ´ = octdist(gn->Point, n2->Point);
 		if(Δ´ < Δ){
 			Δ = Δ´;
-			p->x = x;
-			p->y = y + block->o->h - 1;
+			g = n2->Point;
 		}
 	}
-	x = block->x;
-	y = block->y + 1;
-	n1 = nodemap + y * nodemapwidth + x;
+	p = addpt(block->Point, Pt(0,1));
+	n1 = map + p.y * mapwidth + p.x;
 	n2 = n1 + block->o->w - 1;
-	for(e=y+block->o->h-2; y<e; y++, n1+=nodemapwidth, n2+=nodemapwidth){
-		n1->x = x;
-		n1->y = y;
-		Δ´ = octdist(pm->Point, n1->Point);
+	for(e=p.y+block->o->h-2; p.y<e; p.y++, n1+=mapwidth, n2+=mapwidth){
+		n1->Point = p;
+		Δ´ = octdist(gn->Point, n1->Point);
 		if(Δ´ < Δ){
 			Δ = Δ´;
-			p->x = x;
-			p->y = y;
+			g = p;
 		}
-		n2->x = x + block->o->w - 1;
-		n2->y = y;
-		Δ´ = octdist(pm->Point, n2->Point);
+		n2->Point = addpt(p, Pt(block->o->w-1, 0));
+		Δ´ = octdist(gn->Point, n2->Point);
 		if(Δ´ < Δ){
 			Δ = Δ´;
-			p->x = x + block->o->w - 1;
-			p->y = y;
+			g = n2->Point;
 		}
 	}
-	dprint("to %d,%d\n", p->x, p->y);
+	dprint("to %P\n", g);
+	*gp = g;
 }
 
 int
-findpath(Point p, Mobj *mo)
+findpath(Mobj *mo, Point p)
 {
 	Node *a, *b, *n;
 
-	dprint("%M findpath to %P\n", mo, p);
 	if(eqpt(p, mo->Point)){
 		werrstr("not moving to itself");
 		return -1;
 	}
 	clearpath();
-	a = nodemap + mo->y * nodemapwidth + mo->x;
-	a->x = mo->x;
-	a->y = mo->y;
-	b = nodemap + p.y * nodemapwidth + p.x;
-	b->x = p.x;
-	b->y = p.y;
+	a = map + mo->y * mapwidth + mo->x;
+	a->Point = mo->Point;
+	b = map + p.y * mapwidth + p.x;
+	b->Point = p;
+	dprint("%M findpath from %P to %P dist %f\n", mo, a->Point, b->Point, octdist(a->Point, b->Point));
 	if(mo->o->f & Fair){
-		directpath(a, b, mo);
+		directpath(mo, a, b);
 		return 0;
 	}
 	markmobj(mo, 0);
-	n = a∗(a, b, mo);
+	n = a∗(mo, a, b);
 	if(n != b){
 		dprint("%M findpath: goal unreachable\n", mo);
 		if((n = nearest) == a || n == nil || a->h < n->h){
@@ -621,24 +631,31 @@ findpath(Point p, Mobj *mo)
 			markmobj(mo, 1);
 			return -1;
 		}
-		dprint("%M nearest: %#p %P dist %f\n", mo, n, n->Point, n->h);
-		b = nearestnonjump(n, b, mo);
+		dprint("%M findpath: nearest is %#p %P dist %f\n", mo, n, n->Point, n->h);
+		n = nearest;
+		if(n == a){
+			werrstr("a∗: really can't move");
+			markmobj(mo, 1);
+			return -1;
+		}
+		/*
+		b = nearestnonjump(mo, n, b);
 		if(b == a){
 			werrstr("a∗: really can't move");
 			markmobj(mo, 1);
 			return -1;
 		}
 		clearpath();
-		a->x = mo->x;
-		a->y = mo->y;
-		b->x = (b - nodemap) % nodemapwidth;
-		b->y = (b - nodemap) / nodemapwidth;
-		if((n = a∗(a, b, mo)) != b){
+		a->Point = mo->Point;
+		b->Point = Pt((b - map) % mapwidth, (b - map) / mapwidth);
+		if((n = a∗(mo, a, b)) != b){
 			werrstr("bug: failed to find path to nearest non-jump point");
 			return -1;
 		}
+		*/
 	}
+	dprint("%M found %#p at %P dist %f\n", mo, n, n->Point, n->h);
 	markmobj(mo, 1);
-	backtrack(n, a, mo);
+	backtrack(mo, n, a);
 	return 0;
 }

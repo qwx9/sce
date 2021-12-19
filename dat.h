@@ -1,6 +1,7 @@
 typedef struct Node Node;
 typedef struct Pairheap Pairheap;
 typedef struct Attack Attack;
+typedef struct Size Size;
 typedef struct Pic Pic;
 typedef struct Pics Pics;
 typedef struct Obj Obj;
@@ -10,8 +11,8 @@ typedef struct Munit Munit;
 typedef struct Mresource Mresource;
 typedef struct Mobj Mobj;
 typedef struct Mobjl Mobjl;
+typedef struct Tilepic Tilepic;
 typedef struct Tile Tile;
-typedef struct Map Map;
 typedef struct Resource Resource;
 typedef struct Team Team;
 typedef struct Cbuf Cbuf;
@@ -28,13 +29,12 @@ enum{
 	Nteam = 1 << Nteambits,
 	Teamshift = 32 - Nteambits,
 	Teamidxmask = ~(Nteam - 1 << Teamshift),
-	Tilewidth = 32,
-	Tileheight = Tilewidth,
+	Tilesz = 32,
 	Node2Tile = 4,
-	Nodewidth = Tilewidth / Node2Tile,
-	Nodeheight = Tileheight / Node2Tile,
-	Subpxshift = 16,
-	Subpxmask = (1 << Subpxshift) - 1,
+	Nodesz = Tilesz / Node2Tile,
+	Subshift = 16,
+	Submask = (1 << Subshift) - 1,
+	Pixelshift = 16 - 3,
 };
 
 struct Vector{
@@ -70,15 +70,17 @@ struct Node{
 	Node *from;
 	Pairheap *p;
 };
-extern Node *nodemap;
-extern int nodemapwidth, nodemapheight;
+extern Node *map;
+extern int mapwidth, mapheight;
 
-struct Pic{
-	u32int *p;
+struct Size{
 	int w;
 	int h;
-	int dx;
-	int dy;
+};
+struct Pic{
+	u32int *p;
+	Size;
+	Point Δ;
 };
 struct Pics{
 	Pic **pic;
@@ -152,9 +154,8 @@ enum{
 };
 struct Obj{
 	char *name;
+	Size;
 	Pics pics[OSend][PTend];
-	int w;
-	int h;
 	int f;
 	Attack *atk[2];
 	int hp;
@@ -215,10 +216,7 @@ struct Mobj{
 	Command cmds[Ncmd];
 	int ctail;
 	Point;
-	int px;
-	int py;
-	int subpx;
-	int subpy;
+	Point sub;
 	Munit;
 	Mresource;
 };
@@ -229,15 +227,15 @@ struct Mobjl{
 };
 extern char *statename[OSend];
 
-struct Tile{
+struct Tilepic{
 	Pic *p;
 };
-struct Map{
-	Tile *t;
+struct Tile{
+	Tilepic *t;
 	Mobjl ml;
 };
-extern Map *map;
-extern int mapwidth, mapheight;
+extern Tile *tilemap;
+extern int tilemapwidth, tilemapheight;
 
 enum{
 	Ngatheramount = 8,

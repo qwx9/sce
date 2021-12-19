@@ -31,11 +31,11 @@ derefmobj(int idx, long uuid)
 }
 
 int
-spawnunit(Point p, Obj *o, int team)
+spawnunit(Obj *o, Point p, int team)
 {
 	Mobj *mo;
 
-	if((mo = mapspawn(p, o)) == nil)
+	if((mo = mapspawn(o, p)) == nil)
 		return -1;
 	mo->team = team;
 	mo->θ = frand() * 256;
@@ -46,7 +46,7 @@ spawnunit(Point p, Obj *o, int team)
 }
 
 int
-spawnresource(Point p, Obj *o, int amount)
+spawnresource(Obj *o, Point p, int amount)
 {
 	Mobj *mo;
 
@@ -54,7 +54,7 @@ spawnresource(Point p, Obj *o, int amount)
 		werrstr("spawnresource: invalid amount");
 		return -1;
 	}
-	if((mo = mapspawn(p, o)) == nil)
+	if((mo = mapspawn(o, p)) == nil)
 		return -1;
 	mo->team = 0;
 	mo->amount = amount;

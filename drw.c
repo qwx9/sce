@@ -15,8 +15,7 @@ static Image *fbi;
 static Rectangle selr;
 static Point panmax;
 static Mobj *selected[Nselect];
-static Mobj **visbuf;
-static int nvisbuf, nvis;
+static Vector vis;
 
 enum{
 	DLgndshad,
@@ -29,10 +28,8 @@ enum{
 };
 typedef struct Drawlist Drawlist;
 struct Drawlist{
-	Mobj **mo;
-	Pic **pics;
-	int n;
-	int sz;
+	Vector mobj;
+	Vector pics;
 	int noalpha;
 };
 static Drawlist drawlist[DLend] = {
@@ -55,51 +52,57 @@ dopan(Point p)
 		pan.y = panmax.y;
 }
 
+static Mobj *
+vismobj(Point p)
+{
+	int i;
+	Mobj **mp;
+
+	if((i = fbvis[p.y * fbw + p.x]) < 0)
+		return nil;
+	mp = vis.p;
+	assert(i < vis.n);
+	return mp[i];
+}
+
 void
 doselect(Point p)
 {
-	int i;
-
 	if(!ptinrect(p, selr))
 		return;
 	p = divpt(subpt(p, selr.min), scale);
-	i = fbvis[p.y * fbw + p.x];
-	selected[0] = i == -1 ? nil : visbuf[i];
+	selected[0] = vismobj(p);
 }
 
 void
 doaction(Point p, int clearcmds)
 {
-	int i;
-	Point vp;
-	Mobj *mo, *it;
+	Mobj *mo, *tgt;
 
-	it = selected[0];
-	if(it == nil || it->o->f & Fimmutable || !ptinrect(p, selr))
+	mo = selected[0];
+	if(mo == nil || mo->o->f & Fimmutable || !ptinrect(p, selr))
 		return;
-	vp = divpt(subpt(p, selr.min), scale);
-	i = fbvis[vp.y * fbw + vp.x];
-	mo = i == -1 ? nil : visbuf[i];
-	p = divpt(addpt(subpt(p, selr.min), pan), scale);
-	p.x /= Nodewidth;
-	p.y /= Nodeheight;
-	if(nodemapwidth - p.x < it->o->w || nodemapheight - p.y < it->o->h){
-		dprint("doaction: %M destination beyond map edge\n", it);
+	p = subpt(p, selr.min);
+	tgt = vismobj(divpt(p, scale));
+	p = divpt(addpt(p, pan), scale);
+	p = divpt(p, Nodesz);
+	if(p.x + mo->o->w > mapwidth || p.y + mo->o->h > mapheight){
+		dprint("doaction: %M target %P beyond map edge\n", mo, p);
 		return;
 	}
-	if(mo == it || eqpt(it->Point, p)){
-		dprint("doaction: %M targeting itself\n", it);
+	if(tgt == mo || eqpt(mo->Point, p)){
+		dprint("doaction: %M targeting moself\n", mo);
 		return;
 	}
 	if(clearcmds)
-		sendstop(it);
-	if(mo != nil){
-		if((mo->o->f & Fresource) && (it->o->f & Fgather))
-			sendgather(it, mo);
+		sendstop(mo);
+	if(tgt != nil){
+		if((tgt->o->f & Fresource) && (mo->o->f & Fgather))
+			sendgather(mo, tgt);
 		else
-			sendmovenear(it, p, mo);
+			sendmovenear(mo, tgt);
 	}else
-		sendmove(it, p);
+		sendmove(mo, p);
 }
 
 static void
@@ -136,62 +139,57 @@ drawhud(void)
 	string(screen, p, display->white, ZP, font, s);
 }
 
-static int
-addvis(Mobj *mo)
-{
-	int i;
-
-	if((i = nvis++) >= nvisbuf){
-		visbuf = erealloc(visbuf, (nvisbuf + 16) * sizeof *visbuf,
-			nvisbuf * sizeof *visbuf);
-		nvisbuf += 16;
-	}
-	visbuf[i] = mo;
-	return i;
-}
-
 static void
 clearvis(void)
 {
-	if(visbuf != nil)
-		memset(visbuf, 0, nvisbuf * sizeof *visbuf);
-	nvis = 0;
+	clearvec(&vis, sizeof(Mobj*));
 }
 
 static int
-boundpic(Rectangle *r, u32int **q)
+addvis(Mobj *mo)
+{
+	pushvec(&vis, &mo, sizeof mo);
+	return vis.n - 1;
+}
+
+static int
+boundpic(Rectangle *rp, Point o, u32int **q)
 {
 	int w;
+	Rectangle r;
 
-	r->min.x -= pan.x / scale;
-	r->min.y -= pan.y / scale;
-	if(r->min.x + r->max.x < 0 || r->min.x >= fbw
-	|| r->min.y + r->max.y < 0 || r->min.y >= fbh)
+	r = *rp;
+	r.min = addpt(r.min, o);
+	r.min.x -= pan.x / scale;
+	r.min.y -= pan.y / scale;
+	if(r.min.x + r.max.x < 0 || r.min.x >= fbw
+	|| r.min.y + r.max.y < 0 || r.min.y >= fbh)
 		return -1;
-	w = r->max.x;
-	if(r->min.x < 0){
+	w = r.max.x;
+	if(r.min.x < 0){
 		if(q != nil)
-			*q -= r->min.x;
-		r->max.x += r->min.x;
-		r->min.x = 0;
+			*q -= r.min.x;
+		r.max.x += r.min.x;
+		r.min.x = 0;
 	}
-	if(r->min.x + r->max.x > fbw)
-		r->max.x -= r->min.x + r->max.x - fbw;
-	if(r->min.y < 0){
+	if(r.min.x + r.max.x > fbw)
+		r.max.x -= r.min.x + r.max.x - fbw;
+	if(r.min.y < 0){
 		if(q != nil)
-			*q -= w * r->min.y;
-		r->max.y += r->min.y;
-		r->min.y = 0;
+			*q -= w * r.min.y;
+		r.max.y += r.min.y;
+		r.min.y = 0;
 	}
-	if(r->min.y + r->max.y > fbh)
-		r->max.y -= r->min.y + r->max.y - fbh;
-	r->min.x *= scale;
-	r->max.x *= scale;
+	if(r.min.y + r.max.y > fbh)
+		r.max.y -= r.min.y + r.max.y - fbh;
+	r.min.x *= scale;
+	r.max.x *= scale;
+	*rp = r;
 	return 0;
 }
 
 static void
-drawpic(int x, int y, Pic *pic, int ivis)
+drawpic(Point o, Pic *pic, int ivis)
 {
 	int n, Δp, Δsp, Δq;
 	u32int v, *p, *e, *sp, *q;
@@ -200,8 +198,8 @@ drawpic(int x, int y, Pic *pic, int ivis)
 	if(pic->p == nil)
 		sysfatal("drawpic: empty pic");
 	q = pic->p;
-	r = Rect(x + pic->dx, y + pic->dy, pic->w, pic->h);
-	if(boundpic(&r, &q) < 0)
+	r = Rect(pic->Δ.x, pic->Δ.y, pic->w, pic->h);
+	if(boundpic(&r, o, &q) < 0)
 		return;
 	Δq = pic->w - r.max.x / scale;
 	p = fb + r.min.y * fbws + r.min.x;
@@ -226,18 +224,18 @@ drawpic(int x, int y, Pic *pic, int ivis)
 }
 
 static void
-drawpicalpha(int x, int y, Pic *pic)
+drawpicalpha(Point o, Pic *pic)
 {
 	int n, Δp, Δq;
 	u8int k, a, b;
-	u32int o, A, B, *p, *e, *q;
+	u32int f, A, B, *p, *e, *q;
 	Rectangle r;
 
 	if(pic->p == nil)
-		sysfatal("drawpic: empty pic");
+		sysfatal("drawpicalpha: empty pic");
 	q = pic->p;
-	r = Rect(x + pic->dx, y + pic->dy, pic->w, pic->h);
-	if(boundpic(&r, &q) < 0)
+	r = Rect(pic->Δ.x, pic->Δ.y, pic->w, pic->h);
+	if(boundpic(&r, o, &q) < 0)
 		return;
 	Δq = pic->w - r.max.x / scale;
 	p = fb + r.min.y * fbws + r.min.x;
@@ -251,9 +249,9 @@ drawpicalpha(int x, int y, Pic *pic)
 			for(n=0; n<24; n+=8){
 				a = A >> n;
 				b = B >> n;
-				o = k * (a - b);
-				o = (o + 1 + (o >> 8)) >> 8;
-				B = B & ~(0xff << n) | (o + b & 0xff) << n;
+				f = k * (a - b);
+				f = (f + 1 + (f >> 8)) >> 8;
+				B = B & ~(0xff << n) | (f + b & 0xff) << n;
 			}
 			for(n=0; n<scale; n++)
 				*p++ = B;
@@ -264,14 +262,14 @@ drawpicalpha(int x, int y, Pic *pic)
 }
 
 void
-compose(int x, int y, u32int c)
+compose(Point o, u32int c)
 {
 	int n, Δp;
 	u32int v, *p, *e;
 	Rectangle r;
 
-	r = Rect(x * Nodewidth, y * Nodeheight, Nodewidth, Nodeheight);
-	if(boundpic(&r, nil) < 0)
+	r = Rpt(ZP, Pt(Nodesz, Nodesz));
+	if(boundpic(&r, o, nil) < 0)
 		return;
 	p = fb + r.min.y * fbws + r.min.x;
 	Δp = fbws - r.max.x;
@@ -329,54 +327,31 @@ clearlists(void)
 {
 	Drawlist *dl;
 
-	for(dl=drawlist; dl<drawlist+DLend; dl++)
-		dl->n = 0;
-}
-
-static void
-drawmobjs(void)
-{
-	int n;
-	Mobj *mo;
-	Drawlist *dl;
-
-	for(dl=drawlist; dl<drawlist+DLend; dl++)
-		for(n=0; n<dl->n; n++){
-			mo = dl->mo[n];
-			if(dl->noalpha)
-				drawpic(mo->px, mo->py, dl->pics[n], addvis(mo));
-			else
-				drawpicalpha(mo->px, mo->py, dl->pics[n]);
-		}
+	for(dl=drawlist; dl<drawlist+DLend; dl++){
+		clearvec(&dl->mobj, sizeof(Mobj*));
+		clearvec(&dl->pics, sizeof(Pic*));
+	}
 }
 
 static void
 addpic(Drawlist *dl, Mobj *mo, int type)
 {
-	int n;
 	Pic *p;
 
 	if((p = frm(mo, type)) == nil)
 		return;
-	if(dl->n >= dl->sz){
-		n = dl->sz * sizeof *dl->pics;
-		dl->pics = erealloc(dl->pics, n + 16 * sizeof *dl->pics, n);
-		dl->mo = erealloc(dl->mo, n + 16 * sizeof *dl->mo, n);
-		dl->sz += 16;
-	}
-	n = dl->n++;
-	dl->pics[n] = p;
-	dl->mo[n] = mo;
+	pushvec(&dl->mobj, &mo, sizeof mo);
+	pushvec(&dl->pics, &p, sizeof p);
 }
 
 static void
-addmobjs(Map *m)
+addmobjs(Tile *t)
 {
 	int air;
 	Mobj *mo;
 	Mobjl *ml;
 
-	for(ml=m->ml.l; ml!=&m->ml; ml=ml->l){
+	for(ml=t->ml.l; ml!=&t->ml; ml=ml->l){
 		mo = ml->mo;
 		air = mo->o->f & Fair;
 		addpic(drawlist + (air ? DLairshad : DLgndshad), mo, PTshadow);
@@ -386,44 +361,65 @@ addmobjs(Map *m)
 	}
 }
 
-static Rectangle
-setdrawrect(void)
+static void
+drawmobjs(void)
+{
+	int n;
+	Mobj *mo, **mp;
+	Pic **pp;
+	Drawlist *dl;
+
+	for(dl=drawlist; dl<drawlist+DLend; dl++)
+		for(mp=dl->mobj.p, pp=dl->pics.p, n=0; n<dl->mobj.n; n++, mp++, pp++){
+			mo = *mp;
+			if(dl->noalpha)
+				drawpic(Pt(mo->sub.x >> Pixelshift,
+					mo->sub.y >> Pixelshift), *pp, addvis(mo));
+			else
+				drawpicalpha(Pt(mo->sub.x >> Pixelshift,
+					mo->sub.y >> Pixelshift), *pp);
+		}
+}
+
+static void
+mapdrawrect(Rectangle *rp)
 {
 	Rectangle r;
 
-	r.min.x = pan.x / scale / Tilewidth;
-	r.min.y = pan.y / scale / Tileheight;
-	r.max.x = r.min.x + (pan.x / scale % Tilewidth != 0);
-	r.max.x += fbw / Tilewidth + (fbw % Tilewidth != 0);
-	if(r.max.x > mapwidth)
-		r.max.x = mapwidth;
-	r.max.y = r.min.y + (pan.y / scale % Tileheight != 0);
-	r.max.y += fbh / Tileheight + (fbh % Tilewidth != 0);
-	if(r.max.y > mapheight)
-		r.max.y = mapheight;
+	r.min = divpt(pan, scale);
+	r.min = divpt(r.min, Tilesz);
+	r.max.x = r.min.x + (pan.x / scale % Tilesz != 0);
+	r.max.x += fbw / Tilesz + (fbw % Tilesz != 0);
+	if(r.max.x > tilemapwidth)
+		r.max.x = tilemapwidth;
+	r.max.y = r.min.y + (pan.y / scale % Tilesz != 0);
+	r.max.y += fbh / Tilesz + (fbh % Tilesz != 0);
+	if(r.max.y > tilemapheight)
+		r.max.y = tilemapheight;
 	/* enlarge window to capture units overlapping multiple tiles;
 	 * seems like the easiest way to take this into account */
 	r.min.x = max(r.min.x - 4, 0);
 	r.min.y = max(r.min.y - 4, 0);
-	return r;
+	*rp = r;
 }
 
 void
 redraw(void)
 {
-	int x, y;
+	Point p;
 	Rectangle r;
-	Map *m;
+	Tile *t;
 
 	clearvis();
 	clearlists();
-	r = setdrawrect();
-	for(y=r.min.y, m=map+y*mapwidth+r.min.x; y<r.max.y; y++){
-		for(x=r.min.x; x<r.max.x; x++, m++){
-			drawpic(x*Tilewidth, y*Tileheight, m->t->p, -1);
-			addmobjs(m);
+	mapdrawrect(&r);
+	t = tilemap + p.y * tilemapwidth + r.min.x;
+	for(p.y=r.min.y; p.y<r.max.y; p.y++){
+		for(p.x=r.min.x; p.x<r.max.x; p.x++, t++){
+			drawpic(mulpt(p, Tilesz), t->t->p, -1);
+			addmobjs(t);
 		}
-		m += mapwidth - (r.max.x - r.min.x);
+		t += tilemapwidth - (r.max.x - r.min.x);
 	}
 	drawmobjs();
 	if(debugmap)
@@ -443,13 +439,13 @@ updatefb(void)
 void
 resetfb(void)
 {
-	fbws = min(nodemapwidth * Nodewidth * scale, Dx(screen->r));
-	fbh = min(nodemapheight * Nodeheight * scale, Dy(screen->r));
+	fbws = min(mapwidth * Nodesz * scale, Dx(screen->r));
+	fbh = min(mapheight * Nodesz * scale, Dy(screen->r));
 	selr = Rpt(screen->r.min, addpt(screen->r.min, Pt(fbws, fbh)));
 	p0 = Pt(screen->r.min.x + 8, screen->r.max.y - 3 * font->height);
 	p0.y -= (p0.y - screen->r.min.y) % scale;
-	panmax.x = max(Nodewidth * nodemapwidth * scale - Dx(screen->r), 0);
-	panmax.y = max(Nodeheight * nodemapheight * scale - Dy(screen->r), 0);
+	panmax.x = max(Nodesz * mapwidth * scale - Dx(screen->r), 0);
+	panmax.y = max(Nodesz * mapheight * scale - Dy(screen->r), 0);
 	if(p0.y < selr.max.y){
 		panmax.y += selr.max.y - p0.y;
 		fbh -= selr.max.y - p0.y;

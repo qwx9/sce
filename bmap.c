@@ -69,110 +69,110 @@ msb(uvlong v)
 }
 
 u64int *
-baddr(int x, int y)
+baddr(Point p)
 {
-	x >>= Bshift;
-	x += Npad;
-	y += Npad;
-	return bmap + y * bmapwidth + x;
+	p.x >>= Bshift;
+	p.x += Npad;
+	p.y += Npad;
+	return bmap + p.y * bmapwidth + p.x;
 }
 
 u64int *
-rbaddr(int y, int x)
+rbaddr(Point p)
 {
-	x >>= Bshift;
-	x += Npad;
-	y += Npad;
-	return rbmap + y * rbmapwidth + x;
+	p.x >>= Bshift;
+	p.x += Npad;
+	p.y += Npad;
+	return rbmap + p.y * rbmapwidth + p.x;
 }
 
 static u64int *
-breduce(u64int *p, int Δp, int ofs, int w, int h, int Δw, int Δh, int left)
+breduce(u64int *b, int Δb, int ofs, Point sz, Point Δsz, int left)
 {
 	static u64int row[Nmaxsize+2];
 	int i, j;
 	u64int u, m;
 
-	m = (1 << w - 1) - 1;
+	m = (1 << sz.x - 1) - 1;
 	if(left){
-		ofs = 64 - w - Δw - ofs;
-		m <<= 63 - w + 1;
+		ofs = 64 - sz.x - Δsz.x - ofs;
+		m <<= 63 - sz.x + 1;
 	}
 	m = ~m;
-	for(i=0; i<h+Δh; i++, p+=Δp){
-		u = p[0];
+	for(i=0; i<sz.y+Δsz.y; i++, b+=Δb){
+		u = b[0];
 		if(ofs > 0){
 			if(left){
 				u >>= ofs;
-				u |= p[-1] << 64 - ofs;
+				u |= b[-1] << 64 - ofs;
 			}else{
 				u <<= ofs;
-				u |= p[1] >> 64 - ofs;
+				u |= b[1] >> 64 - ofs;
 			}
 		}
 		if(left)
-			switch(w){
+			switch(sz.x){
 			case 4: u |= u >> 1 | u >> 2 | u >> 3; break;
 			case 2: u |= u >> 1; break;
 			}
 		else
-			switch(w){
+			switch(sz.x){
 			case 4: u |= u << 1 | u << 2 | u << 3; break;
 			case 2: u |= u << 1; break;
 			}
 		u &= m;
 		row[i] = u;
-		for(j=max(i-h+1, 0); j<i; j++)
+		for(j=max(i-sz.y+1, 0); j<i; j++)
 			row[j] |= u;
 	}
 	return row;
 }
 
 u64int *
-bload(int x, int y, int w, int h, int Δw, int Δh, int left, int rot)
+bload(Point p, Point sz, Point Δsz, int left, int rot)
 {
-	int ofs, Δp;
-	u64int *p;
+	int ofs, Δb;
+	u64int *b;
 
 	if(rot){
-		p = rbaddr(x, y);
-		Δp = rbmapwidth;
-		ofs = y & Bmask;
+		b = rbaddr(p);
+		Δb = rbmapwidth;
+		ofs = p.y & Bmask;
 	}else{
-		p = baddr(x, y);
-		Δp = bmapwidth;
-		ofs = x & Bmask;
+		b = baddr(p);
+		Δb = bmapwidth;
+		ofs = p.x & Bmask;
 	}
-	return breduce(p, Δp, ofs, w, h, Δw, Δh, left);
+	return breduce(b, Δb, ofs, sz, Δsz, left);
 }
 
 void
-bset(int x, int y, int w, int h, int set)
+bset(Point p, Point sz, int set)
 {
 	int i, Δ, n;
-	u64int *p, m, m´;
+	u64int *b, m, m´;
 
-	p = baddr(x, y);
-	n = x & Bmask;
-	m = (1ULL << w) - 1 << 64 - w;
+	b = baddr(p);
+	n = p.x & Bmask;
+	m = (1ULL << sz.x) - 1 << 64 - sz.x;
 	m >>= n;
-	Δ = n + w - 64;
+	Δ = n + sz.x - 64;
 	m´ = (1ULL << Δ) - 1 << 64 - Δ;
-	for(i=0; i<h; i++, p+=bmapwidth){
-		p[0] = set ? p[0] | m : p[0] & ~m;
+	for(i=0; i<sz.y; i++, b+=bmapwidth){
+		b[0] = set ? b[0] | m : b[0] & ~m;
 		if(Δ > 0)
-			p[1] = set ? p[1] | m´ : p[1] & ~m´;
+			b[1] = set ? b[1] | m´ : b[1] & ~m´;
 	}
-	p = rbaddr(x, y);
-	n = y & Bmask;
-	m = (1ULL << h) - 1 << 64 - h;
+	b = rbaddr(p);
+	n = p.y & Bmask;
+	m = (1ULL << sz.y) - 1 << 64 - sz.y;
 	m >>= n;
-	Δ = n + h - 64;
+	Δ = n + sz.y - 64;
 	m´ = (1ULL << Δ) - 1 << 64 - Δ;
-	for(i=0; i<w; i++, p+=rbmapwidth){
-		p[0] = set ? p[0] | m : p[0] & ~m;
+	for(i=0; i<sz.x; i++, b+=rbmapwidth){
+		b[0] = set ? b[0] | m : b[0] & ~m;
 		if(Δ > 0)
-			p[1] = set ? p[1] | m´ : p[1] & ~m´;
+			b[1] = set ? b[1] | m´ : b[1] & ~m´;
 	}
 }
 
@@ -192,14 +192,14 @@ initbmap(void)
 {
 	int i;
 
-	bmapwidth = (nodemapwidth >> Bshift) + 2 * Npad;
-	bmapheight = nodemapheight + 2 * Npad;
-	rbmapwidth = (nodemapheight >> Bshift) + 2 * Npad;
-	rbmapheight = nodemapwidth + 2 * Npad;
+	bmapwidth = (mapwidth >> Bshift) + 2 * Npad;
+	bmapheight = mapheight + 2 * Npad;
+	rbmapwidth = (mapheight >> Bshift) + 2 * Npad;
+	rbmapheight = mapwidth + 2 * Npad;
 	bmap = emalloc(bmapwidth * bmapheight * sizeof *bmap);
 	rbmap = emalloc(rbmapwidth * rbmapheight * sizeof *rbmap);
 	for(i=0; i<Npad; i++){
-		memset(bmap + i * nodemapwidth, 0xff, bmapwidth * sizeof *bmap);
+		memset(bmap + i * mapwidth, 0xff, bmapwidth * sizeof *bmap);
 		memset(bmap + (bmapheight - i - 1) * bmapwidth, 0xff,
 			bmapwidth * sizeof *bmap);
 		memset(rbmap + i * rbmapwidth, 0xff, rbmapwidth * sizeof *rbmap);
