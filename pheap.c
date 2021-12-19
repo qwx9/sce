@@ -65,9 +65,8 @@ popqueue(Pairheap **queue)
 void
 decreasekey(Pairheap *p, double Δ, Pairheap **queue)
 {
+	dprint("decrease %#p %P g %f sum %f by %f\n", p->n, p->n->Point, p->n->g, p->sum, Δ);
 	p->sum -= Δ;
-	p->n->g -= Δ;
-	dprint("decrease %#p %P g %f sum %f\n", p->n, p->n->Point, p->n->g, p->sum);
 	if(p->parent != nil && p->sum < p->parent->sum){
 		p->parent->left = nil;
 		p->parent = nil;

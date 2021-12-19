@@ -451,11 +451,11 @@ a∗(Mobj *mo, Node *a, Node *b)
 			Δg = n->g - g;
 			if(!n->open){
 				n->from = x;
-				n->g = g;
-				n->h = octdist(n->Point, b->Point);
-				n->len = x->len + n->Δlen;
 				n->open = 1;
 				n->step = x->step + 1;
+				n->h = octdist(n->Point, b->Point);
+				n->len = x->len + n->Δlen;
+				n->g = g;
 				pushqueue(n, &queue);
 			}else if(Δg > 0){
 				n->from = x;
