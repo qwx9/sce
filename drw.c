@@ -142,13 +142,13 @@ drawhud(void)
 static void
 clearvis(void)
 {
-	clearvec(&vis, sizeof(Mobj*));
+	clearvec(&vis);
 }
 
 static int
 addvis(Mobj *mo)
 {
-	pushvec(&vis, &mo, sizeof mo);
+	pushvec(&vis, &mo);
 	return vis.n - 1;
 }
 
@@ -328,8 +328,8 @@ clearlists(void)
 	Drawlist *dl;
 
 	for(dl=drawlist; dl<drawlist+DLend; dl++){
-		clearvec(&dl->mobj, sizeof(Mobj*));
-		clearvec(&dl->pics, sizeof(Pic*));
+		clearvec(&dl->mobj);
+		clearvec(&dl->pics);
 	}
 }
 
@@ -340,8 +340,8 @@ addpic(Drawlist *dl, Mobj *mo, int type)
 
 	if((p = frm(mo, type)) == nil)
 		return;
-	pushvec(&dl->mobj, &mo, sizeof mo);
-	pushvec(&dl->pics, &p, sizeof p);
+	pushvec(&dl->mobj, &mo);
+	pushvec(&dl->pics, &p);
 }
 
 static void
@@ -403,7 +403,30 @@ mapdrawrect(Rectangle *rp)
 	*rp = r;
 }
 
-void
+static void
+flushdrw(void)
+{
+	uchar *p;
+	Rectangle r, r2;
+
+	r = selr;
+	p = (uchar *)fb;
+	if(scale == 1){
+		loadimage(fbi, fbi->r, p, fbsz);
+		draw(screen, r, fbi, nil, ZP);
+	}else{
+		r2 = r;
+		while(r.min.y < r2.max.y){
+			r.max.y = r.min.y + scale;
+			p += loadimage(fbi, fbi->r, p, fbsz / fbh);
+			draw(screen, r, fbi, nil, ZP);
+			r.min.y = r.max.y;
+		}
+	}
+	flushimage(display, 1);
+}
+
+static void
 redraw(void)
 {
 	Point p;
@@ -428,16 +451,16 @@ redraw(void)
 }
 
 void
-updatefb(void)
+updatedrw(void)
 {
 	qlock(&drawlock);
 	redraw();
 	qunlock(&drawlock);
-	drawfb();
+	flushdrw();
 }
 
 void
-resetfb(void)
+resetdrw(void)
 {
 	fbws = min(mapwidth * Nodesz * scale, Dx(screen->r));
 	fbh = min(mapheight * Nodesz * scale, Dy(screen->r));
@@ -467,24 +490,15 @@ resetfb(void)
 }
 
 void
-drawfb(void)
+initdrw(void)
 {
-	uchar *p;
-	Rectangle r, r2;
+	Drawlist *dl;
 
-	r = selr;
-	p = (uchar *)fb;
-	if(scale == 1){
-		loadimage(fbi, fbi->r, p, fbsz);
-		draw(screen, r, fbi, nil, ZP);
-	}else{
-		r2 = r;
-		while(r.min.y < r2.max.y){
-			r.max.y = r.min.y + scale;
-			p += loadimage(fbi, fbi->r, p, fbsz / fbh);
-			draw(screen, r, fbi, nil, ZP);
-			r.min.y = r.max.y;
-		}
+	if(initdraw(nil, nil, "path") < 0)
+		sysfatal("initdraw: %r");
+	newvec(&vis, 32, sizeof(Mobj*));
+	for(dl=drawlist; dl<drawlist+DLend; dl++){
+		newvec(&dl->mobj, 32, sizeof(Mobj*));
+		newvec(&dl->pics, 32, sizeof(Pic*));
 	}
-	flushimage(display, 1);
 }

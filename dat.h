@@ -40,7 +40,9 @@ enum{
 struct Vector{
 	void *p;
 	ulong n;
+	ulong elsz;
 	ulong bufsz;
+	ulong totsz;
 	int firstempty;
 };
 

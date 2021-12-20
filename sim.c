@@ -56,7 +56,7 @@ refmobj(Mobj *mo)
 	n = p - (Mobj **)t->mobj.p;
 	mo->idx = mo->team << Teamshift | n;
 	if(mo->o->f & Fdropoff)
-		pushvec(&t->drops, &mo, sizeof mo);
+		pushvec(&t->drops, &mo);
 }
 
 void

@@ -132,11 +132,10 @@ timeproc(void *)
 static void
 initcl(void)
 {
-	if(initdraw(nil, nil, progname) < 0)
-		sysfatal("initdraw: %r");
 	initsnd();
+	initdrw();
 	initimg();
-	resetfb();
+	resetdrw();
 	if((reszc = chancreate(sizeof(int), 2)) == nil
 	|| (kc = chancreate(sizeof(Kev), 20)) == nil
 	|| (mc = chancreate(sizeof(Mev), 20)) == nil
@@ -217,7 +216,7 @@ threadmain(int argc, char **argv)
 		case Aresize:
 			if(getwindow(display, Refnone) < 0)
 				sysfatal("resize failed: %r");
-			resetfb();
+			resetdrw();
 			break;
 		case Amouse:
 			qlock(&drawlock);	/* just for security */
@@ -247,7 +246,7 @@ threadmain(int argc, char **argv)
 			flushcl();
 			break;
 		case Atic:
-			updatefb();
+			updatedrw();
 			break;
 		}
 	}

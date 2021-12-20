@@ -59,7 +59,7 @@ clearpath(Mobj *mo)
 	snaptomapgrid(mo);
 	mo->speed = 0.0;
 	mo->path.step = nil;
-	clearvec(&mo->path.moves, sizeof *mo->path.step);
+	clearvec(&mo->path.moves);
 }
 
 static void

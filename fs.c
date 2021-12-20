@@ -608,10 +608,15 @@ static void
 initmapobj(void)
 {
 	Objp *op;
-	Tile *t;
+	Tile *tl;
+	Team *t;
 
-	for(t=tilemap; t<tilemap+tilemapwidth*tilemapheight; t++)
-		t->ml.l = t->ml.lp = &t->ml;
+	for(tl=tilemap; tl<tilemap+tilemapwidth*tilemapheight; tl++)
+		tl->ml.l = tl->ml.lp = &tl->ml;
+	for(t=teams; t<=teams+nteam; t++){
+		newvec(&t->mobj, 32, sizeof(Mobj*));
+		newvec(&t->drops, 32, sizeof(Mobj*));
+	}
 	for(op=objp; op<objp+nobjp; op++){
 		if(op->resource){
 			if(spawnresource(op->o, op->Point, op->amount) < 0)

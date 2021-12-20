@@ -479,8 +479,8 @@ directpath(Mobj *mo, Node *a, Node *g)
 
 	pp = &mo->path;
 	pp->dist = eucdist(a->Point, g->Point);
-	clearvec(&pp->moves, sizeof g->Point);
-	pushvec(&pp->moves, &g->Point, sizeof g->Point);
+	clearvec(&pp->moves);
+	pushvec(&pp->moves, &g->Point);
 	pp->step = (Point *)pp->moves.p + pp->moves.n - 1;
 }
 
@@ -492,9 +492,9 @@ backtrack(Mobj *mo, Node *n, Node *a)
 	pp = &mo->path;
 	assert(n != a && n->step > 0);
 	pp->dist = n->len;
-	clearvec(&pp->moves, sizeof n->Point);
+	clearvec(&pp->moves);
 	for(; n!=a; n=n->from)
-		pushvec(&pp->moves, &n->Point, sizeof n->Point);
+		pushvec(&pp->moves, &n->Point);
 	pp->step = (Point *)pp->moves.p + pp->moves.n - 1;
 }
 

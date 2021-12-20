@@ -151,6 +151,7 @@ mapspawn(Obj *o, Point p)
 	mo->uuid = lrand();
 	setpos(mo, p);
 	mo->o = o;
+	newvec(&mo->path.moves, 32, sizeof(Point));
 	updatemap(mo);
 	return mo;
 }

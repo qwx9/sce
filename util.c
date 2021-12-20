@@ -48,50 +48,76 @@ dprint(char *fmt, ...)
 }
 
 void
-clearvec(Vector *v, int sz)
+clearvec(Vector *v)
 {
 	if(v->p == nil)
 		return;
-	memset(v->p, 0, v->bufsz * sz);
+	memset(v->p, 0, v->totsz);
 	v->firstempty = 0;
 	v->n = 0;
 }
 
+static void *
+growvec(Vector *v, int n)
+{
+	if(n < v->bufsz)
+		return (uchar *)v->p + n * v->elsz;
+	v->p = erealloc(v->p, v->totsz + Nvecinc * v->elsz, v->totsz);
+	v->bufsz += Nvecinc;
+	v->totsz += Nvecinc * v->elsz;
+	return (uchar *)v->p + n * v->elsz;
+}
+
+void
+popsparsevec(Vector *v, int n)
+{
+	assert(v != nil && v->elsz > 0 && n >= 0 && n <= v->n);
+	memset((uchar *)v->p + n * v->elsz, 0, v->elsz);
+}
+
+/* assumes that zeroed element means empty; could fill with
+ * magic values instead */
 void *
 pushsparsevec(Vector *v, void *e)
 {
-	int i;
+	int n;
 	uchar *p, *q;
 
-	i = v->firstempty;
-	if(i == v->bufsz){
-		v->p = erealloc(v->p, (v->bufsz + Nvecinc) * sizeof e,
-			v->bufsz * sizeof e);
-		v->bufsz += Nvecinc;
-	}
-	p = (uchar *)v->p + i * sizeof e;
-	memcpy(p, e, sizeof e);
-	for(i++, q=p+1; i<v->n; q++, i++)
-		if(memcmp(p, nil, sizeof p) == 0)
+	assert(v != nil && v->elsz > 0);
+	n = v->firstempty;
+	p = growvec(v, n);
+	for(n++, q=p+v->elsz; n<v->n; n++, q+=v->elsz)
+		if(memcmp(p, q, v->elsz) == 0)
 			break;
-	v->firstempty = i;
+	v->firstempty = n;
+	memcpy(p, e, v->elsz);
 	v->n++;
 	return p;
 }
 
 void *
-pushvec(Vector *v, void *e, int sz)
+pushvec(Vector *v, void *e)
 {
-	void *p;
+	uchar *p;
 
-	if(v->n == v->bufsz){
-		v->p = erealloc(v->p, (v->bufsz + Nvecinc) * sz, v->bufsz * sz);
-		v->bufsz += Nvecinc;
-	}
-	p = (uchar *)v->p + v->n * sz;
-	memcpy(p, e, sz);
+	assert(v != nil && v->elsz > 0);
+	p = growvec(v, v->n);
+	memcpy(p, e, v->elsz);
 	v->n++;
+	v->firstempty = v->n;
 	return p;
+}
+
+void *
+newvec(Vector *v, int nel, int elsz)
+{
+	assert(v != nil && elsz > 0);
+	v->elsz = elsz;
+	nel = nel + Nvecinc-1 & ~(Nvecinc-1);
+	v->bufsz = nel;
+	v->totsz = nel * elsz;
+	v->p = emalloc(v->totsz);
+	return v->p;
 }
 
 char *
