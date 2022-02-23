@@ -21,6 +21,7 @@ OFILES=\
 	snd.$O\
 	sv.$O\
 	util.$O\
+	vec.$O\
 
 HFILES=dat.h fns.h
 </sys/src/cmd/mkone
