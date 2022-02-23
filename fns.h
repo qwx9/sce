@@ -75,6 +75,8 @@ int	mobjfmt(Fmt*);
 void	dprint(char *, ...);
 int	max(int, int);
 int	min(int, int);
+QNode*	qtmerge(QNode*);
+QNode*	qtsplit(QNode*);
 void	clearvec(Vector*);
 void	popsparsevec(Vector*, int);
 void*	pushsparsevec(Vector*, void*);

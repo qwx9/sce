@@ -21,7 +21,7 @@ qtlink(QNode *q)
 	freeq.prev = q;
 }
 
-void
+static void
 qtfree(QNode *q)
 {
 	if(q == nil)

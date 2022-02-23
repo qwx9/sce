@@ -10,6 +10,7 @@ OFILES=\
 	net.$O\
 	path.$O\
 	pheap.$O\
+	qtree.$O\
 	sce.$O\
 	sim.$O\
 	sim.gather.$O\
