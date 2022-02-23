@@ -71,8 +71,10 @@ growvec(Vector *v, int n)
 void
 popsparsevec(Vector *v, int n)
 {
-	assert(v != nil && v->elsz > 0 && n >= 0 && n <= v->n);
+	assert(v != nil && v->elsz > 0 && n >= 0 && n < v->n);
 	memset((uchar *)v->p + n * v->elsz, 0, v->elsz);
+	if(n < v->firstempty)
+		v->firstempty = n;
 }
 
 /* assumes that zeroed element means empty; could fill with
