@@ -18,6 +18,7 @@ typedef struct Team Team;
 typedef struct Cbuf Cbuf;
 typedef struct Msg Msg;
 typedef struct Vector Vector;
+typedef struct QNode QNode;
 
 enum{
 	Nresource = 3,
@@ -44,6 +45,17 @@ struct Vector{
 	ulong bufsz;
 	ulong totsz;
 	int firstempty;
+};
+
+struct QNode{
+	QNode *left;
+	QNode *right;
+	QNode *up;
+	QNode *down;
+	void *aux;
+
+	QNode *prev;
+	QNode *next;
 };
 
 struct Pairheap{
