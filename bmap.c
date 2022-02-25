@@ -5,7 +5,7 @@
 #include "fns.h"
 
 enum{
-	Nmaxsize = 4,
+	Nmaxsize = 4*4,	/* FIXME: seems like a shitty assumption to make */
 	Npad = 1,
 };
 
@@ -93,6 +93,7 @@ breduce(u64int *b, int Δb, int ofs, Point sz, Point Δsz, int left)
 	int i, j;
 	u64int u, m;
 
+	memset(row, 0xfe, sizeof row);
 	m = (1 << sz.x - 1) - 1;
 	if(left){
 		ofs = 64 - sz.x - Δsz.x - ofs;
@@ -100,6 +101,7 @@ breduce(u64int *b, int Δb, int ofs, Point sz, Point Δsz, int left)
 	}
 	m = ~m;
 	for(i=0; i<sz.y+Δsz.y; i++, b+=Δb){
+		assert(i < nelem(row));
 		u = b[0];
 		if(ofs > 0){
 			if(left){
