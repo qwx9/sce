@@ -2,10 +2,12 @@
 BIN=$home/bin/$objtype
 TARG=sce
 OFILES=\
+	a∗.$O\
 	bmap.$O\
 	com.$O\
 	drw.$O\
 	fs.$O\
+	jpsb.$O\
 	map.$O\
 	net.$O\
 	path.$O\

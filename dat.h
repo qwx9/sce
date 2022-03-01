@@ -38,6 +38,8 @@ enum{
 	Pixelshift = 16 - 3,
 };
 
+#define SQRT2 1.4142135623730951
+
 struct Vector{
 	void *p;
 	ulong n;

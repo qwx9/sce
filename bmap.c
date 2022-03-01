@@ -15,6 +15,36 @@ static int bmapwidth, bmapheight, rbmapwidth, rbmapheight;
 static uchar ffstab[256];
 
 int
+isblocked(Point p, Obj *o)
+{
+	u64int *row;
+
+	if(o->f & Fair)
+		return 0;
+	row = bload(p, Pt(o->w, o->h), ZP, 0, 0);
+	return (*row & 1ULL << 63) != 0;
+}
+
+void
+markmobj(Mobj *mo, int set)
+{
+	Point sz;
+
+	if(mo->o->f & Fair)
+		return;
+	sz = Pt(mo->o->w, mo->o->h);
+/*
+	if((mo->sub.x & Submask) != 0 && mo->x != ((mo->sub.x>>Pixelshift) + 1) / Nodesz)
+		sz.x++;
+	if((mo->sub.y & Submask) != 0 && mo->y != ((mo->sub.y>>Pixelshift) + 1) / Nodesz)
+		sz.y++;
+*/
+	sz.x += (mo->sub.x & Submask) != 0 && mo->x != mo->sub.x + (1<<Pixelshift) >> Subshift;
+	sz.y += (mo->sub.y & Submask) != 0 && mo->y != mo->sub.y + (1<<Pixelshift) >> Subshift;
+	bset(mo->Point, sz, set);
+}
+
+int
 lsb(uvlong v)
 {
 	int c;

@@ -34,6 +34,45 @@ snaptomapgrid(Mobj *mo)
 	markmobj(mo, 1);
 }
 
+int
+isnextto(Mobj *mo, Mobj *tgt)
+{
+	Rectangle r1, r2;
+
+	if(tgt == nil)
+		return 0;
+	r1.min = mo->Point;
+	r1.max = addpt(r1.min, Pt(mo->o->w, mo->o->h));
+	r2.min = tgt->Point;
+	r2.max = addpt(r2.min, Pt(tgt->o->w, tgt->o->h));
+	return rectXrect(insetrect(r1, -1), r2);
+}
+
+Mobj *
+unitat(Point p)
+{
+	Point mp;
+	Rectangle r, mr;
+	Tile *t;
+	Mobjl *ml;
+	Mobj *mo;
+
+	mp = divpt(p, Node2Tile);
+	r = Rpt(subpt(mp, Pt(4, 4)), mp);
+	for(; mp.y>=r.min.y; mp.y--){
+		mp.x = r.max.x;
+		t = tilemap + mp.y * tilemapwidth + mp.x;
+		for(; mp.x>=r.min.x; mp.x--, t--)
+			for(ml=t->ml.l; ml!=&t->ml; ml=ml->l){
+				mo = ml->mo;
+				mr = Rect(mo->x, mo->y, mo->x+mo->o->w, mo->y+mo->o->h);
+				if(ptinrect(p, mr))
+					return mo;
+			}
+	}
+	return nil;
+}
+
 Tile *
 tilepos(Point p)
 {

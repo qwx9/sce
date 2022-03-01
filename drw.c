@@ -494,7 +494,7 @@ initdrw(void)
 {
 	Drawlist *dl;
 
-	if(initdraw(nil, nil, "path") < 0)
+	if(initdraw(nil, nil, progname) < 0)
 		sysfatal("initdraw: %r");
 	newvec(&vis, 32, sizeof(Mobj*));
 	for(dl=drawlist; dl<drawlist+DLend; dl++){
