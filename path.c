@@ -75,64 +75,18 @@ directpath(Mobj *mo, Node *a, Node *g)
 	pp->step = (Point *)pp->moves.p + pp->moves.n - 1;
 }
 
-/* FIXME: use center of mobj if any instead of upper left corner
- * no need for any of this crap: if target is a mobj, set goal to
- * its center, done */
-/* FIXME: completely broken */
 void
 setgoal(Mobj *mo, Point *gp, Mobj *block)
 {
-	int e;
-	double Δ, Δ´;
-	Point p, g;
-	Node *n1, *n2, *gn;
+	Point p;
 
-	if(mo->o->f & Fair || block == nil){
+	if(mo->o->f & Fair || block == nil)
 		mo->path.blocked = 0;
+	if(block == nil)
 		return;
-	}
-	g = *gp;
-	mo->path.blocked = 1;
-	dprint("%M setgoal: moving goal %P in block %#p ", mo, g, block);
-	gn = map + g.y * mapwidth + g.x;
-	gn->Point = g;
-	Δ = 0x7ffffff;
-	p = block->Point;
-	n1 = map + p.y * mapwidth + p.x;
-	n2 = n1 + (block->o->h - 1) * mapwidth;
-	for(e=p.x+block->o->w; p.x<e; p.x++, n1++, n2++){
-		n1->Point = p;
-		Δ´ = octdist(gn->Point, n1->Point);
-		if(Δ´ < Δ){
-			Δ = Δ´;
-			g = p;
-		}
-		n2->Point = addpt(p, Pt(0, block->o->h-1));
-		Δ´ = octdist(gn->Point, n2->Point);
-		if(Δ´ < Δ){
-			Δ = Δ´;
-			g = n2->Point;
-		}
-	}
-	p = addpt(block->Point, Pt(0,1));
-	n1 = map + p.y * mapwidth + p.x;
-	n2 = n1 + block->o->w - 1;
-	for(e=p.y+block->o->h-2; p.y<e; p.y++, n1+=mapwidth, n2+=mapwidth){
-		n1->Point = p;
-		Δ´ = octdist(gn->Point, n1->Point);
-		if(Δ´ < Δ){
-			Δ = Δ´;
-			g = p;
-		}
-		n2->Point = addpt(p, Pt(block->o->w-1, 0));
-		Δ´ = octdist(gn->Point, n2->Point);
-		if(Δ´ < Δ){
-			Δ = Δ´;
-			g = n2->Point;
-		}
-	}
-	dprint("to %P\n", g);
-	*gp = g;
+	p = addpt(block->Point, divpt(block->o->Size, 2));
+	dprint("%M setgoal: moving goal from %P to %P\n", mo, *gp, p);
+	*gp = p;
 }
 
 /* FIXME: fmt for Nodes or w/e */

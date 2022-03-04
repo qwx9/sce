@@ -40,7 +40,7 @@ a∗backtrack(Mobj *mo, Node *b, Node *a)
 }
 
 static Node **
-successors(Mobj *mo, Node *n, Node*)
+a∗successors(Mobj *mo, Node *n, Node*)
 {
 	static Node *dir[8+1];
 	static dtab[2*(nelem(dir)-1)]={
@@ -151,6 +151,7 @@ a∗findpath(Mobj *mo, Node *a, Node *b)
 		dprint("%M a∗findpath: jps pathfinding failed but plain a∗ found the goal\n", mo);
 		nearest = b;
 	}
-	m = a∗(mo, a, nearest, successors);
+	/* m( */
+	m = a∗(mo, a, nearest, a∗successors);
 	return m == b ? b : nearest;
 }

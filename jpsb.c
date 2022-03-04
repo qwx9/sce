@@ -245,6 +245,7 @@ neighbors(int x, int y, int w, int h)
 	return (row[2] & 7) << 6 | (row[1] & 7) << 3 | row[0] & 7;
 }
 
+/* FIXME: this is super broken (see notes + sshots) */
 Node **
 jpsbsuccessors(Mobj *mo, Node *n, Node *goal)
 {
