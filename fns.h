@@ -68,7 +68,7 @@ int	spawnresource(Obj*, Point, int);
 void	nukequeue(Pairheap**);
 Pairheap*	popqueue(Pairheap**);
 void	decreasekey(Pairheap*, double, Pairheap**);
-void	pushqueue(Node*, Pairheap**);
+Pairheap*	pushqueue(Node*, Pairheap**);
 int	lsb(uvlong);
 int	msb(uvlong);
 u64int*	baddr(Point);
